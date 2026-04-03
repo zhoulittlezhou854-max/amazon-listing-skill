@@ -219,6 +219,44 @@ def generate_title(preprocessed_data: PreprocessedData,
     scenes = writing_policy.get('scene_priority', [])
     scene_word = scenes[0] if scenes else "户外运动"
 
+    # 德语翻译映射
+    if language == "German":
+        # 翻译核心能力
+        capability_translation = {
+            "双屏幕": "Dual Screen",
+            "EIS防抖": "EIS Bildstabilisierung",
+            "防抖": "Bildstabilisierung",
+            "WiFi连接": "WiFi Verbindung",
+            "防水": "Wasserdicht",
+            "4K录像": "4K Aufnahme",
+            "高清录像": "HD Aufnahme"
+        }
+        # 翻译场景词
+        scene_translation = {
+            "骑行记录": "Radfahren Aufnahme",
+            "户外运动": "Outdoor Sport",
+            "水下探索": "Unterwasser Erkundung",
+            "旅行记录": "Reiseaufnahme",
+            "运动训练": "Sporttraining",
+            "家庭使用": "Familiengebrauch"
+        }
+
+        # 翻译核心能力
+        translated_capabilities = []
+        for cap in core_capabilities:
+            translated = capability_translation.get(cap, cap)
+            # 如果未找到直接映射，尝试部分匹配
+            if translated == cap:
+                for key, value in capability_translation.items():
+                    if key in cap:
+                        translated = cap.replace(key, value)
+                        break
+            translated_capabilities.append(translated)
+        core_capabilities = translated_capabilities
+
+        # 翻译场景词
+        scene_word = scene_translation.get(scene_word, scene_word)
+
     # 选择模板
     templates = TITLE_TEMPLATES.get(language, TITLE_TEMPLATES["English"])
     template = random.choice(templates)
