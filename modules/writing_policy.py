@@ -262,7 +262,7 @@ def create_capability_scene_bindings(capabilities: List[str], prioritized_scenes
         })
 
     # 确保三个关键场景都有绑定
-    target_scenes = ["骑行记录", "水下探索", "旅行记录"]
+    target_scenes = ["cycling_recording", "underwater_exploration", "travel_documentation"]
     bound_scenes = set()
     for binding in bindings:
         bound_scenes.update(binding.get("allowed_scenes", []))
@@ -276,21 +276,21 @@ def create_capability_scene_bindings(capabilities: List[str], prioritized_scenes
             capability = None
             binding_type = "used_for_func"
 
-            if scene == "水下探索":
+            if scene == "underwater_exploration":
                 if attr_data.get('waterproof_depth'):
                     capability = "防水"
                     binding_type = "environmental_feature"
                 elif attr_data.get('video_resolution'):
                     capability = "高清录像"
                     binding_type = "performance_feature"
-            elif scene == "骑行记录":
+            elif scene == "cycling_recording":
                 if any('防抖' in cap for cap in capabilities):
                     # 已经可能有防抖绑定
                     continue
                 elif attr_data.get('image_stabilization'):
                     capability = "防抖"
                     binding_type = "performance_feature"
-            elif scene == "旅行记录":
+            elif scene == "travel_documentation":
                 if attr_data.get('video_resolution'):
                     capability = "高清录像"
                     binding_type = "performance_feature"
@@ -304,7 +304,7 @@ def create_capability_scene_bindings(capabilities: List[str], prioritized_scenes
                     "binding_type": binding_type,
                     "allowed_scenes": [scene],
                     "forbidden_scenes": [],
-                    "usage_notes": f"可在{scene}场景中使用"
+                    "usage_notes": f"Used in {scene} scenarios"
                 })
 
     return bindings
