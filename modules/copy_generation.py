@@ -151,6 +151,15 @@ BOUNDARY_STATEMENTS = {
     ]
 }
 
+DESCRIPTION_CLOSING_STATEMENTS = {
+    "English": "Buy now and start capturing your moments!",
+    "German": "Jetzt kaufen und Ihre Aufnahmeerlebnisse beginnen!",
+    "French": "Achetez maintenant et commencez à capturer vos moments!",
+    "Spanish": "¡Compra ahora y comienza a capturar tus momentos!",
+    "Italian": "Acquista ora e inizia a catturare i tuoi momenti!",
+    "Chinese": "立即购买，开启您的拍摄之旅！"
+}
+
 # 描述模板
 DESCRIPTION_TEMPLATES = {
     "Chinese": """{brand} {product_name} 专为{scene}设计，带来专业级{core_capability}体验。{selling_points}
