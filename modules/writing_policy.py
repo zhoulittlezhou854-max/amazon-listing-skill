@@ -171,7 +171,7 @@ def extract_scenes_from_keywords(keyword_data: Any, language: str = "English") -
 
 def prioritize_scenes(scenes: List[str], review_data: Any, aba_data: Any) -> List[str]:
     """
-    根据评论和ABA数据对场景进行优先级排序
+    根据评论和ABA数据对场景进行优先级排序 (English labels)
     """
     if not scenes:
         return ACTION_CAMERA_SCENES[:5]
@@ -190,11 +190,11 @@ def prioritize_scenes(scenes: List[str], review_data: Any, aba_data: Any) -> Lis
             for scene in scenes:
                 # 简单关键词匹配
                 scene_keywords = {
-                    '户外运动': ['户外', '运动', 'outside', 'sport'],
-                    '骑行记录': ['骑行', '自行车', 'biking', 'bicycle'],
-                    '水下探索': ['水下', '游泳', '潜水', 'underwater', 'swim'],
-                    '旅行记录': ['旅行', '旅游', 'travel', 'trip'],
-                    '家庭使用': ['家庭', '孩子', '家庭', 'family', 'kid']
+                    'outdoor_sports': ['户外', '运动', 'outside', 'sport'],
+                    'cycling_recording': ['骑行', '自行车', 'biking', 'bicycle'],
+                    'underwater_exploration': ['水下', '游泳', '潜水', 'underwater', 'swim'],
+                    'travel_documentation': ['旅行', '旅游', 'travel', 'trip'],
+                    'family_use': ['家庭', '孩子', 'family', 'kid']
                 }
 
                 if scene in scene_keywords:
@@ -210,11 +210,11 @@ def prioritize_scenes(scenes: List[str], review_data: Any, aba_data: Any) -> Lis
 
             for scene in scenes:
                 scene_keywords = {
-                    '户外运动': ['outdoor', 'sports'],
-                    '骑行记录': ['biking', 'bicycle'],
-                    '水下探索': ['underwater', 'waterproof'],
-                    '旅行记录': ['travel', 'trip'],
-                    '家庭使用': ['family', 'home']
+                    'outdoor_sports': ['outdoor', 'sports'],
+                    'cycling_recording': ['biking', 'bicycle'],
+                    'underwater_exploration': ['underwater', 'waterproof'],
+                    'travel_documentation': ['travel', 'trip'],
+                    'family_use': ['family', 'home']
                 }
 
                 if scene in scene_keywords:
