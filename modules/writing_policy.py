@@ -422,20 +422,6 @@ def generate_policy(preprocessed_data: PreprocessedData,
         core_selling_points, prioritized_scenes, preprocessed_data.attribute_data
     )
 
-
-def _get_tone_hint(language: str) -> str:
-    """根据目标语言返回语气风格提示 (供 Node 4 生成文案时参考)"""
-    tone_hints = {
-        "Chinese": "direct_professional",
-        "English": "casual_informative",
-        "German": "technical_direct",
-        "French": "elegant_descriptive",
-        "Italian": "passionate_creative",
-        "Spanish": "vibrant_engaging",
-        "Japanese": "polite_detailed"
-    }
-    return tone_hints.get(language, "casual_informative")
-
     # 3. 识别FAQ only能力
     faq_only_capabilities = identify_faq_only_capabilities(core_selling_points, preprocessed_data.attribute_data)
 
