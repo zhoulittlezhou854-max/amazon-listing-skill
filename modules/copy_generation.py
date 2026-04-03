@@ -1553,31 +1553,23 @@ def generate_multilingual_copy(preprocessed_data: PreprocessedData,
     bullets_en = generate_bullet_points(preprocessed_data, writing_policy, "English",
                                         tiered_keywords, keyword_allocation_strategy)
 
-    # 翻译 bullets 到目标语言
+    # 翻译 bullets 到目标语言 (短语优先替换)
     bullets = []
     for bullet in bullets_en:
-        # 简单翻译：替换已知的能力词和场景词
-        bullet_translated = bullet
-        for eng_cap, trans_map in CAPABILITY_TRANSLATIONS.get(target_language, {}).items():
-            bullet_translated = bullet_translated.replace(eng_cap, trans_map)
-        for eng_scene, trans_map in SCENE_TRANSLATIONS.get(target_language, {}).items():
-            bullet_translated = bullet_translated.replace(eng_scene, trans_map)
+        bullet_translated = _translate_text_to_language(bullet, target_language)
 
-        # 如果是 SYNTHETIC_COLD_START 且没有翻译发生，标记 [SYNTH]
+        # 如果是 SYNTHETIC_COLD_START 且有未被翻译的英文词，添加 [SYNTH]
         if data_mode == "SYNTHETIC_COLD_START" and bullet_translated == bullet:
-            # 检查是否包含需要翻译的词
-            if any(cap in bullet for cap in ["action camera", "stabilization", "waterproof", "4K"]):
-                bullet_translated = bullet_translated.replace(
-                    "action camera", f"[SYNTH]_action camera"
-                )
+            # 尝试找出未翻译的关键能力词并标记
+            for cap in ["action camera", "stabilization", "waterproof", "4K", "recording"]:
+                if cap in bullet:
+                    bullet_translated = bullet_translated.replace(cap, f"[SYNTH]_{cap}")
+                    break
         bullets.append(bullet_translated)
 
     # 生成描述
     description_en = generate_description(preprocessed_data, writing_policy, title, bullets_en, "English")
-    # 简单翻译描述
-    description = description_en
-    for eng_cap, trans in CAPABILITY_TRANSLATIONS.get(target_language, {}).items():
-        description = description.replace(eng_cap, trans)
+    description = _translate_text_to_language(description_en, target_language)
 
     # 生成 FAQ
     faq = generate_faq(preprocessed_data, writing_policy, target_language)
