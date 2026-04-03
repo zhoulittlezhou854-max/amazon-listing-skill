@@ -1096,6 +1096,15 @@ CAPABILITY_TRANSLATIONS = {
         "多场景": "multifunktional",
     },
     "French": {
+        # --- English phrases first (phrase-match priority) ---
+        "4K recording": "enregistrement 4K",
+        "HD recording": "enregistrement HD",
+        "advanced stabilization technology": "technologie de stabilisation avancée",
+        "stabilization technology": "technologie de stabilisation",
+        "action camera": "caméra d'action",
+        "waterproof action camera": "caméra d'action waterproof",
+        "sports camera": "caméra sportive",
+        "versatile design": "conception polyvalente",
         # --- 4K/高清录像 ---
         "4K录像": "enregistrement 4K",
         "4K video": "vidéo 4K",
