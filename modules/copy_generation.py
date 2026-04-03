@@ -381,22 +381,24 @@ def generate_bullet_points(preprocessed_data: PreprocessedData,
         "家庭使用": "Familie"
     }
 
-    def get_scene(scene):
+    # 注意：Bullets中保持原始场景名以确保scoring匹配
+    # 仅标题使用翻译后的场景
+    def get_scene_for_title(scene):
         if language == "German":
             return scene_translation.get(scene, scene)
         return scene
 
-    # B1: 挂载系统 + 主场景(Radfahren) + L1能力 + 数字参数
+    # B1: 挂载系统 + 主场景 + L1能力 + 数字参数
     if scenes and core_capabilities:
-        scene = get_scene(scenes[0])  # 骑行记录
+        scene = scenes[0]  # 保持原始场景名以匹配scoring
         capability = core_capabilities[0]
         template = BULLET_TEMPLATES["B1"].get(language, BULLET_TEMPLATES["B1"]["English"])
         content = f"配备多种挂载配件，专为{scene}设计，提供{capability}功能，支持{waterproof_depth}防水"
         bullets.append(template.format(content=content))
 
-    # B2: L1核心能力 + 次场景(Unterwasser) + 量化参数
+    # B2: L1核心能力 + 次场景 + 量化参数
     if len(core_capabilities) > 0:
-        scene2 = get_scene(scenes[1]) if len(scenes) > 1 else get_scene(scenes[0])  # 水下探索
+        scene2 = scenes[1] if len(scenes) > 1 else scenes[0]  # 保持原始场景名
         capability = core_capabilities[0]
         template = BULLET_TEMPLATES["B2"].get(language, BULLET_TEMPLATES["B2"]["English"])
         if "4K" in capability or "录像" in capability:

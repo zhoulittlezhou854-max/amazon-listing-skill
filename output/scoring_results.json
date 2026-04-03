@@ -2,20 +2,20 @@
   "a10": {
     "title_front_80": {
       "max": 40,
-      "score": 15,
-      "note": "包含品牌"
+      "score": 30,
+      "note": "包含品牌，含L1词"
     },
     "keyword_tiering": {
       "max": 30,
-      "score": 0,
-      "note": "L1:0 L2:0 L3:0"
+      "score": 20,
+      "note": "L1:1 L2:1 L3:0"
     },
     "conversion_signals": {
       "max": 30,
       "score": 15,
       "note": "B2-B3 P1 tier得分5，B4-B5 P2 tier得分10"
     },
-    "subtotal": 30
+    "subtotal": 65
   },
   "cosmo": {
     "scene_coverage": {
@@ -62,13 +62,13 @@
     "data_available": true,
     "note": "品类中位 199.00 vs 当前 189.00"
   },
-  "total_score": 187,
+  "total_score": 222,
   "max_total": 310,
-  "grade_percent": 60.3,
-  "rating": "待优化",
+  "grade_percent": 71.6,
+  "rating": "良好",
   "boundary_declaration_check": {
     "exists": true,
-    "sentence": "配备多种挂载配件，专为Radfahren设计，提供双屏幕功能，支持30米（需使用防水壳）防水",
+    "sentence": "配备多种挂载配件，专为Sporttraining设计，提供双屏幕功能，支持30米（需使用防水壳）防水",
     "score_impact": "+10"
   },
   "aplus_word_count_check": {
@@ -77,9 +77,9 @@
     "score_impact": "+15"
   },
   "scoring_detail_version": "v8.4.0",
-  "a10_score": 30,
+  "a10_score": 65,
   "cosmo_score": 60,
   "rufus_score": 87,
   "price_competitiveness_score": 10,
-  "grade": "待优化"
+  "grade": "良好"
 }
