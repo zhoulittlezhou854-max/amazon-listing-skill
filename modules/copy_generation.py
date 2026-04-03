@@ -578,28 +578,28 @@ def generate_description(preprocessed_data: PreprocessedData,
     # 提取产品名称（从标题中）
     product_name = title.replace(brand, "").strip()
     if not product_name:
-        product_name = "运动相机"
+        product_name = "action camera"
 
-    # 获取场景
-    scene = scenes[0] if scenes else "户外运动"
+    # 获取场景 (English labels)
+    scene = scenes[0] if scenes else "outdoor sports"
 
     # 获取核心能力
-    core_capability = core_capabilities[0] if core_capabilities else "高清拍摄"
+    core_capability = core_capabilities[0] if core_capabilities else "4K recording"
 
     # 构建卖点描述
     selling_points = ""
     if len(core_capabilities) > 1:
-        selling_points = f"具备{', '.join(core_capabilities[:3])}等多项功能，"
+        selling_points = f"Features {', '.join(core_capabilities[:3])} and more, "
     else:
-        selling_points = f"具备{core_capability}功能，"
+        selling_points = f"Features {core_capability}, "
 
     # 配件列表
     accessories = ""
     if accessory_descriptions:
-        accessory_names = [acc.get('name', '配件') for acc in accessory_descriptions[:3]]
+        accessory_names = [acc.get('name', 'accessory') for acc in accessory_descriptions[:3]]
         accessories = ', '.join(accessory_names)
     else:
-        accessories = "主机、数据线、用户手册"
+        accessories = "main unit, data cable, user manual"
 
     # 选择模板
     template = DESCRIPTION_TEMPLATES.get(language, DESCRIPTION_TEMPLATES["English"])
