@@ -451,6 +451,101 @@ def generate_policy(preprocessed_data: PreprocessedData,
     return policy
 
 
+def generate_default_4scene_policy(core_selling_points: List[str], language: str = "Chinese") -> Dict[str, Any]:
+    """
+    生成默认的4场景策略模板 (推荐默认配置)
+
+    Args:
+        core_selling_points: 核心卖点列表
+        language: 目标语言
+
+    Returns:
+        4场景默认writing_policy字典
+    """
+    # 4个固定场景
+    four_scenes = ["骑行记录", "水下探索", "旅行记录", "家庭使用"]
+
+    # 根据语言调整bullet slot规则
+    bullet_slot_rules = DEFAULT_BULLET_SLOT_RULES.copy()
+    if language != "Chinese":
+        bullet_slot_rules = {
+            "B1": "Mounting system + Primary scene + P0 capability",
+            "B2": "P0 core capability + Quantified parameters",
+            "B3": "P1 competitor pain point comparison + Scene keywords",
+            "B4": "P1/P2 capability + Boundary statement",
+            "B5": "P2 warranty/after-sale/compatibility"
+        }
+
+    # 为每个核心卖点创建场景绑定
+    capability_scene_bindings = []
+    for capability in core_selling_points:
+        binding_type = "used_for_func"
+        if any(keyword in capability.lower() for keyword in ['防抖', 'stabilization']):
+            binding_type = "performance_feature"
+        elif any(keyword in capability.lower() for keyword in ['防水', 'waterproof']):
+            binding_type = "environmental_feature"
+        elif any(keyword in capability.lower() for keyword in ['连接', 'connectivity', 'wifi']):
+            binding_type = "connectivity_feature"
+
+        capability_scene_bindings.append({
+            "capability": capability,
+            "binding_type": binding_type,
+            "allowed_scenes": four_scenes[:3],  # 取前3个场景
+            "forbidden_scenes": [],
+            "usage_notes": f"可在{', '.join(four_scenes[:2])}等场景中使用"
+        })
+
+    # 确保4个场景都有绑定
+    bound_scenes = set()
+    for binding in capability_scene_bindings:
+        bound_scenes.update(binding.get("allowed_scenes", []))
+
+    for scene in four_scenes:
+        if scene not in bound_scenes:
+            capability = None
+            binding_type = "used_for_func"
+            if scene == "骑行记录":
+                capability = "防抖"
+                binding_type = "performance_feature"
+            elif scene == "水下探索":
+                capability = "防水"
+                binding_type = "environmental_feature"
+            elif scene == "旅行记录":
+                capability = "高清录像"
+                binding_type = "performance_feature"
+            elif scene == "家庭使用":
+                capability = "WiFi连接"
+                binding_type = "connectivity_feature"
+
+            if capability:
+                capability_scene_bindings.append({
+                    "capability": capability,
+                    "binding_type": binding_type,
+                    "allowed_scenes": [scene],
+                    "forbidden_scenes": [],
+                    "usage_notes": f"可在{scene}场景中使用"
+                })
+
+    policy = {
+        "scene_priority": four_scenes,
+        "keyword_allocation_strategy": "balanced",
+        "capability_scene_bindings": capability_scene_bindings,
+        "faq_only_capabilities": FAQ_ONLY_CAPABILITIES[:3],  # 限制为3个
+        "forbidden_pairs": DEFAULT_FORBIDDEN_PAIRS[:2],  # 限制为2个
+        "bullet_slot_rules": bullet_slot_rules,
+        "language": language,
+        "metadata": {
+            "core_selling_points_count": len(core_selling_points),
+            "scenes_count": len(four_scenes),
+            "bindings_count": len(capability_scene_bindings),
+            "is_default_4scene_template": True,
+            "generated_at": ""
+        }
+    }
+
+    return policy
+
+
 def save_policy_to_file(policy: Dict[str, Any], filepath: str):
     """保存policy到文件"""
     with open(filepath, 'w', encoding='utf-8') as f:
