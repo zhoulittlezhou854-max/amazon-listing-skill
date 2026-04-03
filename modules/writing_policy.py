@@ -258,7 +258,7 @@ def create_capability_scene_bindings(capabilities: List[str], prioritized_scenes
             "binding_type": binding_type,
             "allowed_scenes": allowed_scenes,
             "forbidden_scenes": [],  # 可基于规则添加
-            "usage_notes": f"可在{', '.join(allowed_scenes[:2])}等场景中使用" if allowed_scenes else "无特定场景限制"
+            "usage_notes": f"Used in {', '.join(allowed_scenes[:2])} scenarios" if allowed_scenes else "No specific scene restrictions"
         })
 
     # 确保三个关键场景都有绑定
