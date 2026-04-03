@@ -1540,7 +1540,9 @@ def _build_english_title_structure(preprocessed_data: Any, writing_policy: Dict[
 
     # 获取 Profile 中的 hero_spec
     profile = writing_policy.get("product_profile", {})
-    hero_spec = profile.get("hero_spec", "action camera")
+    hero_spec_raw = profile.get("hero_spec", "action camera")
+    # 标准化 hero_spec（可能是中文）→ English
+    hero_spec = _normalize_to_english(hero_spec_raw)
 
     # 获取场景
     scenes_en = profile.get("primary_use_cases", ["outdoor_sports", "cycling_recording"])
