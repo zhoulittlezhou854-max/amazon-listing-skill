@@ -1,0 +1,702 @@
+{
+  "baseline": {
+    "metrics": {
+      "total_score": 248,
+      "a10_total": 75,
+      "cosmo_total": 76,
+      "rufus_total": 87,
+      "price_score": 10,
+      "title_front_80": 30,
+      "keyword_tiering": 20,
+      "conversion_signals": 25,
+      "scene_coverage": 26,
+      "capability_binding": 30,
+      "audience_tags": 20
+    },
+    "scores": {
+      "a10": {
+        "title_front_80": {
+          "max": 40,
+          "score": 30,
+          "note": "包含品牌，含L1词"
+        },
+        "keyword_tiering": {
+          "max": 30,
+          "score": 20,
+          "note": "L1:1 L2:1 L3:0"
+        },
+        "conversion_signals": {
+          "max": 30,
+          "score": 25,
+          "note": "B1符合P0 tier，B2-B3 P1 tier得分5，B4-B5 P2 tier得分10"
+        },
+        "subtotal": 75
+      },
+      "cosmo": {
+        "scene_coverage": {
+          "max": 40,
+          "score": 26,
+          "note": "覆盖 4/6 个场景"
+        },
+        "capability_scene_binding": {
+          "max": 40,
+          "score": 30,
+          "note": "满足 3/4 条绑定"
+        },
+        "audience_tags": {
+          "max": 20,
+          "score": 20,
+          "note": "触达人群: 骑行, 旅行, 家庭, 户外"
+        },
+        "subtotal": 76
+      },
+      "rufus": {
+        "fact_completeness": {
+          "max": 40,
+          "score": 33,
+          "note": "事实覆盖 5/6 个参数"
+        },
+        "faq_coverage": {
+          "max": 40,
+          "score": 34,
+          "note": "FAQ 数量 5，含数字回答 4"
+        },
+        "conflict_check": {
+          "max": 20,
+          "score": 20,
+          "note": "无冲突"
+        },
+        "subtotal": 87
+      },
+      "price_competitiveness": {
+        "price_median": 199.0,
+        "current_price": 189.0,
+        "max": 10,
+        "score": 10,
+        "range": "定价贴近中位",
+        "data_available": true,
+        "note": "品类中位 199.00 vs 当前 189.00"
+      },
+      "total_score": 248,
+      "max_total": 310,
+      "grade_percent": 80.0,
+      "rating": "良好",
+      "boundary_declaration_check": {
+        "exists": true,
+        "sentence": "配备多种挂载配件，专为旅行记录设计，提供双屏幕功能，支持30米（需使用防水壳）防水",
+        "score_impact": "+10"
+      },
+      "aplus_word_count_check": {
+        "word_count": 517,
+        "meets_minimum": true,
+        "score_impact": "+15"
+      },
+      "scoring_detail_version": "v8.4.0",
+      "a10_score": 75,
+      "cosmo_score": 76,
+      "rufus_score": 87,
+      "price_competitiveness_score": 10,
+      "grade": "良好"
+    }
+  },
+  "scene_v1": {
+    "metrics": {
+      "total_score": 248,
+      "a10_total": 75,
+      "cosmo_total": 76,
+      "rufus_total": 87,
+      "price_score": 10,
+      "title_front_80": 30,
+      "keyword_tiering": 20,
+      "conversion_signals": 25,
+      "scene_coverage": 26,
+      "capability_binding": 30,
+      "audience_tags": 20
+    },
+    "scores": {
+      "a10": {
+        "title_front_80": {
+          "max": 40,
+          "score": 30,
+          "note": "包含品牌，含L1词"
+        },
+        "keyword_tiering": {
+          "max": 30,
+          "score": 20,
+          "note": "L1:1 L2:1 L3:0"
+        },
+        "conversion_signals": {
+          "max": 30,
+          "score": 25,
+          "note": "B1符合P0 tier，B2-B3 P1 tier得分5，B4-B5 P2 tier得分10"
+        },
+        "subtotal": 75
+      },
+      "cosmo": {
+        "scene_coverage": {
+          "max": 40,
+          "score": 26,
+          "note": "覆盖 4/6 个场景"
+        },
+        "capability_scene_binding": {
+          "max": 40,
+          "score": 30,
+          "note": "满足 3/4 条绑定"
+        },
+        "audience_tags": {
+          "max": 20,
+          "score": 20,
+          "note": "触达人群: 骑行, 旅行, 家庭, 户外"
+        },
+        "subtotal": 76
+      },
+      "rufus": {
+        "fact_completeness": {
+          "max": 40,
+          "score": 33,
+          "note": "事实覆盖 5/6 个参数"
+        },
+        "faq_coverage": {
+          "max": 40,
+          "score": 34,
+          "note": "FAQ 数量 5，含数字回答 4"
+        },
+        "conflict_check": {
+          "max": 20,
+          "score": 20,
+          "note": "无冲突"
+        },
+        "subtotal": 87
+      },
+      "price_competitiveness": {
+        "price_median": 199.0,
+        "current_price": 189.0,
+        "max": 10,
+        "score": 10,
+        "range": "定价贴近中位",
+        "data_available": true,
+        "note": "品类中位 199.00 vs 当前 189.00"
+      },
+      "total_score": 248,
+      "max_total": 310,
+      "grade_percent": 80.0,
+      "rating": "良好",
+      "boundary_declaration_check": {
+        "exists": true,
+        "sentence": "配备多种挂载配件，专为旅行记录设计，提供双屏幕功能，支持30米（需使用防水壳）防水",
+        "score_impact": "+10"
+      },
+      "aplus_word_count_check": {
+        "word_count": 517,
+        "meets_minimum": true,
+        "score_impact": "+15"
+      },
+      "scoring_detail_version": "v8.4.0",
+      "a10_score": 75,
+      "cosmo_score": 76,
+      "rufus_score": 87,
+      "price_competitiveness_score": 10,
+      "grade": "良好"
+    }
+  },
+  "scene_v2": {
+    "metrics": {
+      "total_score": 248,
+      "a10_total": 75,
+      "cosmo_total": 76,
+      "rufus_total": 87,
+      "price_score": 10,
+      "title_front_80": 30,
+      "keyword_tiering": 20,
+      "conversion_signals": 25,
+      "scene_coverage": 26,
+      "capability_binding": 30,
+      "audience_tags": 20
+    },
+    "scores": {
+      "a10": {
+        "title_front_80": {
+          "max": 40,
+          "score": 30,
+          "note": "包含品牌，含L1词"
+        },
+        "keyword_tiering": {
+          "max": 30,
+          "score": 20,
+          "note": "L1:1 L2:1 L3:0"
+        },
+        "conversion_signals": {
+          "max": 30,
+          "score": 25,
+          "note": "B1符合P0 tier，B2-B3 P1 tier得分5，B4-B5 P2 tier得分10"
+        },
+        "subtotal": 75
+      },
+      "cosmo": {
+        "scene_coverage": {
+          "max": 40,
+          "score": 26,
+          "note": "覆盖 4/6 个场景"
+        },
+        "capability_scene_binding": {
+          "max": 40,
+          "score": 30,
+          "note": "满足 3/4 条绑定"
+        },
+        "audience_tags": {
+          "max": 20,
+          "score": 20,
+          "note": "触达人群: 骑行, 旅行, 家庭, 户外"
+        },
+        "subtotal": 76
+      },
+      "rufus": {
+        "fact_completeness": {
+          "max": 40,
+          "score": 33,
+          "note": "事实覆盖 5/6 个参数"
+        },
+        "faq_coverage": {
+          "max": 40,
+          "score": 34,
+          "note": "FAQ 数量 5，含数字回答 4"
+        },
+        "conflict_check": {
+          "max": 20,
+          "score": 20,
+          "note": "无冲突"
+        },
+        "subtotal": 87
+      },
+      "price_competitiveness": {
+        "price_median": 199.0,
+        "current_price": 189.0,
+        "max": 10,
+        "score": 10,
+        "range": "定价贴近中位",
+        "data_available": true,
+        "note": "品类中位 199.00 vs 当前 189.00"
+      },
+      "total_score": 248,
+      "max_total": 310,
+      "grade_percent": 80.0,
+      "rating": "良好",
+      "boundary_declaration_check": {
+        "exists": true,
+        "sentence": "配备多种挂载配件，专为旅行记录设计，提供双屏幕功能，支持30米（需使用防水壳）防水",
+        "score_impact": "+10"
+      },
+      "aplus_word_count_check": {
+        "word_count": 517,
+        "meets_minimum": true,
+        "score_impact": "+15"
+      },
+      "scoring_detail_version": "v8.4.0",
+      "a10_score": 75,
+      "cosmo_score": 76,
+      "rufus_score": 87,
+      "price_competitiveness_score": 10,
+      "grade": "良好"
+    }
+  },
+  "scene_v3": {
+    "metrics": {
+      "total_score": 248,
+      "a10_total": 75,
+      "cosmo_total": 76,
+      "rufus_total": 87,
+      "price_score": 10,
+      "title_front_80": 30,
+      "keyword_tiering": 20,
+      "conversion_signals": 25,
+      "scene_coverage": 26,
+      "capability_binding": 30,
+      "audience_tags": 20
+    },
+    "scores": {
+      "a10": {
+        "title_front_80": {
+          "max": 40,
+          "score": 30,
+          "note": "包含品牌，含L1词"
+        },
+        "keyword_tiering": {
+          "max": 30,
+          "score": 20,
+          "note": "L1:1 L2:1 L3:0"
+        },
+        "conversion_signals": {
+          "max": 30,
+          "score": 25,
+          "note": "B1符合P0 tier，B2-B3 P1 tier得分5，B4-B5 P2 tier得分10"
+        },
+        "subtotal": 75
+      },
+      "cosmo": {
+        "scene_coverage": {
+          "max": 40,
+          "score": 26,
+          "note": "覆盖 4/6 个场景"
+        },
+        "capability_scene_binding": {
+          "max": 40,
+          "score": 30,
+          "note": "满足 3/4 条绑定"
+        },
+        "audience_tags": {
+          "max": 20,
+          "score": 20,
+          "note": "触达人群: 骑行, 旅行, 家庭, 户外"
+        },
+        "subtotal": 76
+      },
+      "rufus": {
+        "fact_completeness": {
+          "max": 40,
+          "score": 33,
+          "note": "事实覆盖 5/6 个参数"
+        },
+        "faq_coverage": {
+          "max": 40,
+          "score": 34,
+          "note": "FAQ 数量 5，含数字回答 4"
+        },
+        "conflict_check": {
+          "max": 20,
+          "score": 20,
+          "note": "无冲突"
+        },
+        "subtotal": 87
+      },
+      "price_competitiveness": {
+        "price_median": 199.0,
+        "current_price": 189.0,
+        "max": 10,
+        "score": 10,
+        "range": "定价贴近中位",
+        "data_available": true,
+        "note": "品类中位 199.00 vs 当前 189.00"
+      },
+      "total_score": 248,
+      "max_total": 310,
+      "grade_percent": 80.0,
+      "rating": "良好",
+      "boundary_declaration_check": {
+        "exists": true,
+        "sentence": "配备多种挂载配件，专为旅行记录设计，提供双屏幕功能，支持30米（需使用防水壳）防水",
+        "score_impact": "+10"
+      },
+      "aplus_word_count_check": {
+        "word_count": 517,
+        "meets_minimum": true,
+        "score_impact": "+15"
+      },
+      "scoring_detail_version": "v8.4.0",
+      "a10_score": 75,
+      "cosmo_score": 76,
+      "rufus_score": 87,
+      "price_competitiveness_score": 10,
+      "grade": "良好"
+    }
+  },
+  "kw_aggressive_l1": {
+    "metrics": {
+      "total_score": 248,
+      "a10_total": 75,
+      "cosmo_total": 76,
+      "rufus_total": 87,
+      "price_score": 10,
+      "title_front_80": 30,
+      "keyword_tiering": 20,
+      "conversion_signals": 25,
+      "scene_coverage": 26,
+      "capability_binding": 30,
+      "audience_tags": 20
+    },
+    "scores": {
+      "a10": {
+        "title_front_80": {
+          "max": 40,
+          "score": 30,
+          "note": "包含品牌，含L1词"
+        },
+        "keyword_tiering": {
+          "max": 30,
+          "score": 20,
+          "note": "L1:1 L2:1 L3:0"
+        },
+        "conversion_signals": {
+          "max": 30,
+          "score": 25,
+          "note": "B1符合P0 tier，B2-B3 P1 tier得分5，B4-B5 P2 tier得分10"
+        },
+        "subtotal": 75
+      },
+      "cosmo": {
+        "scene_coverage": {
+          "max": 40,
+          "score": 26,
+          "note": "覆盖 4/6 个场景"
+        },
+        "capability_scene_binding": {
+          "max": 40,
+          "score": 30,
+          "note": "满足 3/4 条绑定"
+        },
+        "audience_tags": {
+          "max": 20,
+          "score": 20,
+          "note": "触达人群: 骑行, 旅行, 家庭, 户外"
+        },
+        "subtotal": 76
+      },
+      "rufus": {
+        "fact_completeness": {
+          "max": 40,
+          "score": 33,
+          "note": "事实覆盖 5/6 个参数"
+        },
+        "faq_coverage": {
+          "max": 40,
+          "score": 34,
+          "note": "FAQ 数量 5，含数字回答 4"
+        },
+        "conflict_check": {
+          "max": 20,
+          "score": 20,
+          "note": "无冲突"
+        },
+        "subtotal": 87
+      },
+      "price_competitiveness": {
+        "price_median": 199.0,
+        "current_price": 189.0,
+        "max": 10,
+        "score": 10,
+        "range": "定价贴近中位",
+        "data_available": true,
+        "note": "品类中位 199.00 vs 当前 189.00"
+      },
+      "total_score": 248,
+      "max_total": 310,
+      "grade_percent": 80.0,
+      "rating": "良好",
+      "boundary_declaration_check": {
+        "exists": true,
+        "sentence": "配备多种挂载配件，专为旅行记录设计，提供双屏幕功能，支持30米（需使用防水壳）防水",
+        "score_impact": "+10"
+      },
+      "aplus_word_count_check": {
+        "word_count": 517,
+        "meets_minimum": true,
+        "score_impact": "+15"
+      },
+      "scoring_detail_version": "v8.4.0",
+      "a10_score": 75,
+      "cosmo_score": 76,
+      "rufus_score": 87,
+      "price_competitiveness_score": 10,
+      "grade": "良好"
+    }
+  },
+  "kw_l2_focus": {
+    "metrics": {
+      "total_score": 248,
+      "a10_total": 75,
+      "cosmo_total": 76,
+      "rufus_total": 87,
+      "price_score": 10,
+      "title_front_80": 30,
+      "keyword_tiering": 20,
+      "conversion_signals": 25,
+      "scene_coverage": 26,
+      "capability_binding": 30,
+      "audience_tags": 20
+    },
+    "scores": {
+      "a10": {
+        "title_front_80": {
+          "max": 40,
+          "score": 30,
+          "note": "包含品牌，含L1词"
+        },
+        "keyword_tiering": {
+          "max": 30,
+          "score": 20,
+          "note": "L1:1 L2:1 L3:0"
+        },
+        "conversion_signals": {
+          "max": 30,
+          "score": 25,
+          "note": "B1符合P0 tier，B2-B3 P1 tier得分5，B4-B5 P2 tier得分10"
+        },
+        "subtotal": 75
+      },
+      "cosmo": {
+        "scene_coverage": {
+          "max": 40,
+          "score": 26,
+          "note": "覆盖 4/6 个场景"
+        },
+        "capability_scene_binding": {
+          "max": 40,
+          "score": 30,
+          "note": "满足 3/4 条绑定"
+        },
+        "audience_tags": {
+          "max": 20,
+          "score": 20,
+          "note": "触达人群: 骑行, 旅行, 家庭, 户外"
+        },
+        "subtotal": 76
+      },
+      "rufus": {
+        "fact_completeness": {
+          "max": 40,
+          "score": 33,
+          "note": "事实覆盖 5/6 个参数"
+        },
+        "faq_coverage": {
+          "max": 40,
+          "score": 34,
+          "note": "FAQ 数量 5，含数字回答 4"
+        },
+        "conflict_check": {
+          "max": 20,
+          "score": 20,
+          "note": "无冲突"
+        },
+        "subtotal": 87
+      },
+      "price_competitiveness": {
+        "price_median": 199.0,
+        "current_price": 189.0,
+        "max": 10,
+        "score": 10,
+        "range": "定价贴近中位",
+        "data_available": true,
+        "note": "品类中位 199.00 vs 当前 189.00"
+      },
+      "total_score": 248,
+      "max_total": 310,
+      "grade_percent": 80.0,
+      "rating": "良好",
+      "boundary_declaration_check": {
+        "exists": true,
+        "sentence": "配备多种挂载配件，专为旅行记录设计，提供双屏幕功能，支持30米（需使用防水壳）防水",
+        "score_impact": "+10"
+      },
+      "aplus_word_count_check": {
+        "word_count": 517,
+        "meets_minimum": true,
+        "score_impact": "+15"
+      },
+      "scoring_detail_version": "v8.4.0",
+      "a10_score": 75,
+      "cosmo_score": 76,
+      "rufus_score": 87,
+      "price_competitiveness_score": 10,
+      "grade": "良好"
+    }
+  },
+  "kw_conservative": {
+    "metrics": {
+      "total_score": 248,
+      "a10_total": 75,
+      "cosmo_total": 76,
+      "rufus_total": 87,
+      "price_score": 10,
+      "title_front_80": 30,
+      "keyword_tiering": 20,
+      "conversion_signals": 25,
+      "scene_coverage": 26,
+      "capability_binding": 30,
+      "audience_tags": 20
+    },
+    "scores": {
+      "a10": {
+        "title_front_80": {
+          "max": 40,
+          "score": 30,
+          "note": "包含品牌，含L1词"
+        },
+        "keyword_tiering": {
+          "max": 30,
+          "score": 20,
+          "note": "L1:1 L2:1 L3:0"
+        },
+        "conversion_signals": {
+          "max": 30,
+          "score": 25,
+          "note": "B1符合P0 tier，B2-B3 P1 tier得分5，B4-B5 P2 tier得分10"
+        },
+        "subtotal": 75
+      },
+      "cosmo": {
+        "scene_coverage": {
+          "max": 40,
+          "score": 26,
+          "note": "覆盖 4/6 个场景"
+        },
+        "capability_scene_binding": {
+          "max": 40,
+          "score": 30,
+          "note": "满足 3/4 条绑定"
+        },
+        "audience_tags": {
+          "max": 20,
+          "score": 20,
+          "note": "触达人群: 骑行, 旅行, 家庭, 户外"
+        },
+        "subtotal": 76
+      },
+      "rufus": {
+        "fact_completeness": {
+          "max": 40,
+          "score": 33,
+          "note": "事实覆盖 5/6 个参数"
+        },
+        "faq_coverage": {
+          "max": 40,
+          "score": 34,
+          "note": "FAQ 数量 5，含数字回答 4"
+        },
+        "conflict_check": {
+          "max": 20,
+          "score": 20,
+          "note": "无冲突"
+        },
+        "subtotal": 87
+      },
+      "price_competitiveness": {
+        "price_median": 199.0,
+        "current_price": 189.0,
+        "max": 10,
+        "score": 10,
+        "range": "定价贴近中位",
+        "data_available": true,
+        "note": "品类中位 199.00 vs 当前 189.00"
+      },
+      "total_score": 248,
+      "max_total": 310,
+      "grade_percent": 80.0,
+      "rating": "良好",
+      "boundary_declaration_check": {
+        "exists": true,
+        "sentence": "配备多种挂载配件，专为旅行记录设计，提供双屏幕功能，支持30米（需使用防水壳）防水",
+        "score_impact": "+10"
+      },
+      "aplus_word_count_check": {
+        "word_count": 517,
+        "meets_minimum": true,
+        "score_impact": "+15"
+      },
+      "scoring_detail_version": "v8.4.0",
+      "a10_score": 75,
+      "cosmo_score": 76,
+      "rufus_score": 87,
+      "price_competitiveness_score": 10,
+      "grade": "良好"
+    }
+  }
+}
