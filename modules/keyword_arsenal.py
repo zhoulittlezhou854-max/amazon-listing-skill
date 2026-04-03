@@ -34,67 +34,122 @@ def _is_high_conv(row: Dict[str, Any]) -> bool:
     return rate >= 1.5
 
 
-def build_arsenal(preprocessed_data: Any) -> Dict[str, Any]:
-    keyword_rows = getattr(getattr(preprocessed_data, "keyword_data", None), "keywords", []) or []
-    review_insights = getattr(getattr(preprocessed_data, "review_data", None), "insights", []) or []
+def _build_from_real_vocab(real_vocab: Any) -> Tuple[List[Dict[str, Any]], str]:
+    """
+    从真实国家词表构建 reserve_keywords（Priority 1）。
 
-    # 计算百分位阈值
+    Returns:
+        (reserve_keywords_list, source_note)
+    """
+    if not real_vocab or not getattr(real_vocab, "is_available", False):
+        return [], "synthetic"
+
+    top_kw = getattr(real_vocab, "top_keywords", []) or []
+
+    # 计算 tier 阈值
     volumes = []
-    for row in keyword_rows:
-        volume = row.get("search_volume") or row.get("月搜索量") or 0
+    for row in top_kw:
+        vol = row.get("search_volume") or 0
         try:
-            volume = float(volume)
+            vol = float(vol)
         except (TypeError, ValueError):
-            volume = 0
-        if volume > 0:
-            volumes.append(volume)
+            vol = 0
+        if vol > 0:
+            volumes.append(vol)
 
-    # 按搜索量降序排序
     volumes.sort(reverse=True)
+    n = len(volumes)
+    l1_threshold = volumes[int(0.2 * n)] if n > 0 and int(0.2 * n) < n else 0
+    l2_threshold = volumes[int(0.6 * n)] if n > 0 and int(0.6 * n) < n else 0
 
-    # 计算阈值：L1 = 前20%，L2 = 20-60%，L3 = 60%以下
-    l1_threshold = 0
-    l2_threshold = 0
-    if volumes:
-        n = len(volumes)
-        l1_idx = int(0.2 * n)  # 前20%的索引
-        l2_idx = int(0.6 * n)  # 前60%的索引
-        # 确保索引在范围内
-        l1_idx = min(l1_idx, n-1) if n > 0 else 0
-        l2_idx = min(l2_idx, n-1) if n > 0 else 0
-        l1_threshold = volumes[l1_idx] if l1_idx < n else volumes[-1]
-        l2_threshold = volumes[l2_idx] if l2_idx < n else volumes[-1]
-    else:
-        # 默认阈值（如果没有数据）
-        l1_threshold = 10000
-        l2_threshold = 1000
-
-    reserve_keywords = []
-    prices = []
-    for row in keyword_rows:
-        keyword = row.get("keyword") or row.get("search_term")
-        if not keyword:
+    reserve = []
+    for row in top_kw:
+        kw = row.get("keyword", "")
+        if not kw:
             continue
-        level, volume = _tier_keyword(row, l1_threshold, l2_threshold)
-        conversion_rate = row.get("conversion_rate") or 0
-        try:
-            conversion_rate = float(conversion_rate)
-        except (TypeError, ValueError):
-            conversion_rate = 0
-        if row.get("avg_price"):
-            try:
-                prices.append(float(row["avg_price"]))
-            except (TypeError, ValueError):
-                pass
-        reserve_keywords.append({
-            "keyword": keyword,
+        vol = float(row.get("search_volume") or 0)
+        rate = float(row.get("conversion_rate") or 0)
+        level, _ = _tier_keyword({"search_volume": vol}, l1_threshold, l2_threshold)
+        reserve.append({
+            "keyword": kw,
             "level": level,
-            "search_volume": volume,
-            "conversion_rate": conversion_rate,
-            "high_conv": _is_high_conv(row)
+            "search_volume": vol,
+            "conversion_rate": rate,
+            "high_conv": rate >= 1.5,
+            "_source_type": row.get("source_type", "unknown"),
+            "_source_file": row.get("source_file", ""),
         })
 
-    reserve_keywords = sorted(reserve_keywords, key=lambda x: x["search_volume"], reverse=True)
+    reserve.sort(key=lambda x: x["search_volume"], reverse=True)
+    return reserve, "real_vocab"
+
+
+def build_arsenal(preprocessed_data: Any) -> Dict[str, Any]:
+    # ─── Priority 1: 真实国家词表 ───
+    real_vocab = getattr(preprocessed_data, "real_vocab", None)
+    reserve_keywords, kw_source = _build_from_real_vocab(real_vocab)
+    if not reserve_keywords:
+        # ─── Priority 2: 预处理数据中的关键词表 ───
+        keyword_rows = getattr(getattr(preprocessed_data, "keyword_data", None), "keywords", []) or []
+
+        # 计算百分位阈值
+        volumes = []
+        for row in keyword_rows:
+            volume = row.get("search_volume") or row.get("月搜索量") or 0
+            try:
+                volume = float(volume)
+            except (TypeError, ValueError):
+                volume = 0
+            if volume > 0:
+                volumes.append(volume)
+
+        # 按搜索量降序排序
+        volumes.sort(reverse=True)
+
+        # 计算阈值：L1 = 前20%，L2 = 20-60%，L3 = 60%以下
+        l1_threshold = 0
+        l2_threshold = 0
+        if volumes:
+            n = len(volumes)
+            l1_idx = int(0.2 * n)
+            l2_idx = int(0.6 * n)
+            l1_idx = min(l1_idx, n-1) if n > 0 else 0
+            l2_idx = min(l2_idx, n-1) if n > 0 else 0
+            l1_threshold = volumes[l1_idx] if l1_idx < n else volumes[-1]
+            l2_threshold = volumes[l2_idx] if l2_idx < n else volumes[-1]
+        else:
+            l1_threshold = 10000
+            l2_threshold = 1000
+
+        reserve_keywords = []
+        prices = []
+        for row in keyword_rows:
+            keyword = row.get("keyword") or row.get("search_term")
+            if not keyword:
+                continue
+            level, volume = _tier_keyword(row, l1_threshold, l2_threshold)
+            conversion_rate = row.get("conversion_rate") or 0
+            try:
+                conversion_rate = float(conversion_rate)
+            except (TypeError, ValueError):
+                conversion_rate = 0
+            if row.get("avg_price"):
+                try:
+                    prices.append(float(row["avg_price"]))
+                except (TypeError, ValueError):
+                    pass
+            reserve_keywords.append({
+                "keyword": keyword,
+                "level": level,
+                "search_volume": volume,
+                "conversion_rate": conversion_rate,
+                "high_conv": _is_high_conv(row)
+            })
+
+        reserve_keywords = sorted(reserve_keywords, key=lambda x: x["search_volume"], reverse=True)
+        kw_source = "keyword_table"
+
+    review_insights = getattr(getattr(preprocessed_data, "review_data", None), "insights", []) or []
 
     if prices:
         price_median = median(prices)
@@ -128,11 +183,14 @@ def build_arsenal(preprocessed_data: Any) -> Dict[str, Any]:
         "competitor_brands": ["GoPro", "Insta360", "DJI"],
         "price_context": {
             "price_median": price_median,
-            "currency": "EUR" if getattr(preprocessed_data.run_config, "target_country", "US") == "DE" else "USD",
+            "currency": "EUR" if getattr(preprocessed_data.run_config, "target_country", "US") in ("DE", "FR") else "USD",
             "sample_size": len(prices)
         },
         "review_pain_points": review_pain_points,
-        "rufus_high_freq_questions": rufus_questions
+        "rufus_high_freq_questions": rufus_questions,
+        # 关键词来源追踪（用于判断是否使用真实本地词）
+        "_keyword_source": kw_source,
+        "_real_vocab_available": getattr(real_vocab, "is_available", False) if real_vocab else False,
     }
 
     return arsenal
