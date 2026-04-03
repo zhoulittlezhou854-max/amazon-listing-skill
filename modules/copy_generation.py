@@ -390,20 +390,6 @@ def generate_title(preprocessed_data: PreprocessedData,
         title = title[:177] + "..."
 
     return title
-        differentiator = core_capabilities[1]
-    else:
-        differentiator = "专业级" if language == "Chinese" else "Professional"
-    title = title.replace("[差异化特征]", differentiator)
-    title = title.replace("[Differentiator]", differentiator)
-
-    # 清理多余空格和特殊字符
-    title = re.sub(r'\s+', ' ', title).strip()
-
-    # 确保标题不超过200字符
-    if len(title) > 200:
-        title = title[:197] + "..."
-
-    return title
 
 
 def clean_bullet_text(bullet: str) -> str:
