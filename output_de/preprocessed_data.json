@@ -1,0 +1,313 @@
+{
+  "preprocessed_data": {
+    "run_config": {
+      "target_country": "DE",
+      "brand_name": "YourBrand",
+      "core_selling_points_raw": "4K录像，电子防抖，WiFi连接，双屏幕",
+      "accessory_params_raw": "防水壳30米，磁吸挂绳，车把支架，头盔底座",
+      "selling_points_source": "user_input",
+      "accessory_status": "parsed"
+    },
+    "attribute_data": {},
+    "keyword_summary": {
+      "total_keywords": 0,
+      "keywords_sample": []
+    },
+    "review_summary": {
+      "total_insights": 0,
+      "insights_sample": []
+    },
+    "aba_summary": {
+      "total_trends": 0,
+      "trends_sample": []
+    },
+    "core_selling_points": [
+      "4K画质",
+      "电子防抖",
+      "WiFi连接",
+      "双屏幕"
+    ],
+    "accessory_descriptions": [
+      {
+        "name": "防水壳",
+        "specification": "防水壳30米",
+        "original": "防水壳30米",
+        "params": {
+          "depth_meters": 30
+        }
+      },
+      {
+        "name": "磁吸挂绳",
+        "specification": "磁吸挂绳",
+        "original": "磁吸挂绳",
+        "params": {}
+      },
+      {
+        "name": "支架",
+        "specification": "车把支架",
+        "original": "车把支架",
+        "params": {}
+      },
+      {
+        "name": "其他配件",
+        "specification": "头盔底座",
+        "original": "头盔底座",
+        "params": {}
+      }
+    ],
+    "quality_score": 40,
+    "quality_breakdown": {
+      "selling_points_completeness": "良好",
+      "accessory_clarity": "parsed",
+      "attribute_coverage": "0/4",
+      "keyword_data_availability": "缺失",
+      "review_insight_availability": "缺失"
+    },
+    "language": "German",
+    "target_country": "DE",
+    "reasoning_language": "EN",
+    "data_mode": "DATA_DRIVEN",
+    "data_mode_note": "ABA rows: 0, Review rows: 0, Real vocab rows: 79, Total: 0",
+    "processed_at": "2026-04-03T17:28:39.412537"
+  },
+  "keyword_data": {
+    "keywords": []
+  },
+  "review_data": {
+    "insights": []
+  },
+  "aba_data": {
+    "trends": []
+  },
+  "real_vocab": {
+    "country": "DE",
+    "is_available": true,
+    "total_count": 79,
+    "aba_count": 30,
+    "order_winning_count": 68,
+    "review_count": 0,
+    "top_keywords": [
+      {
+        "keyword": "mini kamera",
+        "source_type": "order_winning",
+        "source_file": "H88_DE_出单词表.csv",
+        "search_volume": 62816.0,
+        "conversion_rate": 0.0076,
+        "avg_cpc": 0.0,
+        "spr": 11.0,
+        "country": "DE",
+        "model": "H88"
+      },
+      {
+        "keyword": "action cam",
+        "source_type": "aba",
+        "source_file": "T70M_DE_ABA关键词表_数据表.csv",
+        "search_volume": 30843.0,
+        "conversion_rate": null,
+        "avg_cpc": 0.0,
+        "spr": 6.0,
+        "country": "DE",
+        "model": "T70M"
+      },
+      {
+        "keyword": "action cam",
+        "source_type": "order_winning",
+        "source_file": "H88_DE_出单词表.csv",
+        "search_volume": 30843.0,
+        "conversion_rate": 0.0076,
+        "avg_cpc": 0.0,
+        "spr": 6.0,
+        "country": "DE",
+        "model": "H88"
+      },
+      {
+        "keyword": "bodycam",
+        "source_type": "aba",
+        "source_file": "T70M_DE_ABA关键词表_数据表.csv",
+        "search_volume": 15577.0,
+        "conversion_rate": null,
+        "avg_cpc": 0.0,
+        "spr": 4.0,
+        "country": "DE",
+        "model": "T70M"
+      },
+      {
+        "keyword": "bodycam",
+        "source_type": "order_winning",
+        "source_file": "H88_DE_出单词表.csv",
+        "search_volume": 15577.0,
+        "conversion_rate": 0.0098,
+        "avg_cpc": 0.0,
+        "spr": 4.0,
+        "country": "DE",
+        "model": "H88"
+      },
+      {
+        "keyword": "spycam",
+        "source_type": "order_winning",
+        "source_file": "H88_DE_出单词表.csv",
+        "search_volume": 15565.0,
+        "conversion_rate": 0.0063,
+        "avg_cpc": 0.0,
+        "spr": 3.0,
+        "country": "DE",
+        "model": "H88"
+      },
+      {
+        "keyword": "vlog kamera",
+        "source_type": "aba",
+        "source_file": "T70M_DE_ABA关键词表_数据表.csv",
+        "search_volume": 12904.0,
+        "conversion_rate": null,
+        "avg_cpc": 0.0,
+        "spr": 1.0,
+        "country": "DE",
+        "model": "T70M"
+      },
+      {
+        "keyword": "action cam 4k",
+        "source_type": "aba",
+        "source_file": "T70M_DE_ABA关键词表_数据表.csv",
+        "search_volume": 12491.0,
+        "conversion_rate": null,
+        "avg_cpc": 0.0,
+        "spr": 3.0,
+        "country": "DE",
+        "model": "T70M"
+      },
+      {
+        "keyword": "action cam 4k",
+        "source_type": "order_winning",
+        "source_file": "H88_DE_出单词表.csv",
+        "search_volume": 12491.0,
+        "conversion_rate": 0.0082,
+        "avg_cpc": 0.0,
+        "spr": 3.0,
+        "country": "DE",
+        "model": "H88"
+      },
+      {
+        "keyword": "body cam",
+        "source_type": "order_winning",
+        "source_file": "H88_DE_出单词表.csv",
+        "search_volume": 11769.0,
+        "conversion_rate": 0.0076,
+        "avg_cpc": 0.0,
+        "spr": 3.0,
+        "country": "DE",
+        "model": "H88"
+      },
+      {
+        "keyword": "vlog kamera",
+        "source_type": "order_winning",
+        "source_file": "H88_DE_出单词表.csv",
+        "search_volume": 11627.0,
+        "conversion_rate": 0.002,
+        "avg_cpc": null,
+        "spr": null,
+        "country": "DE",
+        "model": "H88"
+      },
+      {
+        "keyword": "actionkameras",
+        "source_type": "aba",
+        "source_file": "T70M_DE_ABA关键词表_数据表.csv",
+        "search_volume": 7474.0,
+        "conversion_rate": null,
+        "avg_cpc": 0.0,
+        "spr": 1.0,
+        "country": "DE",
+        "model": "T70M"
+      },
+      {
+        "keyword": "actioncam",
+        "source_type": "order_winning",
+        "source_file": "H88_DE_出单词表.csv",
+        "search_volume": 6928.0,
+        "conversion_rate": 0.007,
+        "avg_cpc": 0.0,
+        "spr": 2.0,
+        "country": "DE",
+        "model": "H88"
+      },
+      {
+        "keyword": "mini camera",
+        "source_type": "aba",
+        "source_file": "T70M_DE_ABA关键词表_数据表.csv",
+        "search_volume": 6655.0,
+        "conversion_rate": null,
+        "avg_cpc": 0.0,
+        "spr": 2.0,
+        "country": "DE",
+        "model": "T70M"
+      },
+      {
+        "keyword": "actionkameras",
+        "source_type": "order_winning",
+        "source_file": "H88_DE_出单词表.csv",
+        "search_volume": 6540.0,
+        "conversion_rate": 0.0046,
+        "avg_cpc": null,
+        "spr": null,
+        "country": "DE",
+        "model": "H88"
+      },
+      {
+        "keyword": "bodycam körperkamera mini",
+        "source_type": "aba",
+        "source_file": "T70M_DE_ABA关键词表_数据表.csv",
+        "search_volume": 6467.0,
+        "conversion_rate": null,
+        "avg_cpc": 0.0,
+        "spr": 2.0,
+        "country": "DE",
+        "model": "T70M"
+      },
+      {
+        "keyword": "bodycam körperkamera mini",
+        "source_type": "order_winning",
+        "source_file": "H88_DE_出单词表.csv",
+        "search_volume": 6467.0,
+        "conversion_rate": 0.0125,
+        "avg_cpc": 0.0,
+        "spr": 2.0,
+        "country": "DE",
+        "model": "H88"
+      },
+      {
+        "keyword": "mini camera",
+        "source_type": "order_winning",
+        "source_file": "H88_DE_出单词表.csv",
+        "search_volume": 5801.0,
+        "conversion_rate": 0.0073,
+        "avg_cpc": null,
+        "spr": null,
+        "country": "DE",
+        "model": "H88"
+      },
+      {
+        "keyword": "action cam 4k+",
+        "source_type": "aba",
+        "source_file": "T70M_DE_ABA关键词表_数据表.csv",
+        "search_volume": 5633.0,
+        "conversion_rate": null,
+        "avg_cpc": 0.0,
+        "spr": 1.0,
+        "country": "DE",
+        "model": "T70M"
+      },
+      {
+        "keyword": "helmkamera",
+        "source_type": "aba",
+        "source_file": "T70M_DE_ABA关键词表_数据表.csv",
+        "search_volume": 5217.0,
+        "conversion_rate": null,
+        "avg_cpc": 0.0,
+        "spr": 2.0,
+        "country": "DE",
+        "model": "T70M"
+      }
+    ],
+    "data_mode": "DATA_DRIVEN"
+  }
+}
