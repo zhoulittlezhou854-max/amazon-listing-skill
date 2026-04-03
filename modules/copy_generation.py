@@ -246,43 +246,52 @@ def _has_real_vocab(preprocessed_data: Any) -> bool:
 
 def _reconstruct_real_vocab(preprocessed_data: Any) -> Any:
     """
-    尝试从 preprocessed_data.__dict__.get("real_vocab") dict 重建 RealVocabData 对象。
-    用于处理 JSON 反序列化后 real_vocab 变成 dict 的情况。
+    尝试从 preprocessed_data 重建 RealVocabData 对象。
+    处理三种情况：
+    1. real_vocab 是 RealVocabData 对象（正常情况）
+    2. real_vocab 是 dict（来自 JSON 反序列化）
+    3. real_vocab 嵌套在 preprocessed_data 的某个子对象中
     """
-    rv_dict = getattr(preprocessed_data, "__dict__", {}).get("real_vocab")
-    if not rv_dict or not isinstance(rv_dict, dict):
-        return None
-    if not rv_dict.get("is_available"):
-        return None
-
-    # 创建一个类似 RealVocabData 的对象
-    class ReconstructedRealVocab:
-        def __init__(self, d):
-            self.country = d.get("country", "")
-            self.is_available = d.get("is_available", False)
-            self.total_count = d.get("total_count", 0)
-            self.aba_count = d.get("aba_count", 0)
-            self.order_winning_count = d.get("order_winning_count", 0)
-            self.review_count = d.get("review_count", 0)
-            self.top_keywords = d.get("top_keywords", []) or []
-            self.data_mode = d.get("data_mode", "SYNTHETIC_COLD_START")
-
-    return ReconstructedRealVocab(rv_dict)
-
-
-def _get_real_vocab_keywords(preprocessed_data: Any) -> List[Dict[str, Any]]:
-    """获取真实国家词表关键词列表（Priority 1）"""
-    if not _has_real_vocab(preprocessed_data):
-        # 尝试重建
-        rv = _reconstruct_real_vocab(preprocessed_data)
-        if rv:
-            return rv.top_keywords
-        return []
+    # 情况1: 直接属性
     rv = getattr(preprocessed_data, "real_vocab", None)
-    return getattr(rv, "top_keywords", []) or []
+    if rv is not None and not isinstance(rv, dict):
+        if getattr(rv, "is_available", False):
+            return rv
+        return None
+
+    # 情况2: __dict__ 中的 dict
+    rv_dict = getattr(preprocessed_data, "__dict__", {}).get("real_vocab")
+    if rv_dict and isinstance(rv_dict, dict) and rv_dict.get("is_available"):
+        class ReconstructedRealVocab:
+            def __init__(self, d):
+                self.country = d.get("country", "")
+                self.is_available = d.get("is_available", False)
+                self.total_count = d.get("total_count", 0)
+                self.aba_count = d.get("aba_count", 0)
+                self.order_winning_count = d.get("order_winning_count", 0)
+                self.review_count = d.get("review_count", 0)
+                self.top_keywords = d.get("top_keywords", []) or []
+                self.data_mode = d.get("data_mode", "SYNTHETIC_COLD_START")
+        return ReconstructedRealVocab(rv_dict)
+
+    # 情况3: 嵌套在 preprocessed_data.real_vocab 本身是 dict 的情况
+    if isinstance(rv, dict) and rv.get("is_available"):
+        class ReconstructedRealVocab:
+            def __init__(self, d):
+                self.country = d.get("country", "")
+                self.is_available = d.get("is_available", False)
+                self.total_count = d.get("total_count", 0)
+                self.aba_count = d.get("aba_count", 0)
+                self.order_winning_count = d.get("order_winning_count", 0)
+                self.review_count = d.get("review_count", 0)
+                self.top_keywords = d.get("top_keywords", []) or []
+                self.data_mode = d.get("data_mode", "SYNTHETIC_COLD_START")
+        return ReconstructedRealVocab(rv)
+
+    return None
 
 
-def extract_tiered_keywords(preprocessed_data: Any, language: str = "Chinese") -> Dict[str, List[str]]:
+def extract_tiered_keywords(preprocessed_data: Any, language: str = "Chinese", real_vocab: Any = None) -> Dict[str, List[str]]:
     """
     提取分层关键词（L1/L2/L3），使用与scoring.py一致的阈值逻辑（>=10000是L1）
 
@@ -291,8 +300,8 @@ def extract_tiered_keywords(preprocessed_data: Any, language: str = "Chinese") -
     - Priority 2: keyword_data 中的关键词
     """
     # ─── Priority 1: 真实国家词表（DE/FR 本地词） ───
-    # 尝试重建 real_vocab（处理 JSON 反序列化后变成 dict 的情况）
-    rv = getattr(preprocessed_data, "real_vocab", None)
+    # 优先使用传入的 real_vocab，其次尝试从 preprocessed_data 重建
+    rv = real_vocab
     if rv is None:
         rv = _reconstruct_real_vocab(preprocessed_data)
 
