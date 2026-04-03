@@ -20,11 +20,12 @@ class PreprocessedData:
     keyword_data: Any
     review_data: Any
     aba_data: Any
-    core_selling_points: List[str]
-    accessory_descriptions: List[Dict[str, Any]]
-    quality_score: int
-    language: str
-    processed_at: str
+    real_vocab: Any = None  # 真实国家词表（Priority 1）
+    core_selling_points: List[str] = field(default_factory=list)
+    accessory_descriptions: List[Dict[str, Any]] = field(default_factory=list)
+    quality_score: int = 0
+    language: str = "English"
+    processed_at: str = ""
 
 
 # 标题模板（根据不同语言）
