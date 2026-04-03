@@ -193,9 +193,10 @@ def extract_l1_keywords(keyword_data: Any, language: str = "Chinese") -> List[st
     else:
         target_keyword = "action camera 4k"
 
-    # 如果目标关键词不在列表中，添加到开头
-    if target_keyword not in l1_keywords:
-        l1_keywords.insert(0, target_keyword)
+    # 确保目标关键词在列表开头
+    if target_keyword in l1_keywords:
+        l1_keywords.remove(target_keyword)
+    l1_keywords.insert(0, target_keyword)
 
     # 去重并保持顺序
     seen = set()
