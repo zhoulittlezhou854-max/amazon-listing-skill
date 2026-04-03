@@ -34,7 +34,7 @@
     "step_6": {
       "status": "success",
       "copy_path": "products/IT_sample/generated_copy.json",
-      "title_length": 51,
+      "title_length": 55,
       "bullets_count": 5,
       "faq_count": 5
     },
@@ -46,13 +46,13 @@
     "step_8": {
       "status": "success",
       "scores_path": "products/IT_sample/scoring_results.json",
-      "total_score": 137,
+      "total_score": 129,
       "grade": "需要改进"
     },
     "step_9": {
       "status": "success",
       "report_path": "products/IT_sample/listing_report.md",
-      "report_length": 8348
+      "report_length": 8335
     }
   }
 }

@@ -25,15 +25,15 @@
     },
     "capability_scene_binding": {
       "max": 40,
-      "score": 8,
-      "note": "满足 1/5 条绑定"
+      "score": 0,
+      "note": "满足 0/5 条绑定"
     },
     "audience_tags": {
       "max": 20,
       "score": 20,
       "note": "触达人群: 骑行, 旅行, 家庭, 户外"
     },
-    "subtotal": 58
+    "subtotal": 50
   },
   "rufus": {
     "fact_completeness": {
@@ -62,13 +62,13 @@
     "data_available": false,
     "note": "价格数据缺失，跳过评分"
   },
-  "total_score": 137,
+  "total_score": 129,
   "max_total": 300,
-  "grade_percent": 45.7,
+  "grade_percent": 43.0,
   "rating": "待优化",
   "boundary_declaration_check": {
     "exists": true,
-    "sentence": "diseño versátil, suitable for familia (based on lab test data), max storage 256GB",
+    "sentence": "diseño versátil, suitable for familia (with included accessories), max storage 256GB",
     "score_impact": "+10"
   },
   "aplus_word_count_check": {
@@ -78,7 +78,7 @@
   },
   "scoring_detail_version": "v8.4.0",
   "a10_score": 25,
-  "cosmo_score": 58,
+  "cosmo_score": 50,
   "rufus_score": 54,
   "price_competitiveness_score": null,
   "grade": "待优化"

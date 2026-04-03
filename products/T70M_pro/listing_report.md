@@ -1,22 +1,22 @@
 # Amazon Listing 最终仲裁报告
-- 生成时间：2026-04-03T15:38:41.961331
+- 生成时间：2026-04-03T15:40:43.211730
 - 站点：DE
 - 品牌：YourBrand
 - Listing 语言：German
 
 ## Module 1：最终 Listing（目标语言输出）
 **Title**
-YourBrand action camera 4k Radfahren [SYNTH]_4K画质 4K Unterwasser
+YourBrand action camera 4k Radfahren 4K-Aufnahme 4K Unterwasser
 
 **Bullets**
 1. Comes with multiple Halterunging accessories, designed for Radfahren, features 4K-Aufnahme, supports 30m wasserdicht
 2. Supports 4K 30fps HD-Aufnahme, optimized for Unterwasser, Akkulaufzeit 150min
 3. Compared to competitors, wasserdichte Actionkamera performs better in Reisen, Akkulaufzeit 150min
-4. vielseitiges Design, suitable for Familie (based on lab test data), maximaler Speicher 256GB
+4. vielseitiges Design, suitable for Familie (with Wassergehäuse), maximaler Speicher 256GB
 5. Provides 12 Monate Garantie, professional customer support, compatible with multiple devices, Akkulaufzeit 150min
 
 **Description**
-The YourBrand Actionkamera 4k Radfahren [SYNTH]_4K画质 4K Unterwasser is designed for Radfahren, delivering professional-grade 4K-Aufnahme experience. Features 4K-Aufnahme, electronic Bildstabilisierung, WLAN connection and more, 
+The YourBrand Actionkamera 4k Radfahren 4K-Aufnahme 4K Unterwasser is designed for Radfahren, delivering professional-grade 4K-Aufnahme experience. Features 4K-Aufnahme, electronic Bildstabilisierung, WLAN connection and more, 
 
 Key Features:
 • Comes with multiple Halterunging accessories, designed for Radfahren, features 4K-Aufnahme, supports 30m wasserdicht
@@ -25,7 +25,7 @@ Key Features:
 
 立即购买，开启您的拍摄之旅！
 
-Package includes: wasserdicht壳, Magnet-Halsband, Halterung
+Package includes: wasserdichtcase, Magnet-Halsband, Halterung
 
 **FAQ**
 - Q: Ist das Produkt wasserdicht?
@@ -40,7 +40,7 @@ Package includes: wasserdicht壳, Magnet-Halsband, Halterung
   A: 12个月 Garantie mit deutschlandweitem Service.
 
 **Search Terms**
-Sportkamera, Actionkamera, cycling_recording, Aufnahmegerät, underwater_exploration, WiFi connection, 4K recording, Videokamera, family_use, YourBrand, travel_documentation, electronic stabilization
+Aufnahmegerät, 4K recording, electronic stabilization, WiFi connection, Videokamera, cycling_recording, Sportkamera, travel_documentation, YourBrand, underwater_exploration, family_use, Actionkamera
 
 **A+ Content**
 # YourBrand Action Camera - Professional Shooting Solution
@@ -187,10 +187,10 @@ Experience the YourBrand Action Camera now and record every exciting moment! Pro
 | 指标 | 满分 | 得分 | 说明 |
 | --- | --- | --- | --- |
 | scene_coverage | 40 | 30 | 覆盖 3/4 个场景 |
-| capability_scene_binding | 40 | 8 | 满足 1/5 条绑定 |
+| capability_scene_binding | 40 | 0 | 满足 0/5 条绑定 |
 | audience_tags | 20 | 20 | 触达人群: 骑行, 旅行, 家庭, 户外 |
 
-> 小计：58 分
+> 小计：50 分
 
 ### Rufus 维度
 | 指标 | 满分 | 得分 | 说明 |
@@ -210,9 +210,9 @@ Experience the YourBrand Action Camera now and record every exciting moment! Pro
 - 说明: 价格数据缺失，跳过评分
 
 ### 规则附加检查
-- 边界声明: 已检测 → vielseitiges Design, suitable for Familie (based on lab test data), maximaler Speicher 256GB
+- 边界声明: 已检测 → vielseitiges Design, suitable for Familie (with Wassergehäuse), maximaler Speicher 256GB
 - A+ 字数: 518 词，满足下限: True
 
 ### 算法对齐摘要
-- 总分: 137/300
-- 综合评级: 待优化 (45.7%)
+- 总分: 129/300
+- 综合评级: 待优化 (43.0%)

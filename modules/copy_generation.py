@@ -1457,21 +1457,24 @@ def _translate_scene(scene_label: str, target_language: str) -> str:
 def _translate_text_to_language(text: str, target_language: str) -> str:
     """
     将英文文本翻译为目标语言 (用于 bullet/description 翻译)
-    使用短语优先替换 + 剩余单词翻译
+    使用正则做大小写不敏感的整词替换
     """
     if target_language == "English":
         return text
 
     translations = CAPABILITY_TRANSLATIONS.get(target_language, {})
     scene_translations = SCENE_TRANSLATIONS.get(target_language, {})
+    category_translations = CATEGORY_TRANSLATIONS.get(target_language, {})
 
-    # 1. 短语优先替换（从长到短排序，避免短词优先匹配）
-    all_trans = {**translations, **scene_translations}
+    # 合并所有翻译表并按长度降序排列（优先匹配最长短语）
+    all_trans = {**translations, **scene_translations, **category_translations}
     phrases = sorted(all_trans.keys(), key=len, reverse=True)
 
     for phrase in phrases:
-        if phrase in text:
-            text = text.replace(phrase, all_trans[phrase])
+        # 大小写不敏感的整词替换
+        import re
+        pattern = re.compile(r'\b' + re.escape(phrase) + r'\b', re.IGNORECASE)
+        text = pattern.sub(all_trans[phrase], text)
 
     return text
 

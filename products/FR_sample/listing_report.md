@@ -1,22 +1,22 @@
 # Amazon Listing 最终仲裁报告
-- 生成时间：2026-04-03T15:38:41.969393
+- 生成时间：2026-04-03T15:40:43.220705
 - 站点：FR
 - 品牌：YourBrand
 - Listing 语言：French
 
 ## Module 1：最终 Listing（目标语言输出）
 **Title**
-YourBrand action camera 4k cyclisme [SYNTH]_4K画质 4K
+YourBrand action camera 4k cyclisme enregistrement 4K 4K
 
 **Bullets**
 1. Comes with multiple supporting accessories, designed for cyclisme, features enregistrement 4K, supports 30m étanche
 2. Supports 4K 30fps enregistrement HD, optimized for plongée, autonomie 150min
 3. Compared to competitors, caméra d'action étanche performs better in voyage, autonomie 150min
-4. conception polyvalente, suitable for famille (with boîtier étanche), max storage 256 Go
+4. conception polyvalente, suitable for famille (with included accessories), max storage 256 Go
 5. Provides 12 mois garantie, professional customer support, compatible with multiple devices, autonomie 150min
 
 **Description**
-The YourBrand caméra d'action 4k cyclisme [SYNTH]_4K画质 4K is designed for cyclisme, delivering professional-grade enregistrement 4K experience. Features enregistrement 4K, electronic stabilisation, WiFi connection and more, 
+The YourBrand caméra d'action 4k cyclisme enregistrement 4K 4K is designed for cyclisme, delivering professional-grade enregistrement 4K experience. Features enregistrement 4K, electronic stabilisation, WiFi connection and more, 
 
 Key Features:
 • Comes with multiple supporting accessories, designed for cyclisme, features enregistrement 4K, supports 30m étanche
@@ -25,7 +25,7 @@ Key Features:
 
 立即购买，开启您的拍摄之旅！
 
-Package includes: étanche壳, magnetic strap, support
+Package includes: étanchecase, magnetic strap, support
 
 **FAQ**
 - Q: Le produit est-t-il waterproof?
@@ -40,7 +40,7 @@ Package includes: étanche壳, magnetic strap, support
   A: Garantie 12个月 avec couverture nationale.
 
 **Search Terms**
-caméscope, WiFi connection, electronic stabilization, caméra sport, appareil d'enregistrement, YourBrand, underwater_exploration, travel_documentation, 4K recording, caméra d'action, family_use, cycling_recording
+YourBrand, underwater_exploration, caméscope, caméra sport, caméra d'action, cycling_recording, family_use, WiFi connection, appareil d'enregistrement, electronic stabilization, 4K recording, travel_documentation
 
 **A+ Content**
 # YourBrand Action Camera - Professional Shooting Solution
@@ -187,10 +187,10 @@ Experience the YourBrand Action Camera now and record every exciting moment! Pro
 | 指标 | 满分 | 得分 | 说明 |
 | --- | --- | --- | --- |
 | scene_coverage | 40 | 30 | 覆盖 3/4 个场景 |
-| capability_scene_binding | 40 | 8 | 满足 1/5 条绑定 |
+| capability_scene_binding | 40 | 0 | 满足 0/5 条绑定 |
 | audience_tags | 20 | 20 | 触达人群: 骑行, 旅行, 家庭, 户外 |
 
-> 小计：58 分
+> 小计：50 分
 
 ### Rufus 维度
 | 指标 | 满分 | 得分 | 说明 |
@@ -210,9 +210,9 @@ Experience the YourBrand Action Camera now and record every exciting moment! Pro
 - 说明: 价格数据缺失，跳过评分
 
 ### 规则附加检查
-- 边界声明: 已检测 → conception polyvalente, suitable for famille (with boîtier étanche), max storage 256 Go
+- 边界声明: 已检测 → conception polyvalente, suitable for famille (with included accessories), max storage 256 Go
 - A+ 字数: 518 词，满足下限: True
 
 ### 算法对齐摘要
-- 总分: 137/300
-- 综合评级: 待优化 (45.7%)
+- 总分: 129/300
+- 综合评级: 待优化 (43.0%)
