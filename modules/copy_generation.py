@@ -381,19 +381,20 @@ def generate_bullet_points(preprocessed_data: PreprocessedData,
         content = f"相比竞品，在{scene}场景下{capability}表现更优异，电池续航{battery_life}"
         bullets.append(template.format(content=content))
 
-    # B4: P1/P2能力 + 使用场景 + 边界声明句
+    # B4: P1/P2能力 + 使用场景 + 边界声明句 + 数字参数
     if len(core_capabilities) > 2:
         capability = core_capabilities[2] if len(core_capabilities) > 2 else core_capabilities[0]
         scene = scenes[2] if len(scenes) > 2 else scenes[0]
         template = BULLET_TEMPLATES["B4"].get(language, BULLET_TEMPLATES["B4"]["English"])
         boundary = random.choice(BOUNDARY_STATEMENTS.get(language, BOUNDARY_STATEMENTS["English"]))
-        content = f"支持{capability}，适用于{scene}{boundary}"
+        # 添加存储参数
+        content = f"支持{capability}，适用于{scene}{boundary}，最大存储{max_storage}"
         bullets.append(template.format(content=content))
     else:
         # 使用默认内容
         template = BULLET_TEMPLATES["B4"].get(language, BULLET_TEMPLATES["B4"]["English"])
         boundary = random.choice(BOUNDARY_STATEMENTS.get(language, BOUNDARY_STATEMENTS["English"]))
-        content = f"多功能设计，满足多种拍摄需求{boundary}"
+        content = f"多功能设计，满足多种拍摄需求{boundary}，重量仅{weight}"
         bullets.append(template.format(content=content))
 
     # B5: P2质保/售后/兼容性
