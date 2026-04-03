@@ -545,8 +545,13 @@ class AmazonListingGenerator:
                         self.core_selling_points = d.get('preprocessed_data', {}).get('core_selling_points', [])
                         self.accessory_descriptions = d.get('preprocessed_data', {}).get('accessory_descriptions', [])
                         self.quality_score = d.get('preprocessed_data', {}).get('quality_score', 0)
-                        self.language = d.get('preprocessed_data', {}).get('language', 'German')
-                        self.processed_at = d.get('preprocessed_data', {}).get('processed_at', '')
+                        # PRD v8.2 语言路由字段
+                        pd = d.get('preprocessed_data', {})
+                        self.language = pd.get('language', 'German')  # target_language
+                        self.target_country = pd.get('target_country', 'DE')
+                        self.reasoning_language = pd.get('reasoning_language', 'EN')
+                        self.data_mode = pd.get('data_mode', 'SYNTHETIC_COLD_START')
+                        self.processed_at = pd.get('processed_at', '')
                 self.preprocessed_data = LazyPreprocessedData(preprocessed_dict)
             else:
                 return {"status": "error", "error": "需要先运行 Step 0"}
@@ -646,8 +651,13 @@ class AmazonListingGenerator:
                         self.core_selling_points = d.get('preprocessed_data', {}).get('core_selling_points', [])
                         self.accessory_descriptions = d.get('preprocessed_data', {}).get('accessory_descriptions', [])
                         self.quality_score = d.get('preprocessed_data', {}).get('quality_score', 0)
-                        self.language = d.get('preprocessed_data', {}).get('language', 'German')
-                        self.processed_at = d.get('preprocessed_data', {}).get('processed_at', '')
+                        # PRD v8.2 语言路由字段
+                        pd = d.get('preprocessed_data', {})
+                        self.language = pd.get('language', 'German')  # target_language
+                        self.target_country = pd.get('target_country', 'DE')
+                        self.reasoning_language = pd.get('reasoning_language', 'EN')
+                        self.data_mode = pd.get('data_mode', 'SYNTHETIC_COLD_START')
+                        self.processed_at = pd.get('processed_at', '')
                 self.preprocessed_data = LazyPreprocessedData(preprocessed_dict)
             else:
                 return {"status": "error", "error": "preprocessed_data 不存在"}
