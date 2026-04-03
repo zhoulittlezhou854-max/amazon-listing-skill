@@ -428,7 +428,8 @@ def generate_bullet_points(preprocessed_data: PreprocessedData,
     max_storage = attr_data.get('max_storage', '256GB')
     warranty_period = attr_data.get('warranty_period', '12个月')
 
-    # 获取L2/L3关键词
+    # 获取L1/L2/L3关键词
+    l1_keywords = tiered_keywords.get("l1", []) if tiered_keywords else []
     l2_keywords = tiered_keywords.get("l2", []) if tiered_keywords else []
     l3_keywords = tiered_keywords.get("l3", []) if tiered_keywords else []
 
