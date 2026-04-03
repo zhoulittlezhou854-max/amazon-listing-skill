@@ -221,12 +221,22 @@ def extract_high_conv_keywords(keyword_data: Any) -> List[str]:
 def generate_title(preprocessed_data: PreprocessedData,
                    writing_policy: Dict[str, Any],
                    l1_keywords: List[str],
-                   tiered_keywords: Dict[str, List[str]] = None) -> str:
+                   tiered_keywords: Dict[str, List[str]] = None,
+                   keyword_allocation_strategy: str = "balanced") -> str:
     """
     生成标题 - 优化版：确保L1关键词在前80字符，多场景覆盖
+
+    keyword_allocation_strategy:
+    - "balanced": L1在开头，1个L2
+    - "aggressive_l1": 2个L1在开头
+    - "l2_focus": L1+L2组合在开头
+    - "conservative": 仅1个L1在开头
     """
     language = preprocessed_data.language
     brand = preprocessed_data.run_config.brand_name if hasattr(preprocessed_data.run_config, 'brand_name') else "TOSBARRFT"
+
+    # 获取L2关键词
+    l2_keywords = tiered_keywords.get("l2", []) if tiered_keywords else []
 
     # 获取核心能力
     core_capabilities = preprocessed_data.core_selling_points
