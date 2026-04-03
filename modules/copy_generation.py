@@ -1012,6 +1012,9 @@ CAPABILITY_TRANSLATIONS = {
         "stabilizer": "Stabilisierung",
         "EIS": "EIS",
         "image stabilization": "Bildstabilisierung",
+        "electronic stabilization": "elektronische Bildstabilisierung",
+        "electronic": "elektronisch",
+        "stabilisation": "Bildstabilisierung",
         # --- 防水/Waterproof ---
         "防水": "wasserdicht",
         "防水壳": "Wassergehäuse",
