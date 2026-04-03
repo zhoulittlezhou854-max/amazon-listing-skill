@@ -363,13 +363,13 @@ def generate_bullet_points(preprocessed_data: PreprocessedData,
         capability = core_capabilities[0]
         template = BULLET_TEMPLATES["B2"].get(language, BULLET_TEMPLATES["B2"]["English"])
         if "4K" in capability or "录像" in capability:
-            content = f"支持{resolution}高清录像，画面细腻流畅"
+            content = f"支持{resolution}高清录像，画面细腻流畅，最大存储{max_storage}"
         elif "防抖" in capability:
-            content = f"采用先进防抖技术，运动拍摄依然稳定清晰"
+            content = f"采用先进防抖技术，运动拍摄依然稳定清晰，电池续航{battery_life}"
         elif "防水" in capability:
-            content = f"支持{waterproof_depth}防水，适合水下拍摄"
+            content = f"支持{waterproof_depth}防水，适合水下拍摄，重量仅{weight}"
         else:
-            content = f"提供{capability}功能，性能出色可靠"
+            content = f"提供{capability}功能，性能出色可靠，重量仅{weight}"
         bullets.append(template.format(content=content))
 
     # B3: P1竞品痛点对比 + 场景词
