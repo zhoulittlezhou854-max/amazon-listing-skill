@@ -1169,6 +1169,15 @@ CAPABILITY_TRANSLATIONS = {
         "sports camera": "caméra sportive",
     },
     "Spanish": {
+        # --- English phrases first (phrase-match priority) ---
+        "4K recording": "grabación 4K",
+        "HD recording": "grabación HD",
+        "advanced stabilization technology": "tecnología de estabilización avanzada",
+        "stabilization technology": "tecnología de estabilización",
+        "action camera": "cámara de acción",
+        "waterproof action camera": "cámara de acción resistente al agua",
+        "sports camera": "cámara deportiva",
+        "versatile design": "diseño versátil",
         # --- 4K/高清录像 ---
         "4K录像": "grabación 4K",
         "4K video": "vídeo 4K",
