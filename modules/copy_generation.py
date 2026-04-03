@@ -1785,7 +1785,7 @@ def generate_multilingual_copy(preprocessed_data: PreprocessedData,
 
     # 生成描述 (使用 English 标准化版本)
     description_en = generate_description(preprocessed_en, writing_policy, title, bullets_en, "English")
-    description = _translate_text_to_language(description_en, target_language)
+    description = _translate_text_to_language(description_en, target_language, preprocessed_data.real_vocab, data_mode)
 
     # 生成 FAQ
     faq = generate_faq(preprocessed_en, writing_policy, target_language)
