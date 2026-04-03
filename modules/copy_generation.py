@@ -349,12 +349,13 @@ def generate_bullet_points(preprocessed_data: PreprocessedData,
     resolution = attr_data.get('video_resolution', '4K 30fps')
     weight = attr_data.get('weight', '150g')
 
-    # B1: 挂载系统 + 主场景 + P0能力
+    # B1: 挂载系统 + 主场景 + P0能力 + 数字参数
     if scenes and core_capabilities:
         scene = scenes[0]
         capability = core_capabilities[0]
         template = BULLET_TEMPLATES["B1"].get(language, BULLET_TEMPLATES["B1"]["English"])
-        content = f"配备多种挂载配件，专为{scene}设计，提供{capability}功能"
+        # 添加数字参数：防水深度
+        content = f"配备多种挂载配件，专为{scene}设计，提供{capability}功能，支持{waterproof_depth}防水"
         bullets.append(template.format(content=content))
 
     # B2: P0核心能力 + 量化参数
