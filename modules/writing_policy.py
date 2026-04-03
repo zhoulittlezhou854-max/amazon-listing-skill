@@ -383,7 +383,9 @@ def generate_policy(preprocessed_data: PreprocessedData,
     prioritized_scenes = prioritize_scenes(scenes, preprocessed_data.review_data, preprocessed_data.aba_data)
 
     # 2. 创建能力场景绑定
-    capability_scene_bindings = create_capability_scene_bindings(core_selling_points, prioritized_scenes)
+    capability_scene_bindings = create_capability_scene_bindings(
+        core_selling_points, prioritized_scenes, preprocessed_data.attribute_data
+    )
 
     # 3. 识别FAQ only能力
     faq_only_capabilities = identify_faq_only_capabilities(core_selling_points, preprocessed_data.attribute_data)
