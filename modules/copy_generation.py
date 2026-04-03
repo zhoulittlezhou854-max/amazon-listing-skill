@@ -1674,7 +1674,7 @@ def _generate_title_in_language(title_struct: Dict[str, Any], target_language: s
     scene_2 = _translate_scene(scene_2_en, target_language, real_vocab, data_mode)
 
     # 翻译 hero_spec
-    hero_spec_translated = _translate_capability(hero_spec, target_language)
+    hero_spec_translated = _translate_capability(hero_spec, target_language, real_vocab, data_mode)
 
     # 构建标题
     if target_language == "English":
