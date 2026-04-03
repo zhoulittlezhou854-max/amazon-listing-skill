@@ -1,12 +1,12 @@
 # Amazon Listing 最终仲裁报告
-- 生成时间：2026-04-03T17:58:44.626299
+- 生成时间：2026-04-03T18:00:38.519981
 - 站点：DE
 - 品牌：YourBrand
 - Listing 语言：German
 
 ## Module 1：最终 Listing（目标语言输出）
 **Title**
-YourBrand spycam Radfahren 4K-Aufnahme 4K Unterwasser
+YourBrand mini kamera Radfahren 4K-Aufnahme 4K Unterwasser
 
 **Bullets**
 1. Comes with multiple mounting accessories, designed for Radfahren, features 4K-Aufnahme, supports 30m wasserdicht
@@ -16,7 +16,7 @@ YourBrand spycam Radfahren 4K-Aufnahme 4K Unterwasser
 5. Provides 12 Monate Garantie, professional customer support, compatible with multiple devices, Akkulaufzeit 150min
 
 **Description**
-The YourBrand spycam Radfahren 4K-Aufnahme 4K Unterwasser is designed for Radfahren, delivering professional-grade 4K-Aufnahme experience. Features 4K-Aufnahme, elektronische Bildstabilisierung, WLAN-Verbindung and more, 
+The YourBrand mini kamera Radfahren 4K-Aufnahme 4K Unterwasser is designed for Radfahren, delivering professional-grade 4K-Aufnahme experience. Features 4K-Aufnahme, elektronische Bildstabilisierung, WLAN-Verbindung and more, 
 
 Key Features:
 • Comes with multiple mounting accessories, designed for Radfahren, features 4K-Aufnahme, supports 30m wasserdicht
@@ -40,7 +40,7 @@ Package includes: waterproofcase, Magnet-Halsband, Halterung
   A: 12个月 Garantie mit deutschlandweitem Service.
 
 **Search Terms**
-WiFi connection, cycling_recording, spycam, Sportkamera, vlog kamera, Videokamera, bodycam körperkamera mini, underwater_exploration, YourBrand, 4K recording, Actionkamera, family_use, Aufnahmegerät, helmkamera, travel_documentation, mini camera
+family_use, mini kamera, electronic stabilization, mini camera, vlog kamera, helmkamera, Sportkamera, travel_documentation, action cam 4k+, Actionkamera, 4K recording, WiFi connection, Videokamera, Aufnahmegerät, YourBrand, underwater_exploration
 
 **A+ Content**
 # YourBrand Action Camera - Professional Shooting Solution
@@ -138,7 +138,18 @@ Experience the YourBrand Action Camera now and record every exciting moment! Pro
 ## Module 2：关键词覆盖审计表
 | 关键词 | 层级 | 出现位置 |
 | --- | --- | --- |
-| 样例关键词 | L2 | Search Terms |
+| mini kamera | L1 | Title、Description、Search Terms |
+| action cam | L1 | Search Terms |
+| bodycam | L1 | 未覆盖 |
+| spycam | L1 | 未覆盖 |
+| vlog kamera | L1 | Search Terms |
+| action cam 4k | L1 | Search Terms |
+| body cam | L1 | 未覆盖 |
+| actionkameras | L2 | 未覆盖 |
+| actioncam | L2 | 未覆盖 |
+| mini camera | L2 | B3、Description、Search Terms |
+| bodycam körperkamera mini | L2 | 未覆盖 |
+| action cam 4k+ | L2 | Search Terms |
 
 ## Module 3：合规红线检查
 - 通过情况：2/6
@@ -161,7 +172,7 @@ Experience the YourBrand Action Camera now and record every exciting moment! Pro
 ## Module 6：STAG 广告投放建议
 | STAG 场景 | 优先关键词 | 目标人群 | 投放建议 |
 | --- | --- | --- | --- |
-| cycling_recording | cycling_recording | 目标人群：cycling_recording爱好者20-45岁 | 建议：围绕cycling_recording场景组合 SB/SP 广告，融入高转化词。 |
+| cycling_recording | family_use、mini kamera | 目标人群：cycling_recording爱好者20-45岁 | 建议：围绕cycling_recording场景组合 SB/SP 广告，融入高转化词。 |
 | underwater_exploration | underwater_exploration | 目标人群：underwater_exploration爱好者20-45岁 | 建议：围绕underwater_exploration场景组合 SB/SP 广告，融入高转化词。 |
 | travel_documentation | travel_documentation | 目标人群：travel_documentation爱好者20-45岁 | 建议：围绕travel_documentation场景组合 SB/SP 广告，融入高转化词。 |
 | family_use | family_use | 目标人群：family_use爱好者20-45岁 | 建议：围绕family_use场景组合 SB/SP 广告，融入高转化词。 |
@@ -177,11 +188,11 @@ Experience the YourBrand Action Camera now and record every exciting moment! Pro
 ### A10 维度
 | 指标 | 满分 | 得分 | 说明 |
 | --- | --- | --- | --- |
-| title_front_80 | 40 | 15 | 包含品牌 |
-| keyword_tiering | 30 | 0 | L1:0 L2:0 L3:0 |
+| title_front_80 | 40 | 30 | 包含品牌，含L1词 |
+| keyword_tiering | 30 | 20 | L1:1 L2:2 L3:0 |
 | conversion_signals | 30 | 10 | B4-B5 P2 tier得分10 |
 
-> 小计：25 分
+> 小计：60 分
 
 ### COSMO 维度
 | 指标 | 满分 | 得分 | 说明 |
@@ -214,5 +225,5 @@ Experience the YourBrand Action Camera now and record every exciting moment! Pro
 - A+ 字数: 518 词，满足下限: True
 
 ### 算法对齐摘要
-- 总分: 129/300
-- 综合评级: 待优化 (43.0%)
+- 总分: 164/300
+- 综合评级: 待优化 (54.7%)

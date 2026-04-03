@@ -113,6 +113,7 @@ def build_arsenal(preprocessed_data: Any) -> Dict[str, Any]:
     if not reserve_keywords:
         # ─── Priority 2: 预处理数据中的关键词表 ───
         keyword_rows = getattr(getattr(preprocessed_data, "keyword_data", None), "keywords", []) or []
+        prices = []
 
         # 计算百分位阈值
         volumes = []
