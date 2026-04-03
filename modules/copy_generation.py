@@ -1416,6 +1416,28 @@ def _translate_scene(scene_label: str, target_language: str) -> str:
     return translated
 
 
+def _translate_text_to_language(text: str, target_language: str) -> str:
+    """
+    将英文文本翻译为目标语言 (用于 bullet/description 翻译)
+    使用短语优先替换 + 剩余单词翻译
+    """
+    if target_language == "English":
+        return text
+
+    translations = CAPABILITY_TRANSLATIONS.get(target_language, {})
+    scene_translations = SCENE_TRANSLATIONS.get(target_language, {})
+
+    # 1. 短语优先替换（从长到短排序，避免短词优先匹配）
+    all_trans = {**translations, **scene_translations}
+    phrases = sorted(all_trans.keys(), key=len, reverse=True)
+
+    for phrase in phrases:
+        if phrase in text:
+            text = text.replace(phrase, all_trans[phrase])
+
+    return text
+
+
 def _build_english_title_structure(preprocessed_data: Any, writing_policy: Dict[str, Any],
                                     tiered_keywords: Dict[str, List[str]],
                                     keyword_allocation_strategy: str) -> Dict[str, Any]:
