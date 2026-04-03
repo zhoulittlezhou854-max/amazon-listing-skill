@@ -420,7 +420,7 @@ def generate_bullet_points(preprocessed_data: PreprocessedData,
     bullets.append(template.format(content=content))
 
     # B4: L3关键词 + 第四场景 + 边界声明
-    scene4 = get_scene(scenes[3]) if len(scenes) > 3 else get_scene(scenes[0])  # 户外运动
+    scene4 = scenes[3] if len(scenes) > 3 else scenes[0]  # 保持原始场景名
     capability = core_capabilities[2] if len(core_capabilities) > 2 else core_capabilities[0]
     template = BULLET_TEMPLATES["B4"].get(language, BULLET_TEMPLATES["B4"]["English"])
     boundary = random.choice(BOUNDARY_STATEMENTS.get(language, BOUNDARY_STATEMENTS["English"]))
