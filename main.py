@@ -303,14 +303,29 @@ class AmazonListingGenerator:
                 from tools.preprocess import preprocess_data
                 with open(preprocessed_path, 'r', encoding='utf-8') as f:
                     preprocessed_dict = json.load(f)
-                # 重建 PreprocessedData 对象（简化版）
+                # 重建 PreprocessedData 对象（懒加载版）
                 class LazyPreprocessedData:
                     def __init__(self, d):
                         self.run_config = type('obj', (object,), d.get('run_config', {}))()
                         self.attribute_data = type('obj', (object,), {'data': d.get('attribute_data', {}).get('data', {})})()
-                        self.keyword_data = d.get('keyword_data')
-                        self.review_data = d.get('review_data')
-                        self.aba_data = d.get('aba_data')
+                        # keyword_data: 从顶层keyword_data字段获取，并构建具有keywords属性的对象
+                        kd = d.get('keyword_data', {})
+                        if isinstance(kd, dict) and 'keywords' in kd:
+                            self.keyword_data = type('obj', (object,), {'keywords': kd.get('keywords', [])})()
+                        else:
+                            self.keyword_data = type('obj', (object,), {'keywords': []})()
+                        # review_data: 同样从顶层获取
+                        rd = d.get('review_data', {})
+                        if isinstance(rd, dict) and 'insights' in rd:
+                            self.review_data = type('obj', (object,), {'insights': rd.get('insights', [])})()
+                        else:
+                            self.review_data = type('obj', (object,), {'insights': []})()
+                        # aba_data: 同样从顶层获取
+                        ad = d.get('aba_data', {})
+                        if isinstance(ad, dict) and 'trends' in ad:
+                            self.aba_data = type('obj', (object,), {'trends': ad.get('trends', [])})()
+                        else:
+                            self.aba_data = type('obj', (object,), {'trends': []})()
                         self.core_selling_points = d.get('preprocessed_data', {}).get('core_selling_points', [])
                         self.accessory_descriptions = d.get('preprocessed_data', {}).get('accessory_descriptions', [])
                         self.quality_score = d.get('preprocessed_data', {}).get('quality_score', 0)
