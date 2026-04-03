@@ -270,8 +270,21 @@ def generate_title(preprocessed_data: PreprocessedData,
         title = title.replace("[L1关键词]", l1_keywords[0])
         title = title.replace("[L1_Keyword]", l1_keywords[0])
     else:
-        title = title.replace("[L1关键词]", "运动相机")
-        title = title.replace("[L1_Keyword]", "Action Camera")
+        # 根据语言设置默认L1关键词
+        default_l1 = {
+            "Chinese": "运动相机",
+            "English": "Action Camera",
+            "German": "Actionkamera",
+            "French": "caméra d'action",
+            "Spanish": "cámara de acción",
+            "Italian": "videocamera sportiva",
+            "Japanese": "アクションカメラ"
+        }
+        default_keyword = default_l1.get(language, "Action Camera")
+        title = title.replace("[L1关键词]", default_keyword)
+        title = title.replace("[L1_Keyword]", default_keyword)
+        # 同时将默认关键词添加到l1_keywords列表用于后续使用
+        l1_keywords = [default_keyword]
 
     title = title.replace("[场景词]", scene_word)
     title = title.replace("[Scene_Word]", scene_word)
