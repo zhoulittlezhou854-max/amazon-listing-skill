@@ -1763,7 +1763,7 @@ def generate_multilingual_copy(preprocessed_data: PreprocessedData,
     )
 
     # 第二阶段: 生成目标语言标题
-    title = _generate_title_in_language(title_struct, target_language, keyword_allocation_strategy)
+    title = _generate_title_in_language(title_struct, target_language, keyword_allocation_strategy, preprocessed_data.real_vocab, data_mode)
 
     # 生成 bullets (使用 English 标准化版本)
     bullets_en = generate_bullet_points(preprocessed_en, writing_policy, "English",
