@@ -9,7 +9,7 @@ import json
 import re
 import random
 from typing import Dict, List, Any, Optional
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 
 @dataclass
@@ -1900,7 +1900,7 @@ def load_copy_from_file(filepath: str) -> Dict[str, Any]:
 
 if __name__ == "__main__":
     # 测试代码
-    from dataclasses import dataclass
+    from dataclasses import dataclass, field
 
     @dataclass
     class MockKeywordData:
