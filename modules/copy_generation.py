@@ -477,8 +477,18 @@ def generate_bullet_points(preprocessed_data: PreprocessedData,
     scene3 = scenes[2] if len(scenes) > 2 else scenes[0]  # 保持原始场景名
     capability = core_capabilities[1] if len(core_capabilities) > 1 else core_capabilities[0]
     template = BULLET_TEMPLATES["B3"].get(language, BULLET_TEMPLATES["B3"]["English"])
-    l2_word = l2_keywords[0] if l2_keywords else "防水运动相机"
-    content = f"相比竞品，{l2_word}在{scene3}表现更优异，电池续航{battery_life}"
+
+    # 根据策略选择关键词
+    if keyword_allocation_strategy == "aggressive_l1":
+        lx_word = l1_keywords[1] if len(l1_keywords) > 1 else (l1_keywords[0] if l1_keywords else "防水运动相机")
+    elif keyword_allocation_strategy == "l2_focus":
+        lx_word = l2_keywords[0] if l2_keywords else "防水运动相机"
+    elif keyword_allocation_strategy == "conservative":
+        lx_word = l3_keywords[0] if l3_keywords else "多功能设计"
+    else:  # balanced
+        lx_word = l2_keywords[0] if l2_keywords else "防水运动相机"
+
+    content = f"相比竞品，{lx_word}在{scene3}表现更优异，电池续航{battery_life}"
     bullets.append(template.format(content=content))
 
     # B4: L3关键词 + 第四场景 + 边界声明
@@ -486,8 +496,18 @@ def generate_bullet_points(preprocessed_data: PreprocessedData,
     capability = core_capabilities[2] if len(core_capabilities) > 2 else core_capabilities[0]
     template = BULLET_TEMPLATES["B4"].get(language, BULLET_TEMPLATES["B4"]["English"])
     boundary = random.choice(BOUNDARY_STATEMENTS.get(language, BOUNDARY_STATEMENTS["English"]))
-    l3_word = l3_keywords[0] if l3_keywords else "多功能设计"
-    content = f"{l3_word}，适用于{scene4}{boundary}，最大存储{max_storage}"
+
+    # 根据策略选择关键词
+    if keyword_allocation_strategy == "aggressive_l1":
+        lx_word = l2_keywords[0] if l2_keywords else "多功能设计"
+    elif keyword_allocation_strategy == "l2_focus":
+        lx_word = l2_keywords[1] if len(l2_keywords) > 1 else (l3_keywords[0] if l3_keywords else "多功能设计")
+    elif keyword_allocation_strategy == "conservative":
+        lx_word = l3_keywords[0] if l3_keywords else "多功能设计"
+    else:  # balanced
+        lx_word = l3_keywords[0] if l3_keywords else "多功能设计"
+
+    content = f"{lx_word}，适用于{scene4}{boundary}，最大存储{max_storage}"
     bullets.append(template.format(content=content))
 
     # B5: P2质保/售后/兼容性 + 数字参数
