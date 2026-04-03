@@ -520,7 +520,7 @@ def generate_default_4scene_policy(core_selling_points: List[str], language: str
             "binding_type": binding_type,
             "allowed_scenes": four_scenes[:3],  # 取前3个场景
             "forbidden_scenes": [],
-            "usage_notes": f"可在{', '.join(four_scenes[:2])}等场景中使用"
+            "usage_notes": f"Used in {', '.join(four_scenes[:2])} scenarios"
         })
 
     # 确保4个场景都有绑定
