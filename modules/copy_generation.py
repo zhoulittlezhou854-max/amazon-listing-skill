@@ -1620,16 +1620,47 @@ def generate_multilingual_copy(preprocessed_data: PreprocessedData,
     tiered_keywords = extract_tiered_keywords(preprocessed_data.keyword_data, "English")
     l1_keywords = tiered_keywords.get("l1", [])
 
+    # ---- PRD v8.2 Node 4 Phase 0: 标准化中文能力词/配件名为英文 ----
+    # (内部规划统一用 English，不能有残留中文能力词嵌入英文句子)
+    core_selling_points_en = _normalize_core_selling_points(preprocessed_data.core_selling_points)
+    accessory_descriptions_en = _normalize_accessory_descriptions(preprocessed_data.accessory_descriptions)
+
+    # 创建一个临时 preprocessed_data 副本用于后续调用（只改这两个字段）
+    preprocessed_en = preprocessed_data
+    # 使用 dataclass.replace 风格的浅拷贝（如果支持的话），否则手动构造
+    try:
+        import dataclasses
+        preprocessed_en = dataclasses.replace(
+            preprocessed_data,
+            core_selling_points=core_selling_points_en,
+            accessory_descriptions=accessory_descriptions_en
+        )
+    except Exception:
+        # Fallback: 手动浅拷贝（仅适用于我们实际用到的字段）
+        class _EnProxy:
+            def __init__(self, pd, caps, accs):
+                self.run_config = pd.run_config
+                self.attribute_data = pd.attribute_data
+                self.keyword_data = pd.keyword_data
+                self.review_data = pd.review_data
+                self.aba_data = pd.aba_data
+                self.core_selling_points = caps
+                self.accessory_descriptions = accs
+                self.quality_score = pd.quality_score
+                self.language = pd.language
+                self.processed_at = pd.processed_at
+        preprocessed_en = _EnProxy(preprocessed_data, core_selling_points_en, accessory_descriptions_en)
+
     # 第一阶段: 用 English 构建标题结构
     title_struct = _build_english_title_structure(
-        preprocessed_data, writing_policy, tiered_keywords, keyword_allocation_strategy
+        preprocessed_en, writing_policy, tiered_keywords, keyword_allocation_strategy
     )
 
     # 第二阶段: 生成目标语言标题
     title = _generate_title_in_language(title_struct, target_language, keyword_allocation_strategy)
 
-    # 生成 bullets (使用现有逻辑，但传入 English 关键词和目标语言)
-    bullets_en = generate_bullet_points(preprocessed_data, writing_policy, "English",
+    # 生成 bullets (使用 English 标准化版本)
+    bullets_en = generate_bullet_points(preprocessed_en, writing_policy, "English",
                                         tiered_keywords, keyword_allocation_strategy)
 
     # 翻译 bullets 到目标语言 (短语优先替换)
