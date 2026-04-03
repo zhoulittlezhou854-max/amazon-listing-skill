@@ -720,6 +720,7 @@ def preprocess_data(
         keyword_data=keyword_data,
         review_data=review_data,
         aba_data=aba_data,
+        real_vocab=real_vocab,
         core_selling_points=core_selling_points,
         accessory_descriptions=accessory_descriptions,
         quality_score=quality_score,
