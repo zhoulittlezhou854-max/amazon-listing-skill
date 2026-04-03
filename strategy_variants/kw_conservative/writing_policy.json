@@ -1,0 +1,79 @@
+{
+  "scene_priority": [
+    "旅行记录",
+    "运动训练",
+    "骑行记录",
+    "水下探索",
+    "家庭使用",
+    "户外运动"
+  ],
+  "capability_scene_bindings": [
+    {
+      "capability": "双屏幕",
+      "binding_type": "used_for_func",
+      "allowed_scenes": [
+        "家庭使用",
+        "旅行记录"
+      ],
+      "forbidden_scenes": [],
+      "usage_notes": "可在家庭使用, 旅行记录等场景中使用"
+    },
+    {
+      "capability": "防抖",
+      "binding_type": "performance_feature",
+      "allowed_scenes": [
+        "骑行记录",
+        "运动训练"
+      ],
+      "forbidden_scenes": [],
+      "usage_notes": "可在骑行记录, 运动训练等场景中使用"
+    },
+    {
+      "capability": "WiFi连接",
+      "binding_type": "connectivity_feature",
+      "allowed_scenes": [
+        "家庭使用"
+      ],
+      "forbidden_scenes": [],
+      "usage_notes": "可在家庭使用等场景中使用"
+    },
+    {
+      "capability": "防水",
+      "binding_type": "environmental_feature",
+      "allowed_scenes": [
+        "水下探索"
+      ],
+      "forbidden_scenes": [],
+      "usage_notes": "可在水下探索场景中使用"
+    }
+  ],
+  "faq_only_capabilities": [
+    "质保条款细节",
+    "防水深度限制",
+    "数字防抖限制说明",
+    "兼容性限制",
+    "电池更换说明"
+  ],
+  "forbidden_pairs": [
+    ["5K", "防抖"],
+    ["8K", "实时直播"],
+    ["防水", "充电"],
+    ["极限温度", "长时间使用"]
+  ],
+  "bullet_slot_rules": {
+    "B1": "Mounting system + Primary scene + P0 capability",
+    "B2": "P0 core capability + Quantified parameters",
+    "B3": "P1 competitor pain point comparison + Scene keywords",
+    "B4": "P1/P2 capability + Boundary statement",
+    "B5": "P2 warranty/after-sale/兼容性"
+  },
+  "language": "German",
+  "keyword_allocation_strategy": "conservative",
+  "metadata": {
+    "core_selling_points_count": 3,
+    "scenes_count": 6,
+    "bindings_count": 4,
+    "variant": "kw_conservative_仅1个L1在Title",
+    "generated_at": "2026-04-03T13:50:00"
+  }
+}
