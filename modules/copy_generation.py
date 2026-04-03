@@ -1215,24 +1215,24 @@ def generate_multilingual_copy(preprocessed_data: PreprocessedData,
 
 def generate_listing_copy(preprocessed_data: PreprocessedData,
                          writing_policy: Dict[str, Any],
-                         language: str = "Chinese") -> Dict[str, Any]:
+                         language: str = None) -> Dict[str, Any]:
     """
-    生成完整的Listing文案 - 优化版：使用分层关键词
+    生成完整的Listing文案 - PRD v8.2 多语言版
+
+    委托给 generate_multilingual_copy() 处理多语言逻辑：
+    - 内部推理使用 English (Reasoning_Language = EN)
+    - 最终输出使用 target_language
+    - 缺本地词时添加 [SYNTH] 标记
 
     Args:
         preprocessed_data: 预处理数据
-        writing_policy: writing_policy策略
-        language: 目标语言
+        writing_policy: writing_policy策略 (含 product_profile, intent_graph)
+        language: 目标语言 (默认从 preprocessed_data.language 获取)
 
     Returns:
         包含所有文案组件的字典
     """
-    # 读取关键词分配策略（默认为balanced）
-    keyword_allocation_strategy = writing_policy.get("keyword_allocation_strategy", "balanced")
-
-    # 提取分层关键词（L1/L2/L3）
-    tiered_keywords = extract_tiered_keywords(preprocessed_data.keyword_data, language)
-    l1_keywords = tiered_keywords.get("l1", [])
+    return generate_multilingual_copy(preprocessed_data, writing_policy, language)
 
     # 生成标题（确保L1在首80字符内，多场景）
     title = generate_title(preprocessed_data, writing_policy, l1_keywords, tiered_keywords, keyword_allocation_strategy)
