@@ -615,10 +615,16 @@ def preprocess_data(
         review_data.insights
     )
 
-    # 6. 确定目标语言
-    language = COUNTRY_LANGUAGE_MAP.get(run_config.target_country, "English")
+    # 6. 确定目标语言 (target_language)
+    target_language = COUNTRY_LANGUAGE_MAP.get(run_config.target_country, "English")
 
-    # 7. 构建预处理数据对象
+    # 7. PRD v8.2: 诊断 data_mode
+    # DATA_DRIVEN: ABA + review 总有效行数 >= 10
+    # SYNTHETIC_COLD_START: 有效行数 < 10，需要合成
+    total_data_rows = len(aba_data.trends) + len(review_data.insights)
+    data_mode = "DATA_DRIVEN" if total_data_rows >= 10 else "SYNTHETIC_COLD_START"
+
+    # 8. 构建预处理数据对象
     preprocessed = PreprocessedData(
         run_config=run_config,
         attribute_data=AttributeData(data=attribute_data),
@@ -628,7 +634,10 @@ def preprocess_data(
         core_selling_points=core_selling_points,
         accessory_descriptions=accessory_descriptions,
         quality_score=quality_score,
-        language=language,
+        language=target_language,
+        target_country=run_config.target_country,
+        reasoning_language="EN",
+        data_mode=data_mode,
         processed_at=datetime.datetime.now().isoformat()
     )
 
