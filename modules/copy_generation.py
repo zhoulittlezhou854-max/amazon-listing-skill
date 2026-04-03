@@ -420,15 +420,20 @@ def clean_bullet_text(bullet: str) -> str:
 
 def generate_bullet_points(preprocessed_data: PreprocessedData,
                           writing_policy: Dict[str, Any],
-                          language: str = "Chinese") -> List[str]:
+                          language: str = "Chinese",
+                          tiered_keywords: Dict[str, List[str]] = None) -> List[str]:
     """
-    生成5条bullet points
+    生成5条bullet points - 优化版：多场景覆盖，L2/L3关键词使用
     """
     bullets = []
     brand = preprocessed_data.run_config.brand_name if hasattr(preprocessed_data.run_config, 'brand_name') else "TOSBARRFT"
     core_capabilities = preprocessed_data.core_selling_points
     scenes = writing_policy.get('scene_priority', [])
     attr_data = preprocessed_data.attribute_data.data if hasattr(preprocessed_data.attribute_data, 'data') else {}
+
+    # 确保至少有4个场景
+    while len(scenes) < 4:
+        scenes.extend(["户外运动", "旅行记录", "运动训练", "家庭使用"][:4-len(scenes)])
 
     # 提取属性参数
     waterproof_depth = attr_data.get('waterproof_depth', '30米')
@@ -438,53 +443,64 @@ def generate_bullet_points(preprocessed_data: PreprocessedData,
     max_storage = attr_data.get('max_storage', '256GB')
     warranty_period = attr_data.get('warranty_period', '12个月')
 
-    # B1: 挂载系统 + 主场景 + P0能力 + 数字参数
+    # 获取L2/L3关键词
+    l2_keywords = tiered_keywords.get("l2", []) if tiered_keywords else []
+    l3_keywords = tiered_keywords.get("l3", []) if tiered_keywords else []
+
+    # 德语场景翻译
+    scene_translation = {
+        "骑行记录": "Radfahren",
+        "户外运动": "Outdoor Sport",
+        "水下探索": "Unterwasser",
+        "旅行记录": "Reise",
+        "运动训练": "Sporttraining",
+        "家庭使用": "Familie"
+    }
+
+    def get_scene(scene):
+        if language == "German":
+            return scene_translation.get(scene, scene)
+        return scene
+
+    # B1: 挂载系统 + 主场景(Radfahren) + L1能力 + 数字参数
     if scenes and core_capabilities:
-        scene = scenes[0]
+        scene = get_scene(scenes[0])  # 骑行记录
         capability = core_capabilities[0]
         template = BULLET_TEMPLATES["B1"].get(language, BULLET_TEMPLATES["B1"]["English"])
-        # 添加数字参数：防水深度
         content = f"配备多种挂载配件，专为{scene}设计，提供{capability}功能，支持{waterproof_depth}防水"
         bullets.append(template.format(content=content))
 
-    # B2: P0核心能力 + 量化参数
+    # B2: L1核心能力 + 次场景(Unterwasser) + 量化参数
     if len(core_capabilities) > 0:
+        scene2 = get_scene(scenes[1]) if len(scenes) > 1 else get_scene(scenes[0])  # 水下探索
         capability = core_capabilities[0]
         template = BULLET_TEMPLATES["B2"].get(language, BULLET_TEMPLATES["B2"]["English"])
         if "4K" in capability or "录像" in capability:
-            content = f"支持{resolution}高清录像，画面细腻流畅，最大存储{max_storage}"
+            content = f"支持{resolution}高清录像，专为{scene2}优化，电池续航{battery_life}"
         elif "防抖" in capability:
-            content = f"采用先进防抖技术，运动拍摄依然稳定清晰，电池续航{battery_life}"
+            content = f"采用先进防抖技术，适合{scene2}拍摄，电池续航{battery_life}"
         elif "防水" in capability:
-            content = f"支持{waterproof_depth}防水，适合水下拍摄，重量仅{weight}"
+            content = f"支持{waterproof_depth}防水，适合{scene2}，重量仅{weight}"
         else:
-            content = f"提供{capability}功能，性能出色可靠，重量仅{weight}"
+            content = f"提供{capability}功能，适合{scene2}，性能出色可靠"
         bullets.append(template.format(content=content))
 
-    # B3: P1竞品痛点对比 + 场景词 + 数字参数
-    if len(scenes) > 1 and len(core_capabilities) > 1:
-        scene = scenes[1] if len(scenes) > 1 else scenes[0]
-        capability = core_capabilities[1] if len(core_capabilities) > 1 else core_capabilities[0]
-        template = BULLET_TEMPLATES["B3"].get(language, BULLET_TEMPLATES["B3"]["English"])
-        # 添加电池续航参数
-        content = f"相比竞品，在{scene}场景下{capability}表现更优异，电池续航{battery_life}"
-        bullets.append(template.format(content=content))
+    # B3: L2关键词 + 第三场景(Familie) + 竞品对比
+    scene3 = get_scene(scenes[2]) if len(scenes) > 2 else get_scene(scenes[0])  # 家庭使用
+    capability = core_capabilities[1] if len(core_capabilities) > 1 else core_capabilities[0]
+    template = BULLET_TEMPLATES["B3"].get(language, BULLET_TEMPLATES["B3"]["English"])
+    l2_word = l2_keywords[0] if l2_keywords else "防水运动相机"
+    content = f"相比竞品，{l2_word}在{scene3}表现更优异，电池续航{battery_life}"
+    bullets.append(template.format(content=content))
 
-    # B4: P1/P2能力 + 使用场景 + 边界声明句 + 数字参数
-    if len(core_capabilities) > 2:
-        capability = core_capabilities[2] if len(core_capabilities) > 2 else core_capabilities[0]
-        scene = scenes[2] if len(scenes) > 2 else scenes[0]
-        template = BULLET_TEMPLATES["B4"].get(language, BULLET_TEMPLATES["B4"]["English"])
-        boundary = random.choice(BOUNDARY_STATEMENTS.get(language, BOUNDARY_STATEMENTS["English"]))
-        # 添加存储参数
-        content = f"支持{capability}，适用于{scene}{boundary}，最大存储{max_storage}"
-        bullets.append(template.format(content=content))
-    else:
-        # 使用默认内容
-        template = BULLET_TEMPLATES["B4"].get(language, BULLET_TEMPLATES["B4"]["English"])
-        boundary = random.choice(BOUNDARY_STATEMENTS.get(language, BOUNDARY_STATEMENTS["English"]))
-        content = f"多功能设计，满足多种拍摄需求{boundary}，重量仅{weight}"
-        bullets.append(template.format(content=content))
+    # B4: L3关键词 + 第四场景 + 边界声明
+    scene4 = get_scene(scenes[3]) if len(scenes) > 3 else get_scene(scenes[0])  # 户外运动
+    capability = core_capabilities[2] if len(core_capabilities) > 2 else core_capabilities[0]
+    template = BULLET_TEMPLATES["B4"].get(language, BULLET_TEMPLATES["B4"]["English"])
+    boundary = random.choice(BOUNDARY_STATEMENTS.get(language, BOUNDARY_STATEMENTS["English"]))
+    l3_word = l3_keywords[0] if l3_keywords else "多功能设计"
+    content = f"{l3_word}，适用于{scene4}{boundary}，最大存储{max_storage}"
+    bullets.append(template.format(content=content))
 
     # B5: P2质保/售后/兼容性 + 数字参数
     template = BULLET_TEMPLATES["B5"].get(language, BULLET_TEMPLATES["B5"]["English"])
