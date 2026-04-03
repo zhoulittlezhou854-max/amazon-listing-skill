@@ -98,9 +98,9 @@ DEFAULT_BULLET_SLOT_RULES = {
 }
 
 
-def extract_scenes_from_keywords(keyword_data: Any, language: str = "Chinese") -> List[str]:
+def extract_scenes_from_keywords(keyword_data: Any, language: str = "English") -> List[str]:
     """
-    从关键词数据中提取场景
+    从关键词数据中提取场景 (English labels internally)
     """
     scenes = set()
 
@@ -123,38 +123,47 @@ def extract_scenes_from_keywords(keyword_data: Any, language: str = "Chinese") -
         keyword_lower = keyword.lower()
         for pattern in scene_patterns:
             if re.search(pattern, keyword_lower, re.IGNORECASE):
-                # 映射到中文场景
+                # 映射到英文场景标签
                 scene_map = {
-                    'outdoor': '户外运动',
-                    'sports': '运动训练',
-                    'biking': '骑行记录',
-                    'underwater': '水下探索',
-                    'travel': '旅行记录',
-                    'family': '家庭使用',
-                    'skiing': '滑雪运动',
-                    'hiking': '登山徒步',
-                    'pet': '宠物拍摄',
-                    'vlogging': 'vlog制作',
-                    '赛事': '赛事记录',
-                    '野外': '野外探险',
-                    '极限': '极限运动',
-                    '日常': '日常记录'
+                    'outdoor': 'outdoor_sports',
+                    'sports': 'sports_training',
+                    'biking': 'cycling_recording',
+                    'underwater': 'underwater_exploration',
+                    'travel': 'travel_documentation',
+                    'family': 'family_use',
+                    'skiing': 'skiing',
+                    'hiking': 'hiking_trekking',
+                    'pet': 'pet_photography',
+                    'vlogging': 'vlog_content_creation',
+                    '赛事': 'sports_event_recording',
+                    '野外': 'wilderness_exploration',
+                    '极限': 'extreme_sports',
+                    '日常': 'daily_lifelogging',
+                    '骑行': 'cycling_recording',
+                    '水下': 'underwater_exploration',
+                    '旅行': 'travel_documentation',
+                    '家庭': 'family_use',
+                    '户外': 'outdoor_sports',
+                    '登山': 'hiking_trekking',
+                    '滑雪': 'skiing',
+                    '自驾': 'road_trip',
+                    '宠物': 'pet_photography'
                 }
 
-                for eng, chi in scene_map.items():
+                for eng, eng_label in scene_map.items():
                     if eng in keyword_lower:
-                        scenes.add(chi)
+                        scenes.add(eng_label)
                         break
                 else:
-                    # 如果没有匹配的映射，使用原始模式
-                    scenes.add(keyword)
+                    # 如果没有匹配的映射，使用英文小写形式
+                    scenes.add(keyword_lower.replace(" ", "_"))
 
     # 如果场景太少，使用默认场景
     if len(scenes) < 3:
         scenes.update(ACTION_CAMERA_SCENES[:5])
 
-    # 确保包含三个关键场景：骑行、水下、旅行
-    target_scenes = ["骑行记录", "水下探索", "旅行记录"]
+    # 确保包含三个关键场景：cycling, underwater, travel
+    target_scenes = ["cycling_recording", "underwater_exploration", "travel_documentation"]
     scenes.update(target_scenes)
 
     return list(scenes)[:8]  # 最多8个场景
