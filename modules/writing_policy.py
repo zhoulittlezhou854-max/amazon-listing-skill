@@ -80,7 +80,7 @@ DEFAULT_4SCENE_POLICY = {
     }
 }
 
-# 禁止的能力组合
+# 禁止的能力组合 (English)
 DEFAULT_FORBIDDEN_PAIRS = [
     ["5K", "防抖"],  # 5K分辨率下不支持防抖
     ["8K", "实时直播"],  # 8K分辨率下不支持实时直播
@@ -88,13 +88,13 @@ DEFAULT_FORBIDDEN_PAIRS = [
     ["极限温度", "长时间使用"]  # 极端温度下不建议长时间使用
 ]
 
-# Bullet slot规则
+# Bullet slot规则 (English)
 DEFAULT_BULLET_SLOT_RULES = {
-    "B1": "挂载系统 + 主场景 + P0能力",
-    "B2": "P0核心能力 + 量化参数",
-    "B3": "P1竞品痛点对比 + 场景词",
-    "B4": "P1/P2能力 + 边界声明句",
-    "B5": "P2质保/售后/兼容性"
+    "B1": "Mounting system + Primary scene + P0 capability",
+    "B2": "P0 core capability + Quantified parameters",
+    "B3": "P1 competitor pain point comparison + Scene keywords",
+    "B4": "P1/P2 capability + Boundary statement",
+    "B5": "P2 warranty/after-sale/compatibility"
 }
 
 
