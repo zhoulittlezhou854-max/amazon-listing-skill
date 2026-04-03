@@ -173,9 +173,8 @@ def build_arsenal(preprocessed_data: Any) -> Dict[str, Any]:
         kw_source = "keyword_table"
 
     review_insights = getattr(getattr(preprocessed_data, "review_data", None), "insights", []) or []
-    prices = []  # Initialize to avoid UnboundLocalError when Priority 1 succeeds
 
-    if not reserve_keywords and prices is not None:
+    if prices:
         price_median = median(prices)
     else:
         price_median = None
