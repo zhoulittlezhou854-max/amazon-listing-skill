@@ -770,7 +770,7 @@ def preprocess_data(
                 "target_country": run_config.target_country,
                 "reasoning_language": "EN",
                 "data_mode": data_mode,
-                "data_mode_note": f"ABA rows: {len(aba_data.trends)}, Review rows: {len(review_data.insights)}, Total: {total_data_rows}",
+                "data_mode_note": f"ABA rows: {len(aba_data.trends)}, Review rows: {len(review_data.insights)}, Real vocab rows: {real_vocab.total_count if real_vocab else 0}, Total: {total_data_rows}",
                 "processed_at": preprocessed.processed_at
             },
             # 保存完整关键词数据供scoring.py使用
