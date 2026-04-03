@@ -704,8 +704,14 @@ def preprocess_data(
     # 7. PRD v8.2: 诊断 data_mode
     # DATA_DRIVEN: ABA + review 总有效行数 >= 10
     # SYNTHETIC_COLD_START: 有效行数 < 10，需要合成
+    # 如果有真实国家词表且行数 >= 10，也视为 DATA_DRIVEN
     total_data_rows = len(aba_data.trends) + len(review_data.insights)
-    data_mode = "DATA_DRIVEN" if total_data_rows >= 10 else "SYNTHETIC_COLD_START"
+    if real_vocab and real_vocab.is_available and real_vocab.total_count >= 10:
+        data_mode = "DATA_DRIVEN"
+    elif total_data_rows >= 10:
+        data_mode = "DATA_DRIVEN"
+    else:
+        data_mode = "SYNTHETIC_COLD_START"
 
     # 8. 构建预处理数据对象
     preprocessed = PreprocessedData(
