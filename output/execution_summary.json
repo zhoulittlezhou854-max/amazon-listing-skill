@@ -1,5 +1,5 @@
 {
-  "output_dir": "output",
+  "output_dir": "/Users/zhoulittlezhou/amazon-listing-skill/output",
   "steps_executed": [
     6,
     7,
@@ -8,20 +8,27 @@
   ],
   "results": {
     "step_6": {
-      "status": "error",
-      "error": "需要先运行 Step 0"
+      "status": "success",
+      "copy_path": "/Users/zhoulittlezhou/amazon-listing-skill/output/generated_copy.json",
+      "title_length": 61,
+      "bullets_count": 5,
+      "faq_count": 5
     },
     "step_7": {
-      "status": "error",
-      "error": "需要先运行 Step 6"
+      "status": "success",
+      "risk_path": "/Users/zhoulittlezhou/amazon-listing-skill/output/risk_report.json",
+      "overall_passed": false
     },
     "step_8": {
-      "status": "error",
-      "error": "需要先运行 Step 6"
+      "status": "success",
+      "scores_path": "/Users/zhoulittlezhou/amazon-listing-skill/output/scoring_results.json",
+      "total_score": 155,
+      "grade": "需要改进"
     },
     "step_9": {
-      "status": "error",
-      "error": "需要先运行前面的所有步骤"
+      "status": "success",
+      "report_path": "/Users/zhoulittlezhou/amazon-listing-skill/output/listing_report.md",
+      "report_length": 7383
     }
   }
 }

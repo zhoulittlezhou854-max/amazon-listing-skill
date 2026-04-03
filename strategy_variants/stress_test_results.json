@@ -1,16 +1,16 @@
 {
   "baseline": {
     "metrics": {
-      "total_score": 248,
-      "a10_total": 75,
-      "cosmo_total": 76,
+      "total_score": 253,
+      "a10_total": 70,
+      "cosmo_total": 86,
       "rufus_total": 87,
       "price_score": 10,
       "title_front_80": 30,
       "keyword_tiering": 20,
-      "conversion_signals": 25,
+      "conversion_signals": 20,
       "scene_coverage": 26,
-      "capability_binding": 30,
+      "capability_binding": 40,
       "audience_tags": 20
     },
     "scores": {
@@ -27,10 +27,10 @@
         },
         "conversion_signals": {
           "max": 30,
-          "score": 25,
-          "note": "B1符合P0 tier，B2-B3 P1 tier得分5，B4-B5 P2 tier得分10"
+          "score": 20,
+          "note": "B1符合P0 tier，B4-B5 P2 tier得分10"
         },
-        "subtotal": 75
+        "subtotal": 70
       },
       "cosmo": {
         "scene_coverage": {
@@ -40,15 +40,15 @@
         },
         "capability_scene_binding": {
           "max": 40,
-          "score": 30,
-          "note": "满足 3/4 条绑定"
+          "score": 40,
+          "note": "满足 4/4 条绑定"
         },
         "audience_tags": {
           "max": 20,
           "score": 20,
           "note": "触达人群: 骑行, 旅行, 家庭, 户外"
         },
-        "subtotal": 76
+        "subtotal": 86
       },
       "rufus": {
         "fact_completeness": {
@@ -77,13 +77,13 @@
         "data_available": true,
         "note": "品类中位 199.00 vs 当前 189.00"
       },
-      "total_score": 248,
+      "total_score": 253,
       "max_total": 310,
-      "grade_percent": 80.0,
+      "grade_percent": 81.6,
       "rating": "良好",
       "boundary_declaration_check": {
         "exists": true,
-        "sentence": "配备多种挂载配件，专为骑行记录设计，提供双屏幕功能，支持30米（需使用防水壳）防水",
+        "sentence": "配备多种挂载配件，专为水下探索设计，提供双屏幕功能，支持30米（需使用防水壳）防水",
         "score_impact": "+10"
       },
       "aplus_word_count_check": {
@@ -92,8 +92,8 @@
         "score_impact": "+15"
       },
       "scoring_detail_version": "v8.4.0",
-      "a10_score": 75,
-      "cosmo_score": 76,
+      "a10_score": 70,
+      "cosmo_score": 86,
       "rufus_score": 87,
       "price_competitiveness_score": 10,
       "grade": "良好"
@@ -101,13 +101,13 @@
   },
   "scene_v1": {
     "metrics": {
-      "total_score": 248,
-      "a10_total": 75,
+      "total_score": 155,
+      "a10_total": 25,
       "cosmo_total": 76,
-      "rufus_total": 87,
-      "price_score": 10,
-      "title_front_80": 30,
-      "keyword_tiering": 20,
+      "rufus_total": 54,
+      "price_score": null,
+      "title_front_80": 0,
+      "keyword_tiering": 0,
       "conversion_signals": 25,
       "scene_coverage": 26,
       "capability_binding": 30,
@@ -117,20 +117,20 @@
       "a10": {
         "title_front_80": {
           "max": 40,
-          "score": 30,
-          "note": "包含品牌，含L1词"
+          "score": 0,
+          "note": "前80字符缺少关键要素"
         },
         "keyword_tiering": {
           "max": 30,
-          "score": 20,
-          "note": "L1:1 L2:1 L3:0"
+          "score": 0,
+          "note": "L1:0 L2:0 L3:0"
         },
         "conversion_signals": {
           "max": 30,
           "score": 25,
           "note": "B1符合P0 tier，B2-B3 P1 tier得分5，B4-B5 P2 tier得分10"
         },
-        "subtotal": 75
+        "subtotal": 25
       },
       "cosmo": {
         "scene_coverage": {
@@ -153,8 +153,8 @@
       "rufus": {
         "fact_completeness": {
           "max": 40,
-          "score": 33,
-          "note": "事实覆盖 5/6 个参数"
+          "score": 0,
+          "note": "属性表缺失"
         },
         "faq_coverage": {
           "max": 40,
@@ -166,95 +166,95 @@
           "score": 20,
           "note": "无冲突"
         },
-        "subtotal": 87
+        "subtotal": 54
       },
       "price_competitiveness": {
-        "price_median": 199.0,
-        "current_price": 189.0,
-        "max": 10,
-        "score": 10,
-        "range": "定价贴近中位",
-        "data_available": true,
-        "note": "品类中位 199.00 vs 当前 189.00"
+        "price_median": null,
+        "current_price": null,
+        "max": 0,
+        "score": null,
+        "range": "竞品或当前定价缺失",
+        "data_available": false,
+        "note": "价格数据缺失，跳过评分"
       },
-      "total_score": 248,
-      "max_total": 310,
-      "grade_percent": 80.0,
-      "rating": "良好",
+      "total_score": 155,
+      "max_total": 300,
+      "grade_percent": 51.7,
+      "rating": "待优化",
       "boundary_declaration_check": {
         "exists": true,
-        "sentence": "配备多种挂载配件，专为骑行记录设计，提供双屏幕功能，支持30米（需使用防水壳）防水",
+        "sentence": "helmet camera，适用于旅行记录(requires smartphone app connection)，最大存储256GB",
         "score_impact": "+10"
       },
       "aplus_word_count_check": {
-        "word_count": 517,
+        "word_count": 515,
         "meets_minimum": true,
         "score_impact": "+15"
       },
       "scoring_detail_version": "v8.4.0",
-      "a10_score": 75,
+      "a10_score": 25,
       "cosmo_score": 76,
-      "rufus_score": 87,
-      "price_competitiveness_score": 10,
-      "grade": "良好"
+      "rufus_score": 54,
+      "price_competitiveness_score": null,
+      "grade": "待优化"
     }
   },
   "scene_v2": {
     "metrics": {
-      "total_score": 248,
-      "a10_total": 75,
-      "cosmo_total": 76,
-      "rufus_total": 87,
-      "price_score": 10,
-      "title_front_80": 30,
-      "keyword_tiering": 20,
+      "total_score": 179,
+      "a10_total": 25,
+      "cosmo_total": 100,
+      "rufus_total": 54,
+      "price_score": null,
+      "title_front_80": 0,
+      "keyword_tiering": 0,
       "conversion_signals": 25,
-      "scene_coverage": 26,
-      "capability_binding": 30,
+      "scene_coverage": 40,
+      "capability_binding": 40,
       "audience_tags": 20
     },
     "scores": {
       "a10": {
         "title_front_80": {
           "max": 40,
-          "score": 30,
-          "note": "包含品牌，含L1词"
+          "score": 0,
+          "note": "前80字符缺少关键要素"
         },
         "keyword_tiering": {
           "max": 30,
-          "score": 20,
-          "note": "L1:1 L2:1 L3:0"
+          "score": 0,
+          "note": "L1:0 L2:0 L3:0"
         },
         "conversion_signals": {
           "max": 30,
           "score": 25,
           "note": "B1符合P0 tier，B2-B3 P1 tier得分5，B4-B5 P2 tier得分10"
         },
-        "subtotal": 75
+        "subtotal": 25
       },
       "cosmo": {
         "scene_coverage": {
           "max": 40,
-          "score": 26,
-          "note": "覆盖 4/6 个场景"
+          "score": 40,
+          "note": "覆盖 4/4 个场景"
         },
         "capability_scene_binding": {
           "max": 40,
-          "score": 30,
-          "note": "满足 3/4 条绑定"
+          "score": 40,
+          "note": "满足 4/4 条绑定"
         },
         "audience_tags": {
           "max": 20,
           "score": 20,
           "note": "触达人群: 骑行, 旅行, 家庭, 户外"
         },
-        "subtotal": 76
+        "subtotal": 100
       },
       "rufus": {
         "fact_completeness": {
           "max": 40,
-          "score": 33,
-          "note": "事实覆盖 5/6 个参数"
+          "score": 0,
+          "note": "属性表缺失"
         },
         "faq_coverage": {
           "max": 40,
@@ -266,48 +266,48 @@
           "score": 20,
           "note": "无冲突"
         },
-        "subtotal": 87
+        "subtotal": 54
       },
       "price_competitiveness": {
-        "price_median": 199.0,
-        "current_price": 189.0,
-        "max": 10,
-        "score": 10,
-        "range": "定价贴近中位",
-        "data_available": true,
-        "note": "品类中位 199.00 vs 当前 189.00"
+        "price_median": null,
+        "current_price": null,
+        "max": 0,
+        "score": null,
+        "range": "竞品或当前定价缺失",
+        "data_available": false,
+        "note": "价格数据缺失，跳过评分"
       },
-      "total_score": 248,
-      "max_total": 310,
-      "grade_percent": 80.0,
-      "rating": "良好",
+      "total_score": 179,
+      "max_total": 300,
+      "grade_percent": 59.7,
+      "rating": "待优化",
       "boundary_declaration_check": {
         "exists": true,
-        "sentence": "配备多种挂载配件，专为骑行记录设计，提供双屏幕功能，支持30米（需使用防水壳）防水",
+        "sentence": "helmet camera，适用于家庭使用(with waterproof case)，最大存储256GB",
         "score_impact": "+10"
       },
       "aplus_word_count_check": {
-        "word_count": 517,
+        "word_count": 515,
         "meets_minimum": true,
         "score_impact": "+15"
       },
       "scoring_detail_version": "v8.4.0",
-      "a10_score": 75,
-      "cosmo_score": 76,
-      "rufus_score": 87,
-      "price_competitiveness_score": 10,
-      "grade": "良好"
+      "a10_score": 25,
+      "cosmo_score": 100,
+      "rufus_score": 54,
+      "price_competitiveness_score": null,
+      "grade": "待优化"
     }
   },
   "scene_v3": {
     "metrics": {
-      "total_score": 248,
-      "a10_total": 75,
+      "total_score": 155,
+      "a10_total": 25,
       "cosmo_total": 76,
-      "rufus_total": 87,
-      "price_score": 10,
-      "title_front_80": 30,
-      "keyword_tiering": 20,
+      "rufus_total": 54,
+      "price_score": null,
+      "title_front_80": 0,
+      "keyword_tiering": 0,
       "conversion_signals": 25,
       "scene_coverage": 26,
       "capability_binding": 30,
@@ -317,20 +317,20 @@
       "a10": {
         "title_front_80": {
           "max": 40,
-          "score": 30,
-          "note": "包含品牌，含L1词"
+          "score": 0,
+          "note": "前80字符缺少关键要素"
         },
         "keyword_tiering": {
           "max": 30,
-          "score": 20,
-          "note": "L1:1 L2:1 L3:0"
+          "score": 0,
+          "note": "L1:0 L2:0 L3:0"
         },
         "conversion_signals": {
           "max": 30,
           "score": 25,
           "note": "B1符合P0 tier，B2-B3 P1 tier得分5，B4-B5 P2 tier得分10"
         },
-        "subtotal": 75
+        "subtotal": 25
       },
       "cosmo": {
         "scene_coverage": {
@@ -353,8 +353,8 @@
       "rufus": {
         "fact_completeness": {
           "max": 40,
-          "score": 33,
-          "note": "事实覆盖 5/6 个参数"
+          "score": 0,
+          "note": "属性表缺失"
         },
         "faq_coverage": {
           "max": 40,
@@ -366,48 +366,48 @@
           "score": 20,
           "note": "无冲突"
         },
-        "subtotal": 87
+        "subtotal": 54
       },
       "price_competitiveness": {
-        "price_median": 199.0,
-        "current_price": 189.0,
-        "max": 10,
-        "score": 10,
-        "range": "定价贴近中位",
-        "data_available": true,
-        "note": "品类中位 199.00 vs 当前 189.00"
+        "price_median": null,
+        "current_price": null,
+        "max": 0,
+        "score": null,
+        "range": "竞品或当前定价缺失",
+        "data_available": false,
+        "note": "价格数据缺失，跳过评分"
       },
-      "total_score": 248,
-      "max_total": 310,
-      "grade_percent": 80.0,
-      "rating": "良好",
+      "total_score": 155,
+      "max_total": 300,
+      "grade_percent": 51.7,
+      "rating": "待优化",
       "boundary_declaration_check": {
         "exists": true,
-        "sentence": "配备多种挂载配件，专为骑行记录设计，提供双屏幕功能，支持30米（需使用防水壳）防水",
+        "sentence": "helmet camera，适用于旅行记录(based on lab test data)，最大存储256GB",
         "score_impact": "+10"
       },
       "aplus_word_count_check": {
-        "word_count": 517,
+        "word_count": 515,
         "meets_minimum": true,
         "score_impact": "+15"
       },
       "scoring_detail_version": "v8.4.0",
-      "a10_score": 75,
+      "a10_score": 25,
       "cosmo_score": 76,
-      "rufus_score": 87,
-      "price_competitiveness_score": 10,
-      "grade": "良好"
+      "rufus_score": 54,
+      "price_competitiveness_score": null,
+      "grade": "待优化"
     }
   },
   "kw_aggressive_l1": {
     "metrics": {
-      "total_score": 248,
-      "a10_total": 75,
+      "total_score": 155,
+      "a10_total": 25,
       "cosmo_total": 76,
-      "rufus_total": 87,
-      "price_score": 10,
-      "title_front_80": 30,
-      "keyword_tiering": 20,
+      "rufus_total": 54,
+      "price_score": null,
+      "title_front_80": 0,
+      "keyword_tiering": 0,
       "conversion_signals": 25,
       "scene_coverage": 26,
       "capability_binding": 30,
@@ -417,20 +417,20 @@
       "a10": {
         "title_front_80": {
           "max": 40,
-          "score": 30,
-          "note": "包含品牌，含L1词"
+          "score": 0,
+          "note": "前80字符缺少关键要素"
         },
         "keyword_tiering": {
           "max": 30,
-          "score": 20,
-          "note": "L1:1 L2:1 L3:0"
+          "score": 0,
+          "note": "L1:0 L2:0 L3:0"
         },
         "conversion_signals": {
           "max": 30,
           "score": 25,
           "note": "B1符合P0 tier，B2-B3 P1 tier得分5，B4-B5 P2 tier得分10"
         },
-        "subtotal": 75
+        "subtotal": 25
       },
       "cosmo": {
         "scene_coverage": {
@@ -453,8 +453,8 @@
       "rufus": {
         "fact_completeness": {
           "max": 40,
-          "score": 33,
-          "note": "事实覆盖 5/6 个参数"
+          "score": 0,
+          "note": "属性表缺失"
         },
         "faq_coverage": {
           "max": 40,
@@ -466,48 +466,48 @@
           "score": 20,
           "note": "无冲突"
         },
-        "subtotal": 87
+        "subtotal": 54
       },
       "price_competitiveness": {
-        "price_median": 199.0,
-        "current_price": 189.0,
-        "max": 10,
-        "score": 10,
-        "range": "定价贴近中位",
-        "data_available": true,
-        "note": "品类中位 199.00 vs 当前 189.00"
+        "price_median": null,
+        "current_price": null,
+        "max": 0,
+        "score": null,
+        "range": "竞品或当前定价缺失",
+        "data_available": false,
+        "note": "价格数据缺失，跳过评分"
       },
-      "total_score": 248,
-      "max_total": 310,
-      "grade_percent": 80.0,
-      "rating": "良好",
+      "total_score": 155,
+      "max_total": 300,
+      "grade_percent": 51.7,
+      "rating": "待优化",
       "boundary_declaration_check": {
         "exists": true,
-        "sentence": "配备多种挂载配件，专为骑行记录设计，提供双屏幕功能，支持30米（需使用防水壳）防水",
+        "sentence": "sports camera，适用于水下探索(based on lab test data)，最大存储256GB",
         "score_impact": "+10"
       },
       "aplus_word_count_check": {
-        "word_count": 517,
+        "word_count": 515,
         "meets_minimum": true,
         "score_impact": "+15"
       },
       "scoring_detail_version": "v8.4.0",
-      "a10_score": 75,
+      "a10_score": 25,
       "cosmo_score": 76,
-      "rufus_score": 87,
-      "price_competitiveness_score": 10,
-      "grade": "良好"
+      "rufus_score": 54,
+      "price_competitiveness_score": null,
+      "grade": "待优化"
     }
   },
   "kw_l2_focus": {
     "metrics": {
-      "total_score": 248,
-      "a10_total": 75,
+      "total_score": 155,
+      "a10_total": 25,
       "cosmo_total": 76,
-      "rufus_total": 87,
-      "price_score": 10,
-      "title_front_80": 30,
-      "keyword_tiering": 20,
+      "rufus_total": 54,
+      "price_score": null,
+      "title_front_80": 0,
+      "keyword_tiering": 0,
       "conversion_signals": 25,
       "scene_coverage": 26,
       "capability_binding": 30,
@@ -517,20 +517,20 @@
       "a10": {
         "title_front_80": {
           "max": 40,
-          "score": 30,
-          "note": "包含品牌，含L1词"
+          "score": 0,
+          "note": "前80字符缺少关键要素"
         },
         "keyword_tiering": {
           "max": 30,
-          "score": 20,
-          "note": "L1:1 L2:1 L3:0"
+          "score": 0,
+          "note": "L1:0 L2:0 L3:0"
         },
         "conversion_signals": {
           "max": 30,
           "score": 25,
           "note": "B1符合P0 tier，B2-B3 P1 tier得分5，B4-B5 P2 tier得分10"
         },
-        "subtotal": 75
+        "subtotal": 25
       },
       "cosmo": {
         "scene_coverage": {
@@ -553,8 +553,8 @@
       "rufus": {
         "fact_completeness": {
           "max": 40,
-          "score": 33,
-          "note": "事实覆盖 5/6 个参数"
+          "score": 0,
+          "note": "属性表缺失"
         },
         "faq_coverage": {
           "max": 40,
@@ -566,48 +566,48 @@
           "score": 20,
           "note": "无冲突"
         },
-        "subtotal": 87
+        "subtotal": 54
       },
       "price_competitiveness": {
-        "price_median": 199.0,
-        "current_price": 189.0,
-        "max": 10,
-        "score": 10,
-        "range": "定价贴近中位",
-        "data_available": true,
-        "note": "品类中位 199.00 vs 当前 189.00"
+        "price_median": null,
+        "current_price": null,
+        "max": 0,
+        "score": null,
+        "range": "竞品或当前定价缺失",
+        "data_available": false,
+        "note": "价格数据缺失，跳过评分"
       },
-      "total_score": 248,
-      "max_total": 310,
-      "grade_percent": 80.0,
-      "rating": "良好",
+      "total_score": 155,
+      "max_total": 300,
+      "grade_percent": 51.7,
+      "rating": "待优化",
       "boundary_declaration_check": {
         "exists": true,
-        "sentence": "配备多种挂载配件，专为骑行记录设计，提供双屏幕功能，支持30米（需使用防水壳）防水",
+        "sentence": "waterproof camera，适用于水下探索(with included accessories)，最大存储256GB",
         "score_impact": "+10"
       },
       "aplus_word_count_check": {
-        "word_count": 517,
+        "word_count": 515,
         "meets_minimum": true,
         "score_impact": "+15"
       },
       "scoring_detail_version": "v8.4.0",
-      "a10_score": 75,
+      "a10_score": 25,
       "cosmo_score": 76,
-      "rufus_score": 87,
-      "price_competitiveness_score": 10,
-      "grade": "良好"
+      "rufus_score": 54,
+      "price_competitiveness_score": null,
+      "grade": "待优化"
     }
   },
   "kw_conservative": {
     "metrics": {
-      "total_score": 248,
-      "a10_total": 75,
+      "total_score": 155,
+      "a10_total": 25,
       "cosmo_total": 76,
-      "rufus_total": 87,
-      "price_score": 10,
-      "title_front_80": 30,
-      "keyword_tiering": 20,
+      "rufus_total": 54,
+      "price_score": null,
+      "title_front_80": 0,
+      "keyword_tiering": 0,
       "conversion_signals": 25,
       "scene_coverage": 26,
       "capability_binding": 30,
@@ -617,20 +617,20 @@
       "a10": {
         "title_front_80": {
           "max": 40,
-          "score": 30,
-          "note": "包含品牌，含L1词"
+          "score": 0,
+          "note": "前80字符缺少关键要素"
         },
         "keyword_tiering": {
           "max": 30,
-          "score": 20,
-          "note": "L1:1 L2:1 L3:0"
+          "score": 0,
+          "note": "L1:0 L2:0 L3:0"
         },
         "conversion_signals": {
           "max": 30,
           "score": 25,
           "note": "B1符合P0 tier，B2-B3 P1 tier得分5，B4-B5 P2 tier得分10"
         },
-        "subtotal": 75
+        "subtotal": 25
       },
       "cosmo": {
         "scene_coverage": {
@@ -653,8 +653,8 @@
       "rufus": {
         "fact_completeness": {
           "max": 40,
-          "score": 33,
-          "note": "事实覆盖 5/6 个参数"
+          "score": 0,
+          "note": "属性表缺失"
         },
         "faq_coverage": {
           "max": 40,
@@ -666,37 +666,37 @@
           "score": 20,
           "note": "无冲突"
         },
-        "subtotal": 87
+        "subtotal": 54
       },
       "price_competitiveness": {
-        "price_median": 199.0,
-        "current_price": 189.0,
-        "max": 10,
-        "score": 10,
-        "range": "定价贴近中位",
-        "data_available": true,
-        "note": "品类中位 199.00 vs 当前 189.00"
+        "price_median": null,
+        "current_price": null,
+        "max": 0,
+        "score": null,
+        "range": "竞品或当前定价缺失",
+        "data_available": false,
+        "note": "价格数据缺失，跳过评分"
       },
-      "total_score": 248,
-      "max_total": 310,
-      "grade_percent": 80.0,
-      "rating": "良好",
+      "total_score": 155,
+      "max_total": 300,
+      "grade_percent": 51.7,
+      "rating": "待优化",
       "boundary_declaration_check": {
         "exists": true,
-        "sentence": "配备多种挂载配件，专为骑行记录设计，提供双屏幕功能，支持30米（需使用防水壳）防水",
+        "sentence": "helmet camera，适用于水下探索(requires smartphone app connection)，最大存储256GB",
         "score_impact": "+10"
       },
       "aplus_word_count_check": {
-        "word_count": 517,
+        "word_count": 515,
         "meets_minimum": true,
         "score_impact": "+15"
       },
       "scoring_detail_version": "v8.4.0",
-      "a10_score": 75,
+      "a10_score": 25,
       "cosmo_score": 76,
-      "rufus_score": 87,
-      "price_competitiveness_score": 10,
-      "grade": "良好"
+      "rufus_score": 54,
+      "price_competitiveness_score": null,
+      "grade": "待优化"
     }
   }
 }

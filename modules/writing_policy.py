@@ -54,6 +54,32 @@ FAQ_ONLY_CAPABILITIES = [
     "质保条款细节"
 ]
 
+# 4场景默认策略模板 (推荐默认)
+DEFAULT_4SCENE_POLICY = {
+    "scene_priority": ["骑行记录", "水下探索", "旅行记录", "家庭使用"],
+    "keyword_allocation_strategy": "balanced",
+    "title_keyword_slots": {
+        "slot_1_brand": True,
+        "slot_2_l1": True,
+        "slot_3_scene_1": True,
+        "slot_4_capability": True,
+        "slot_5_scene_2": True,
+        "max_title_length": 180
+    },
+    "bullet_keyword_plan": {
+        "B1": {"primary": "L1", "secondary": "scene_1", "focus": "primary_scene"},
+        "B2": {"primary": "L1/L2", "secondary": "scene_2", "focus": "core_capability"},
+        "B3": {"primary": "L2", "secondary": "scene_3", "focus": "differentiation"},
+        "B4": {"primary": "L3", "secondary": "scene_4", "focus": "boundary_statement"},
+        "B5": {"primary": "none", "secondary": "warranty", "focus": "after_sales"}
+    },
+    "search_terms_plan": {
+        "priority_tiers": ["L2", "L3"],
+        "max_terms": 10,
+        "avoid_duplication_with_title": True
+    }
+}
+
 # 禁止的能力组合
 DEFAULT_FORBIDDEN_PAIRS = [
     ["5K", "防抖"],  # 5K分辨率下不支持防抖
