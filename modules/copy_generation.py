@@ -916,56 +916,301 @@ Experience the {brand} Action Camera now and record every exciting moment! Profe
 
 # ==================== PRD v8.2 Node 4 多语言生成 ====================
 
-# 多语言翻译映射 (English -> Target Language)
+# -----------------------------------------------------------------------
+# 能力词翻译映射 (English / Chinese -> Target Language)
+# 优先顺序: English精确匹配 > 中文能力词 > 英文子串匹配
+# -----------------------------------------------------------------------
 CAPABILITY_TRANSLATIONS = {
     "German": {
-        "4K录像": "4K Aufnahme",
-        "4K video": "4K Video",
+        # --- 4K/高清录像 ---
+        "4K录像": "4K-Aufnahme",
+        "4K video": "4K-Video",
+        "4K": "4K",
+        "4K 30fps": "4K 30fps",
+        "高清录像": "HD-Aufnahme",
+        "HD video": "HD-Video",
+        "高清": "HD",
+        # --- 防抖/Stabilization ---
         "防抖": "Bildstabilisierung",
+        "EIS防抖": "EIS-Bildstabilisierung",
         "stabilization": "Bildstabilisierung",
-        "EIS防抖": "EIS Bildstabilisierung",
-        "防水": "Wasserdicht",
+        "stabilizer": "Stabilisierung",
+        "EIS": "EIS",
+        "image stabilization": "Bildstabilisierung",
+        # --- 防水/Waterproof ---
+        "防水": "wasserdicht",
+        "防水壳": "Wassergehäuse",
         "waterproof": "wasserdicht",
-        "WiFi连接": "WiFi Verbindung",
-        "WiFi": "WiFi",
-        "双屏幕": "Dual Screen",
-        "dual screen": "Dual Screen",
-        "高清录像": "HD Aufnahme",
+        "30米防水": "30m wasserdicht",
+        "waterproof case": "Wassergehäuse",
+        "waterproof depth": "Wassertiefe",
+        # --- WiFi/连接 ---
+        "WiFi连接": "WLAN-Verbindung",
+        "WiFi": "WLAN",
+        "wifi": "WLAN",
+        "wifi connection": "WLAN-Verbindung",
+        "WLAN": "WLAN",
+        "USB": "USB",
+        "USB-C": "USB-C",
+        "HDMI": "HDMI",
+        # --- 双屏幕/Dual screen ---
+        "双屏幕": "Dual-Display",
+        "dual screen": "Dual-Display",
+        "前屏幕": "Frontdisplay",
+        "front screen": "Frontdisplay",
+        "触摸屏": "Touchscreen",
+        "touch screen": "Touchscreen",
+        "LCD": "LCD",
+        # --- 续航/Battery ---
         "长续航": "lange Akkulaufzeit",
-        "long battery": "lange Akkulaufzeit"
+        "电池续航": "Akkulaufzeit",
+        "电池": "Akku",
+        "battery life": "Akkulaufzeit",
+        "long battery": "lange Akkulaufzeit",
+        "battery": "Akku",
+        "charging": "Aufladen",
+        "边充边用": "Aufladen während der Aufnahme",
+        # --- 存储/Storage ---
+        "存储": "Speicher",
+        "存储卡": "Speicherkarte",
+        "Micro SD": "Micro SD",
+        "256GB": "256GB",
+        "max storage": "maximaler Speicher",
+        "memory card": "Speicherkarte",
+        # --- 安装配件/Mounting ---
+        "挂载配件": "Montage-Zubehör",
+        "头盔支架": "Helmhalterung",
+        "helmet mount": "Helmhalterung",
+        "车把支架": "Lenkerhalterung",
+        "handlebar mount": "Lenkerhalterung",
+        "胸带": "Brustgurt",
+        "chest strap": "Brustgurt",
+        "支架": "Halterung",
+        "mount": "Halterung",
+        "磁吸挂绳": "Magnet-Halsband",
+        "magnetic strap": "Magnet-Halsband",
+        # --- 拍摄模式/Shooting modes ---
+        "延时": "Zeitraffer",
+        "time-lapse": "Zeitraffer",
+        "慢动作": "Zeitlupe",
+        "slow motion": "Zeitlupe",
+        "连拍": "Serienaufnahme",
+        "burst": "Serienaufnahme",
+        # --- 其他能力 ---
+        "轻便": "leicht",
+        "lightweight": "leicht",
+        "GPS": "GPS",
+        "geotagging": "Geotagging",
+        "APP": "App",
+        "app": "App",
+        "智能手机": "Smartphone",
+        "smartphone": "Smartphone",
+        # --- 质保/Warranty ---
+        "质保": "Garantie",
+        "warranty": "Garantie",
+        "保修": "Garantie",
+        "12个月": "12 Monate",
+        "12 months": "12 Monate",
+        "全国联保": " deutschlandweiter Service",
+        # --- 通用 ---
+        "防水运动相机": "wasserdichte Action-Kamera",
+        "运动相机": "Actionkamera",
+        "action camera": "Actionkamera",
+        "sports camera": "Sportkamera",
+        "多功能": "vielseitig",
+        "多场景": "multifunktional",
     },
     "French": {
+        # --- 4K/高清录像 ---
         "4K录像": "enregistrement 4K",
         "4K video": "vidéo 4K",
+        "4K": "4K",
+        "高清录像": "enregistrement HD",
+        "HD video": "vidéo HD",
+        # --- 防抖/Stabilization ---
         "防抖": "stabilisation",
+        "EIS防抖": "stabilisation EIS",
         "stabilization": "stabilisation",
+        "image stabilization": "stabilisation de l'image",
+        # --- 防水/Waterproof ---
         "防水": "étanche",
+        "防水壳": "boîtier waterproof",
         "waterproof": "étanche",
+        "30米防水": "étanche à 30m",
+        "waterproof case": "boîtier waterproof",
+        # --- WiFi/连接 ---
         "WiFi连接": "connexion WiFi",
+        "WiFi": "WiFi",
+        "wifi": "WiFi",
+        "USB": "USB",
+        "USB-C": "USB-C",
+        # --- 双屏幕/Dual screen ---
         "双屏幕": "écran double",
-        "dual screen": "double écran"
+        "dual screen": "écran double",
+        "触摸屏": "écran tactile",
+        "touch screen": "écran tactile",
+        # --- 续航/Battery ---
+        "长续航": "autonomie longue",
+        "电池续航": "autonomie",
+        "电池": "batterie",
+        "battery life": "autonomie",
+        "long battery": "autonomie longue",
+        "battery": "batterie",
+        "charging": "chargement",
+        # --- 存储/Storage ---
+        "存储": "stockage",
+        "存储卡": "carte mémoire",
+        "Micro SD": "Micro SD",
+        "256GB": "256 Go",
+        "memory card": "carte mémoire",
+        # --- 安装配件/Mounting ---
+        "挂载配件": "accessoires de montage",
+        "头盔支架": "support de casque",
+        "helmet mount": "support de casque",
+        "车把支架": "support de guidon",
+        "handlebar mount": "support de guidon",
+        "胸带": "sangle de poitrine",
+        "chest strap": "sangle de poitrine",
+        "支架": "support",
+        "mount": "support",
+        # --- 质保/Warranty ---
+        "质保": "garantie",
+        "warranty": "garantie",
+        "12个月": "12 mois",
+        "12 months": "12 mois",
+        # --- 通用 ---
+        "防水运动相机": "caméra d'action waterproof",
+        "运动相机": "caméra d'action",
+        "action camera": "caméra d'action",
+        "sports camera": "caméra sportive",
     },
     "Spanish": {
+        # --- 4K/高清录像 ---
         "4K录像": "grabación 4K",
         "4K video": "vídeo 4K",
+        "4K": "4K",
+        "高清录像": "grabación HD",
+        "HD video": "vídeo HD",
+        # --- 防抖/Stabilization ---
         "防抖": "estabilización",
+        "EIS防抖": "estabilización EIS",
         "stabilization": "estabilización",
+        "image stabilization": "estabilización de imagen",
+        # --- 防水/Waterproof ---
         "防水": "resistente al agua",
-        "waterproof": "impermeable",
+        "防水壳": "carcasa waterproof",
+        "waterproof": "resistente al agua",
+        "30米防水": "resistente al agua 30m",
+        "waterproof case": "carcasa waterproof",
+        # --- WiFi/连接 ---
         "WiFi连接": "conexión WiFi",
+        "WiFi": "WiFi",
+        "wifi": "WiFi",
+        "USB": "USB",
+        "USB-C": "USB-C",
+        # --- 双屏幕/Dual screen ---
         "双屏幕": "pantalla dual",
-        "dual screen": "pantalla dual"
+        "dual screen": "pantalla dual",
+        "触摸屏": "pantalla táctil",
+        "touch screen": "pantalla táctil",
+        # --- 续航/Battery ---
+        "长续航": "batería duradera",
+        "电池续航": "duración de batería",
+        "电池": "batería",
+        "battery life": "duración de batería",
+        "long battery": "batería duradera",
+        "battery": "batería",
+        "charging": "carga",
+        # --- 存储/Storage ---
+        "存储": "almacenamiento",
+        "存储卡": "tarjeta de memoria",
+        "Micro SD": "Micro SD",
+        "256GB": "256GB",
+        "memory card": "tarjeta de memoria",
+        # --- 安装配件/Mounting ---
+        "挂载配件": "accesorios de montaje",
+        "头盔支架": "soporte para casco",
+        "helmet mount": "soporte para casco",
+        "车把支架": "soporte para manillar",
+        "handlebar mount": "soporte para manillar",
+        "胸带": "correa de pecho",
+        "chest strap": "correa de pecho",
+        "支架": "soporte",
+        "mount": "soporte",
+        # --- 质保/Warranty ---
+        "质保": "garantía",
+        "warranty": "garantía",
+        "12个月": "12 meses",
+        "12 months": "12 meses",
+        # --- 通用 ---
+        "防水运动相机": "cámara de acción resistente al agua",
+        "运动相机": "cámara de acción",
+        "action camera": "cámara de acción",
+        "sports camera": "cámara deportiva",
     },
     "Italian": {
+        # --- 4K/高清录像 ---
         "4K录像": "registrazione 4K",
         "4K video": "video 4K",
+        "4K": "4K",
+        "高清录像": "registrazione HD",
+        "HD video": "video HD",
+        # --- 防抖/Stabilization ---
         "防抖": "stabilizzazione",
+        "EIS防抖": "stabilizzazione EIS",
         "stabilization": "stabilizzazione",
+        "image stabilization": "stabilizzazione dell'immagine",
+        # --- 防水/Waterproof ---
         "防水": "impermeabile",
+        "防水壳": "custodia waterproof",
         "waterproof": "impermeabile",
+        "30米防水": "impermeabile a 30m",
+        "waterproof case": "custodia waterproof",
+        # --- WiFi/连接 ---
         "WiFi连接": "connessione WiFi",
+        "WiFi": "WiFi",
+        "wifi": "WiFi",
+        "USB": "USB",
+        "USB-C": "USB-C",
+        # --- 双屏幕/Dual screen ---
         "双屏幕": "schermo doppio",
-        "dual screen": "doppio schermo"
+        "dual screen": "schermo doppio",
+        "触摸屏": "schermo tattile",
+        "touch screen": "schermo tattile",
+        # --- 续航/Battery ---
+        "长续航": "batteria duratura",
+        "电池续航": "durata batteria",
+        "电池": "batteria",
+        "battery life": "durata batteria",
+        "long battery": "batteria duratura",
+        "battery": "batteria",
+        "charging": "ricarica",
+        # --- 存储/Storage ---
+        "存储": "archiviazione",
+        "存储卡": "scheda di memoria",
+        "Micro SD": "Micro SD",
+        "256GB": "256GB",
+        "memory card": "scheda di memoria",
+        # --- 安装配件/Mounting ---
+        "挂载配件": "accessori di montaggio",
+        "头盔支架": "supporto per casco",
+        "helmet mount": "supporto per casco",
+        "车把支架": "supporto per manubrio",
+        "handlebar mount": "supporto per manubrio",
+        "胸带": "cinghia pettorale",
+        "chest strap": "cinghia pettorale",
+        "支架": "supporto",
+        "mount": "supporto",
+        # --- 质保/Warranty ---
+        "质保": "garanzia",
+        "warranty": "garanzia",
+        "12个月": "12 mesi",
+        "12 months": "12 mesi",
+        # --- 通用 ---
+        "防水运动相机": "fotocamera sportiva impermeabile",
+        "运动相机": "videocamera sportiva",
+        "action camera": "videocamera sportiva",
+        "sports camera": "fotocamera sportiva",
     }
 }
 
@@ -974,13 +1219,23 @@ SCENE_TRANSLATIONS = {
     "German": {
         "cycling_recording": "Radfahren",
         "underwater_exploration": "Unterwasser",
-        "travel_documentation": "Reise",
+        "travel_documentation": "Reisen",
         "family_use": "Familie",
-        "outdoor_sports": "Outdoor Sport",
+        "outdoor_sports": "Outdoor-Sport",
         "hiking_trekking": "Wandern",
         "skiing": "Skifahren",
-        "road_trip": "Autoreise",
-        "vlog_content_creation": "Vlog"
+        "road_trip": "Autoreisen",
+        "vlog_content_creation": "Vlog",
+        "pet_photography": "Tieraufnahmen",
+        "sports_training": "Sporttraining",
+        "sports_event_recording": "Sportereignisse",
+        "wilderness_exploration": "Naturabenteuer",
+        "extreme_sports": "Extremsport",
+        "daily_lifelogging": "Alltag",
+        "selfie_vlog": "Selfie-Vlog",
+        "rainy_use": "Regenwetter",
+        "swimming": "Schwimmen",
+        "surfing": "Surfen",
     },
     "French": {
         "cycling_recording": "cyclisme",
@@ -988,7 +1243,13 @@ SCENE_TRANSLATIONS = {
         "travel_documentation": "voyage",
         "family_use": "famille",
         "outdoor_sports": "sports outdoor",
-        "hiking_trekking": "randonnée"
+        "hiking_trekking": "randonnée",
+        "skiing": "ski",
+        "road_trip": "road trip",
+        "vlog_content_creation": "vlog",
+        "pet_photography": "photos d'animaux",
+        "sports_training": "entraînement",
+        "sports_event_recording": "événements sportifs",
     },
     "Spanish": {
         "cycling_recording": "ciclismo",
@@ -996,7 +1257,13 @@ SCENE_TRANSLATIONS = {
         "travel_documentation": "viaje",
         "family_use": "familia",
         "outdoor_sports": "deportes al aire libre",
-        "hiking_trekking": "senderismo"
+        "hiking_trekking": "senderismo",
+        "skiing": "esquí",
+        "road_trip": "viaje por carretera",
+        "vlog_content_creation": "vlog",
+        "pet_photography": "fotos de mascotas",
+        "sports_training": "entrenamiento",
+        "sports_event_recording": "eventos deportivos",
     },
     "Italian": {
         "cycling_recording": "ciclismo",
@@ -1004,7 +1271,57 @@ SCENE_TRANSLATIONS = {
         "travel_documentation": "viaggio",
         "family_use": "famiglia",
         "outdoor_sports": "sport all'aperto",
-        "hiking_trekking": "escursionismo"
+        "hiking_trekking": "escursionismo",
+        "skiing": "sci",
+        "road_trip": "viaggio on the road",
+        "vlog_content_creation": "vlog",
+        "pet_photography": "foto di animali",
+        "sports_training": "allenamento",
+        "sports_event_recording": "eventi sportivi",
+    }
+}
+
+# 品类核心词翻译 (English -> Target Language)
+CATEGORY_TRANSLATIONS = {
+    "German": {
+        "action camera": "Actionkamera",
+        "sports camera": "Sportkamera",
+        "body camera": "Bodycam",
+        "helmet camera": "Helmkamera",
+        "camcorder": "Camcorder",
+        "recording device": "Aufnahmegerät",
+        "waterproof camera": "Wasserdichte Kamera",
+        "digital camera": "Digitalkamera",
+    },
+    "French": {
+        "action camera": "caméra d'action",
+        "sports camera": "caméra sportive",
+        "body camera": "caméra corporelle",
+        "helmet camera": "caméra de casque",
+        "camcorder": "caméscope",
+        "recording device": "appareil d'enregistrement",
+        "waterproof camera": "caméra waterproof",
+        "digital camera": "appareil photo numérique",
+    },
+    "Spanish": {
+        "action camera": "cámara de acción",
+        "sports camera": "cámara deportiva",
+        "body camera": "cámara corporal",
+        "helmet camera": "cámara de casco",
+        "camcorder": "videocámara",
+        "recording device": "dispositivo de grabación",
+        "waterproof camera": "cámara resistente al agua",
+        "digital camera": "cámara digital",
+    },
+    "Italian": {
+        "action camera": "videocamera sportiva",
+        "sports camera": "fotocamera sportiva",
+        "body camera": "bodycam",
+        "helmet camera": "fotocamera per casco",
+        "camcorder": "videocamera",
+        "recording device": "dispositivo di registrazione",
+        "waterproof camera": "fotocamera impermeabile",
+        "digital camera": "fotocamera digitale",
     }
 }
 
