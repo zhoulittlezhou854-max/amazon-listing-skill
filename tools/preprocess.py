@@ -138,6 +138,7 @@ class PreprocessedData:
     keyword_data: KeywordData
     review_data: ReviewData
     aba_data: ABAData
+    real_vocab: Optional[RealVocabData] = None  # 真实国家词表（Priority 1）
     core_selling_points: List[str]
     accessory_descriptions: List[Dict[str, Any]]
     quality_score: int
