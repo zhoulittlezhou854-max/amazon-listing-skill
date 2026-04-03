@@ -12,28 +12,28 @@
     },
     "conversion_signals": {
       "max": 30,
-      "score": 15,
-      "note": "B2-B3 P1 tier得分5，B4-B5 P2 tier得分10"
+      "score": 25,
+      "note": "B1符合P0 tier，B2-B3 P1 tier得分5，B4-B5 P2 tier得分10"
     },
-    "subtotal": 65
+    "subtotal": 75
   },
   "cosmo": {
     "scene_coverage": {
       "max": 40,
-      "score": 20,
-      "note": "覆盖 3/6 个场景"
+      "score": 26,
+      "note": "覆盖 4/6 个场景"
     },
     "capability_scene_binding": {
       "max": 40,
-      "score": 20,
-      "note": "满足 2/4 条绑定"
+      "score": 40,
+      "note": "满足 4/4 条绑定"
     },
     "audience_tags": {
       "max": 20,
       "score": 20,
       "note": "触达人群: 骑行, 旅行, 家庭, 户外"
     },
-    "subtotal": 60
+    "subtotal": 86
   },
   "rufus": {
     "fact_completeness": {
@@ -62,13 +62,13 @@
     "data_available": true,
     "note": "品类中位 199.00 vs 当前 189.00"
   },
-  "total_score": 222,
+  "total_score": 258,
   "max_total": 310,
-  "grade_percent": 71.6,
+  "grade_percent": 83.2,
   "rating": "良好",
   "boundary_declaration_check": {
     "exists": true,
-    "sentence": "配备多种挂载配件，专为Sporttraining设计，提供双屏幕功能，支持30米（需使用防水壳）防水",
+    "sentence": "配备多种挂载配件，专为骑行记录设计，提供双屏幕功能，支持30米（需使用防水壳）防水",
     "score_impact": "+10"
   },
   "aplus_word_count_check": {
@@ -77,8 +77,8 @@
     "score_impact": "+15"
   },
   "scoring_detail_version": "v8.4.0",
-  "a10_score": 65,
-  "cosmo_score": 60,
+  "a10_score": 75,
+  "cosmo_score": 86,
   "rufus_score": 87,
   "price_competitiveness_score": 10,
   "grade": "良好"

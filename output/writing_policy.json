@@ -1,11 +1,11 @@
 {
   "scene_priority": [
-    "运动训练",
+    "骑行记录",
     "水下探索",
-    "户外运动",
-    "旅行记录",
+    "运动训练",
     "家庭使用",
-    "骑行记录"
+    "户外运动",
+    "旅行记录"
   ],
   "capability_scene_bindings": [
     {
@@ -49,10 +49,10 @@
   ],
   "faq_only_capabilities": [
     "质保条款细节",
-    "数字防抖限制说明",
     "防水深度限制",
-    "电池更换说明",
-    "兼容性限制"
+    "兼容性限制",
+    "数字防抖限制说明",
+    "电池更换说明"
   ],
   "forbidden_pairs": [
     [
@@ -84,6 +84,6 @@
     "core_selling_points_count": 3,
     "scenes_count": 6,
     "bindings_count": 4,
-    "generated_at": "2026-04-03T12:12:38.526686"
+    "generated_at": "2026-04-03T12:13:50.405514"
   }
 }
