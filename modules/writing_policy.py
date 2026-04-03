@@ -192,7 +192,7 @@ def prioritize_scenes(scenes: List[str], review_data: Any, aba_data: Any) -> Lis
     return [scene for scene, score in sorted_scenes]
 
 
-def create_capability_scene_bindings(capabilities: List[str], prioritized_scenes: List[str]) -> List[Dict[str, Any]]:
+def create_capability_scene_bindings(capabilities: List[str], prioritized_scenes: List[str], attribute_data: Any = None) -> List[Dict[str, Any]]:
     """
     创建能力与场景的绑定关系
     """
