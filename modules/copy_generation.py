@@ -61,27 +61,47 @@ TITLE_TEMPLATES = {
     ]
 }
 
-# Bullet point模板
+# Bullet point模板 (English content only — final translation done by copy_generation layer)
 BULLET_TEMPLATES = {
     "B1": {
         "Chinese": "【挂载系统+主场景+P0能力】{content}",
-        "English": "【Mounting System + Primary Scene + P0 Capability】{content}"
+        "English": "【Mounting System + Primary Scene + P0 Capability】{content}",
+        "German": "【Halterungssystem + Hauptszene + P0-Fähigkeit】{content}",
+        "French": "【Système de montage + Scène principale + Capacité P0】{content}",
+        "Spanish": "【Sistema de montaje + Escena principal + Capacidad P0】{content}",
+        "Italian": "【Sistema di montaggio + Scena principale + Capacità P0】{content}"
     },
     "B2": {
         "Chinese": "【P0核心能力+量化参数】{content}",
-        "English": "【P0 Core Capability + Quantified Parameters】{content}"
+        "English": "【P0 Core Capability + Quantified Parameters】{content}",
+        "German": "【P0-Kernfähigkeit + Quantifizierte Parameter】{content}",
+        "French": "【Capacité principale P0 + Paramètres quantifiés】{content}",
+        "Spanish": "【Capacidad central P0 + Parámetros cuantificados】{content}",
+        "Italian": "【Capacità core P0 + Parametri quantificati】{content}"
     },
     "B3": {
         "Chinese": "【P1竞品痛点对比+场景词】{content}",
-        "English": "【P1 Competitor Pain Point Comparison + Scene Keywords】{content}"
+        "English": "【P1 Competitor Pain Point Comparison + Scene Keywords】{content}",
+        "German": "【P1-Wettbewerbsvergleich + Szenewörter】{content}",
+        "French": "【Comparaison P1 avec concurrents + Mots-clés de scène】{content}",
+        "Spanish": "【Comparación P1 con competidores + Palabras clave de escena】{content}",
+        "Italian": "【Confronto P1 con concorrenti + Parole chiave di scena】{content}"
     },
     "B4": {
         "Chinese": "【P1/P2能力+使用场景+边界声明句】{content}",
-        "English": "【P1/P2 Capability + Usage Scene + Boundary Statement】{content}"
+        "English": "【P1/P2 Capability + Usage Scene + Boundary Statement】{content}",
+        "German": "【P1/P2-Fähigkeit + Anwendungsszene + Einschränkungshinweis】{content}",
+        "French": "【Capacité P1/P2 + Scène d'utilisation + Avertissement】{content}",
+        "Spanish": "【Capacidad P1/P2 + Escena de uso + Aviso】{content}",
+        "Italian": "【Capacità P1/P2 + Scena di utilizzo + Avviso】{content}"
     },
     "B5": {
         "Chinese": "【P2质保/售后/兼容性】{content}",
-        "English": "【P2 Warranty/After-sale/Compatibility】{content}"
+        "English": "【P2 Warranty/After-sale/Compatibility】{content}",
+        "German": "【P2-Garantie/Kundendienst/Kompatibilität】{content}",
+        "French": "【P2 Garantie/Service après-vente/Compatibilité】{content}",
+        "Spanish": "【P2 Garantía/Servicio postventa/Compatibilidad】{content}",
+        "Italian": "【P2 Garanzia/Assistenza post-vendita/Compatibilità】{content}"
     }
 }
 
@@ -100,6 +120,34 @@ BOUNDARY_STATEMENTS = {
         "(based on lab test data)",
         "(with included accessories)",
         "(requires smartphone app connection)"
+    ],
+    "German": [
+        "(mit Wassergehäuse)",
+        "(in bestimmten Modi)",
+        "(basierend auf Labortests)",
+        "(mit enthaltenem Zubehör)",
+        "(erfordert Smartphone-App-Verbindung)"
+    ],
+    "French": [
+        "(avec boîtier waterproof)",
+        "(dans des modes spécifiques)",
+        "(basé sur des tests en laboratoire)",
+        "(avec accessoires inclus)",
+        "(nécessite connexion à l'application smartphone)"
+    ],
+    "Spanish": [
+        "(con carcasa waterproof)",
+        "(en modos específicos)",
+        "(basado en pruebas de laboratorio)",
+        "(con accesorios incluidos)",
+        "(requiere conexión a la aplicación del teléfono)"
+    ],
+    "Italian": [
+        "(con custodia waterproof)",
+        "(in modalità specifiche)",
+        "(basato su test di laboratorio)",
+        "(con accessori inclusi)",
+        "(richiede connessione all'app smartphone)"
     ]
 }
 
