@@ -190,6 +190,34 @@ FAQ_TEMPLATES = {
         {"q": "What memory cards are supported?", "a": "Supports Micro SD cards up to {max_storage}."},
         {"q": "How to transfer files?", "a": "Files can be transferred via WiFi or USB connection."},
         {"q": "What is the warranty period?", "a": "It comes with {warranty_period} warranty with nationwide service coverage."}
+    ],
+    "German": [
+        {"q": "Ist das Produkt wasserdicht?", "a": "Ja, es wird mit einem Wassergehäuse geliefert, das {waterproof_depth} unterstützt."},
+        {"q": "Wie lange hält der Akku?", "a": "Der Akku hält ca. {battery_life} und unterstützt Aufladen während der Aufnahme."},
+        {"q": "Welche Speicherkarten werden unterstützt?", "a": "Unterstützt Micro SD-Karten bis zu {max_storage}."},
+        {"q": "Wie übertrage ich Dateien?", "a": "Dateien können über WLAN oder USB-Verbindung übertragen werden."},
+        {"q": "Wie lang ist die Garantiezeit?", "a": "{warranty_period} Garantie mit deutschlandweitem Service."}
+    ],
+    "French": [
+        {"q": "Le produit est-t-il waterproof?", "a": "Oui, il est livré avec un boîtier waterproof supportant {waterproof_depth}."},
+        {"q": "Quelle est l'autonomie de la batterie?", "a": "La batterie dure environ {battery_life} et supporte la charge pendant l'enregistrement."},
+        {"q": "Quelles cartes mémoire sont supportées?", "a": "Supporte les cartes Micro SD jusqu'à {max_storage}."},
+        {"q": "Comment transférer les fichiers?", "a": "Les fichiers peuvent être transférés via WiFi ou connexion USB."},
+        {"q": "Quelle est la période de garantie?", "a": "Garantie {warranty_period} avec couverture nationale."}
+    ],
+    "Spanish": [
+        {"q": "¿El producto es resistente al agua?", "a": "Sí, viene con una carcasa waterproof que soporta {waterproof_depth}."},
+        {"q": "¿Cuánto dura la batería?", "a": "La batería dura unos {battery_life} y soporta carga durante la grabación."},
+        {"q": "¿Qué tarjetas de memoria son compatibles?", "a": "Soporta tarjetas Micro SD hasta {max_storage}."},
+        {"q": "¿Cómo transfiero los archivos?", "a": "Los archivos se pueden transferir por WiFi o conexión USB."},
+        {"q": "¿Cuál es el período de garantía?", "a": "Garantía de {warranty_period} con cobertura nacional."}
+    ],
+    "Italian": [
+        {"q": "Il prodotto è impermeabile?", "a": "Sì, viene fornito con una custodia waterproof che supporta {waterproof_depth}."},
+        {"q": "Quanto dura la batteria?", "a": "La batteria dura circa {battery_life} e supporta la ricarica durante la registrazione."},
+        {"q": "Quali schede di memoria sono supportate?", "a": "Supporta schede Micro SD fino a {max_storage}."},
+        {"q": "Come trasferisco i file?", "a": "I file possono essere trasferiti tramite WiFi o connessione USB."},
+        {"q": "Qual è il periodo di garanzia?", "a": "Garanzia di {warranty_period} con copertura nazionale."}
     ]
 }
 
