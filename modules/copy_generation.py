@@ -348,6 +348,8 @@ def generate_bullet_points(preprocessed_data: PreprocessedData,
     battery_life = attr_data.get('battery_life', '150分钟')
     resolution = attr_data.get('video_resolution', '4K 30fps')
     weight = attr_data.get('weight', '150g')
+    max_storage = attr_data.get('max_storage', '256GB')
+    warranty_period = attr_data.get('warranty_period', '12个月')
 
     # B1: 挂载系统 + 主场景 + P0能力 + 数字参数
     if scenes and core_capabilities:
