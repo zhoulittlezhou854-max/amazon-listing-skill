@@ -127,6 +127,10 @@ def extract_scenes_from_keywords(keyword_data: Any, language: str = "Chinese") -
     if len(scenes) < 3:
         scenes.update(ACTION_CAMERA_SCENES[:5])
 
+    # 确保包含三个关键场景：骑行、水下、旅行
+    target_scenes = ["骑行记录", "水下探索", "旅行记录"]
+    scenes.update(target_scenes)
+
     return list(scenes)[:8]  # 最多8个场景
 
 
