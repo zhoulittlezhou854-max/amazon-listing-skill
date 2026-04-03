@@ -295,11 +295,44 @@ class AmazonListingGenerator:
         print("Step 6: 文案生成")
         print("=" * 60)
 
+        # 懒加载：如果没有 preprocessed_data，尝试从磁盘加载
         if not self.preprocessed_data:
-            return {"status": "error", "error": "需要先运行 Step 0"}
+            preprocessed_path = os.path.join(self.output_dir, "preprocessed_data.json")
+            if os.path.exists(preprocessed_path):
+                print("  从磁盘加载 preprocessed_data...")
+                from tools.preprocess import preprocess_data
+                with open(preprocessed_path, 'r', encoding='utf-8') as f:
+                    preprocessed_dict = json.load(f)
+                # 重建 PreprocessedData 对象（简化版）
+                class LazyPreprocessedData:
+                    def __init__(self, d):
+                        self.run_config = type('obj', (object,), d.get('run_config', {}))()
+                        self.attribute_data = type('obj', (object,), {'data': d.get('attribute_data', {}).get('data', {})})()
+                        self.keyword_data = d.get('keyword_data')
+                        self.review_data = d.get('review_data')
+                        self.aba_data = d.get('aba_data')
+                        self.core_selling_points = d.get('preprocessed_data', {}).get('core_selling_points', [])
+                        self.accessory_descriptions = d.get('preprocessed_data', {}).get('accessory_descriptions', [])
+                        self.quality_score = d.get('preprocessed_data', {}).get('quality_score', 0)
+                        self.language = d.get('preprocessed_data', {}).get('language', 'German')
+                        self.processed_at = d.get('preprocessed_data', {}).get('processed_at', '')
+                self.preprocessed_data = LazyPreprocessedData(preprocessed_dict)
+            else:
+                return {"status": "error", "error": "需要先运行 Step 0"}
 
+        # 懒加载 writing_policy
         if not self.writing_policy:
-            print("警告: writing_policy未生成，使用默认策略")
+            wp_path = os.path.join(self.output_dir, "writing_policy.json")
+            if os.path.exists(wp_path):
+                print("  从磁盘加载 writing_policy...")
+                with open(wp_path, 'r', encoding='utf-8') as f:
+                    self.writing_policy = json.load(f)
+            else:
+                print("警告: writing_policy未生成，使用默认策略")
+                self.writing_policy = {
+                    "scene_priority": ["户外运动", "骑行记录", "水下探索", "旅行记录"],
+                    "keyword_allocation_strategy": "balanced"
+                }
 
         try:
             # 调用文案生成模块

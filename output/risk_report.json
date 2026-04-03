@@ -31,11 +31,11 @@
     "all_passed": true
   },
   "hallucination_risk": {
-    "passed": 5,
-    "total": 10,
+    "passed": 2,
+    "total": 8,
     "issues": [
       {
-        "claim": "TOSBARRFT action camera 4k wifi sports camera Radfahren Dual Screen 4K 60fps Outdoor Sport",
+        "claim": "TOSBARRFT action camera 4k dual screen action cam Radfahren Dual Screen 4K 60fps Unterwasser",
         "source": "title",
         "field": "screen_type",
         "description": "屏幕类型宣称: 属性表中缺少screen_type字段数据支持",
@@ -49,21 +49,28 @@
         "severity": "high"
       },
       {
-        "claim": "提供双屏幕功能，适合户外运动，性能出色可靠",
+        "claim": "提供双屏幕功能，适合水下探索，性能出色可靠",
         "source": "bullet_2",
         "field": "screen_type",
         "description": "屏幕类型宣称: 属性表中缺少screen_type字段数据支持",
         "severity": "high"
       },
       {
-        "claim": "The TOSBARRFT action camera 4k wifi sports camera Radfahren Dual Screen 4K 60fps Outdoor Sport is designed for 骑行记录, delivering professional-grade 双屏幕 experience",
+        "claim": "相比竞品，dual screen action cam在旅行记录表现更优异，电池续航150分钟",
+        "source": "bullet_3",
+        "field": "screen_type",
+        "description": "屏幕类型宣称: 属性表中缺少screen_type字段数据支持",
+        "severity": "high"
+      },
+      {
+        "claim": "The TOSBARRFT action camera 4k dual screen action cam Radfahren Dual Screen 4K 60fps Unterwasser is designed for 骑行记录, delivering professional-grade 双屏幕 experience",
         "source": "description",
         "field": "screen_type",
         "description": "屏幕类型宣称: 属性表中缺少screen_type字段数据支持",
         "severity": "high"
       },
       {
-        "claim": "具备双屏幕, 防抖, WiFi连接等多项功能，\n\nKey Features:\n• 配备多种挂载配件，专为骑行记录设计，提供双屏幕功能，支持30米（需使用防水壳）防水\n• 提供双屏幕功能，适合户外运动，性能出色可靠\n• 相比竞品，wifi sports camera在水下探索表现更优异，电池续航150分钟\n\n立即购买，开启您的拍摄之旅",
+        "claim": "具备双屏幕, 防抖, WiFi连接等多项功能，\n\nKey Features:\n• 配备多种挂载配件，专为骑行记录设计，提供双屏幕功能，支持30米（需使用防水壳）防水\n• 提供双屏幕功能，适合水下探索，性能出色可靠\n• 相比竞品，dual screen action cam在旅行记录表现更优异，电池续航150分钟\n\n立即购买，开启您的拍摄之旅",
         "source": "description",
         "field": "screen_type",
         "description": "屏幕类型宣称: 属性表中缺少screen_type字段数据支持",
@@ -73,12 +80,12 @@
     "all_passed": false
   },
   "overall_passed": false,
-  "risk_score": 70,
-  "risk_level": "中风险",
+  "risk_score": 65,
+  "risk_level": "高风险",
   "summary": {
     "compliance_issues": 3,
     "policy_issues": 0,
-    "hallucination_issues": 5,
-    "total_issues": 8
+    "hallucination_issues": 6,
+    "total_issues": 9
   }
 }
