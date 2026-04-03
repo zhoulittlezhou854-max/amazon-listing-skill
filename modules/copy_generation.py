@@ -348,6 +348,9 @@ def generate_bullet_points(preprocessed_data: PreprocessedData,
     content = "提供12个月质保，专业客服支持，兼容多种设备"
     bullets.append(template.format(content=content))
 
+    # 清理模板标记
+    bullets = [clean_bullet_text(bullet) for bullet in bullets]
+
     # 确保每条bullet不超过250字符
     for i in range(len(bullets)):
         if len(bullets[i]) > 250:
