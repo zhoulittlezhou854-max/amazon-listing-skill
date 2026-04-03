@@ -1542,7 +1542,7 @@ def _translate_scene(scene_label: str, target_language: str, real_vocab: Optiona
     return translated
 
 
-def _translate_text_to_language(text: str, target_language: str) -> str:
+def _translate_text_to_language(text: str, target_language: str, real_vocab: Optional[Any] = None, data_mode: str = "SYNTHETIC_COLD_START") -> str:
     """
     将英文文本翻译为目标语言 (用于 bullet/description 翻译)
     使用正则做大小写不敏感的整词替换
