@@ -2,20 +2,20 @@
   "a10": {
     "title_front_80": {
       "max": 40,
-      "score": 15,
-      "note": "包含品牌"
+      "score": 30,
+      "note": "包含品牌，含L1词"
     },
     "keyword_tiering": {
       "max": 30,
       "score": 20,
-      "note": "L1:2 L2:1 L3:0"
+      "note": "L1:8 L2:1 L3:0"
     },
     "conversion_signals": {
       "max": 30,
       "score": 10,
       "note": "B4-B5 P2 tier得分10"
     },
-    "subtotal": 45
+    "subtotal": 60
   },
   "cosmo": {
     "scene_coverage": {
@@ -62,9 +62,9 @@
     "data_available": false,
     "note": "价格数据缺失，跳过评分"
   },
-  "total_score": 149,
+  "total_score": 164,
   "max_total": 300,
-  "grade_percent": 49.7,
+  "grade_percent": 54.7,
   "rating": "待优化",
   "boundary_declaration_check": {
     "exists": true,
@@ -77,7 +77,7 @@
     "score_impact": "+15"
   },
   "scoring_detail_version": "v8.4.0",
-  "a10_score": 45,
+  "a10_score": 60,
   "cosmo_score": 50,
   "rufus_score": 54,
   "price_competitiveness_score": null,

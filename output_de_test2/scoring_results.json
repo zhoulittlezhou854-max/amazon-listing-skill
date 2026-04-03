@@ -8,7 +8,7 @@
     "keyword_tiering": {
       "max": 30,
       "score": 20,
-      "note": "L1:2 L2:1 L3:0"
+      "note": "L1:3 L2:2 L3:0"
     },
     "conversion_signals": {
       "max": 30,
@@ -68,7 +68,7 @@
   "rating": "待优化",
   "boundary_declaration_check": {
     "exists": true,
-    "sentence": "vielseitiges Design, suitable for Familie (based on lab test data), maximaler Speicher 256GB",
+    "sentence": "vielseitiges Design, suitable for Familie (with Wassergehäuse), maximaler Speicher 256GB",
     "score_impact": "+10"
   },
   "aplus_word_count_check": {

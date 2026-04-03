@@ -1,5 +1,5 @@
 # Amazon Listing 最终仲裁报告
-- 生成时间：2026-04-03T18:02:49.383513
+- 生成时间：2026-04-03T18:04:16.865696
 - 站点：DE
 - 品牌：YourBrand
 - Listing 语言：German
@@ -11,7 +11,7 @@ YourBrand bodycam Radfahren 4K-Aufnahme 4K Unterwasser
 **Bullets**
 1. Comes with multiple mounting accessories, designed for Radfahren, features 4K-Aufnahme, supports 30m wasserdicht
 2. Supports 4K 30fps HD-Aufnahme, optimized for Unterwasser, Akkulaufzeit 150min
-3. Compared to competitors, actioncam performs better in Reisen, Akkulaufzeit 150min
+3. Compared to competitors, helmkamera performs better in Reisen, Akkulaufzeit 150min
 4. vielseitiges Design, suitable for Familie (based on lab test data), maximaler Speicher 256GB
 5. Provides 12 Monate Garantie, professional customer support, compatible with multiple devices, Akkulaufzeit 150min
 
@@ -21,7 +21,7 @@ The YourBrand bodycam Radfahren 4K-Aufnahme 4K Unterwasser is designed for Radfa
 Key Features:
 • Comes with multiple mounting accessories, designed for Radfahren, features 4K-Aufnahme, supports 30m wasserdicht
 • Supports 4K 30fps HD-Aufnahme, optimized for Unterwasser, Akkulaufzeit 150min
-• Compared to competitors, actioncam performs better in Reisen, Akkulaufzeit 150min
+• Compared to competitors, helmkamera performs better in Reisen, Akkulaufzeit 150min
 
 Buy now and start capturing your moments!
 
@@ -40,7 +40,7 @@ Package includes: waterproofcase, Magnet-Halsband, Halterung
   A: 12个月 Garantie mit deutschlandweitem Service.
 
 **Search Terms**
-actioncam, travel_documentation, bodycam, action cam 4k, Actionkamera, mini camera, cycling_recording, Sportkamera, bodycam körperkamera mini, YourBrand, 4K recording, family_use, Videokamera, electronic stabilization, Aufnahmegerät, underwater_exploration
+helmkamera, 4K recording, Videokamera, family_use, action cam 4k+, underwater_exploration, travel_documentation, mini camera, Actionkamera, Sportkamera, electronic stabilization, Aufnahmegerät, action cam 4k, cycling_recording, bodycam, WiFi connection, YourBrand
 
 **A+ Content**
 # YourBrand Action Camera - Professional Shooting Solution
@@ -146,10 +146,10 @@ Experience the YourBrand Action Camera now and record every exciting moment! Pro
 | action cam 4k | L1 | Search Terms |
 | body cam | L1 | 未覆盖 |
 | actionkameras | L2 | 未覆盖 |
-| actioncam | L2 | B3、Description、Search Terms |
+| actioncam | L2 | 未覆盖 |
 | mini camera | L2 | Search Terms |
-| bodycam körperkamera mini | L2 | Search Terms |
-| action cam 4k+ | L2 | 未覆盖 |
+| bodycam körperkamera mini | L2 | 未覆盖 |
+| action cam 4k+ | L2 | Search Terms |
 
 ## Module 3：合规红线检查
 - 通过情况：2/6

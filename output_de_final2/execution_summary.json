@@ -1,5 +1,5 @@
 {
-  "output_dir": "output_de_kw",
+  "output_dir": "output_de_final2",
   "steps_executed": [
     0,
     2,
@@ -19,7 +19,7 @@
     },
     "step_2": {
       "status": "success",
-      "output": "output_de_kw/arsenal_output.json"
+      "output": "output_de_final2/arsenal_output.json"
     },
     "step_3": {
       "status": "success",
@@ -33,31 +33,31 @@
     },
     "step_5": {
       "status": "success",
-      "policy_path": "output_de_kw/writing_policy.json",
+      "policy_path": "output_de_final2/writing_policy.json",
       "scene_count": 4
     },
     "step_6": {
       "status": "success",
-      "copy_path": "output_de_kw/generated_copy.json",
+      "copy_path": "output_de_final2/generated_copy.json",
       "title_length": 54,
       "bullets_count": 5,
       "faq_count": 5
     },
     "step_7": {
       "status": "success",
-      "risk_path": "output_de_kw/risk_report.json",
+      "risk_path": "output_de_final2/risk_report.json",
       "overall_passed": false
     },
     "step_8": {
       "status": "success",
-      "scores_path": "output_de_kw/scoring_results.json",
+      "scores_path": "output_de_final2/scoring_results.json",
       "total_score": 149,
       "grade": "需要改进"
     },
     "step_9": {
       "status": "success",
-      "report_path": "output_de_kw/listing_report.md",
-      "report_length": 8707
+      "report_path": "output_de_final2/listing_report.md",
+      "report_length": 8692
     }
   }
 }

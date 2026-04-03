@@ -1,0 +1,211 @@
+{
+  "site": "DE",
+  "language": "German",
+  "circuit_breaker_applied": true,
+  "parameter_constraints": [
+    {
+      "constraint": "5K 模式不支持防抖",
+      "action": "faq_only"
+    },
+    {
+      "constraint": "30 米防水需使用防水壳",
+      "action": "boundary_declaration"
+    }
+  ],
+  "reserve_keywords": [
+    {
+      "keyword": "mini kamera",
+      "level": "L1",
+      "search_volume": 62816.0,
+      "conversion_rate": 0.0076,
+      "high_conv": false,
+      "_source_type": "order_winning",
+      "_source_file": "H88_DE_出单词表.csv"
+    },
+    {
+      "keyword": "action cam",
+      "level": "L1",
+      "search_volume": 30843.0,
+      "conversion_rate": 0.0,
+      "high_conv": false,
+      "_source_type": "aba",
+      "_source_file": "T70M_DE_ABA关键词表_数据表.csv"
+    },
+    {
+      "keyword": "action cam",
+      "level": "L1",
+      "search_volume": 30843.0,
+      "conversion_rate": 0.0076,
+      "high_conv": false,
+      "_source_type": "order_winning",
+      "_source_file": "H88_DE_出单词表.csv"
+    },
+    {
+      "keyword": "bodycam",
+      "level": "L1",
+      "search_volume": 15577.0,
+      "conversion_rate": 0.0,
+      "high_conv": false,
+      "_source_type": "aba",
+      "_source_file": "T70M_DE_ABA关键词表_数据表.csv"
+    },
+    {
+      "keyword": "bodycam",
+      "level": "L1",
+      "search_volume": 15577.0,
+      "conversion_rate": 0.0098,
+      "high_conv": false,
+      "_source_type": "order_winning",
+      "_source_file": "H88_DE_出单词表.csv"
+    },
+    {
+      "keyword": "spycam",
+      "level": "L2",
+      "search_volume": 15565.0,
+      "conversion_rate": 0.0063,
+      "high_conv": false,
+      "_source_type": "order_winning",
+      "_source_file": "H88_DE_出单词表.csv"
+    },
+    {
+      "keyword": "vlog kamera",
+      "level": "L2",
+      "search_volume": 12904.0,
+      "conversion_rate": 0.0,
+      "high_conv": false,
+      "_source_type": "aba",
+      "_source_file": "T70M_DE_ABA关键词表_数据表.csv"
+    },
+    {
+      "keyword": "action cam 4k",
+      "level": "L2",
+      "search_volume": 12491.0,
+      "conversion_rate": 0.0,
+      "high_conv": false,
+      "_source_type": "aba",
+      "_source_file": "T70M_DE_ABA关键词表_数据表.csv"
+    },
+    {
+      "keyword": "action cam 4k",
+      "level": "L2",
+      "search_volume": 12491.0,
+      "conversion_rate": 0.0082,
+      "high_conv": false,
+      "_source_type": "order_winning",
+      "_source_file": "H88_DE_出单词表.csv"
+    },
+    {
+      "keyword": "body cam",
+      "level": "L2",
+      "search_volume": 11769.0,
+      "conversion_rate": 0.0076,
+      "high_conv": false,
+      "_source_type": "order_winning",
+      "_source_file": "H88_DE_出单词表.csv"
+    },
+    {
+      "keyword": "vlog kamera",
+      "level": "L2",
+      "search_volume": 11627.0,
+      "conversion_rate": 0.002,
+      "high_conv": false,
+      "_source_type": "order_winning",
+      "_source_file": "H88_DE_出单词表.csv"
+    },
+    {
+      "keyword": "actionkameras",
+      "level": "L2",
+      "search_volume": 7474.0,
+      "conversion_rate": 0.0,
+      "high_conv": false,
+      "_source_type": "aba",
+      "_source_file": "T70M_DE_ABA关键词表_数据表.csv"
+    },
+    {
+      "keyword": "actioncam",
+      "level": "L2",
+      "search_volume": 6928.0,
+      "conversion_rate": 0.007,
+      "high_conv": false,
+      "_source_type": "order_winning",
+      "_source_file": "H88_DE_出单词表.csv"
+    },
+    {
+      "keyword": "mini camera",
+      "level": "L3",
+      "search_volume": 6655.0,
+      "conversion_rate": 0.0,
+      "high_conv": false,
+      "_source_type": "aba",
+      "_source_file": "T70M_DE_ABA关键词表_数据表.csv"
+    },
+    {
+      "keyword": "actionkameras",
+      "level": "L3",
+      "search_volume": 6540.0,
+      "conversion_rate": 0.0046,
+      "high_conv": false,
+      "_source_type": "order_winning",
+      "_source_file": "H88_DE_出单词表.csv"
+    },
+    {
+      "keyword": "bodycam körperkamera mini",
+      "level": "L3",
+      "search_volume": 6467.0,
+      "conversion_rate": 0.0,
+      "high_conv": false,
+      "_source_type": "aba",
+      "_source_file": "T70M_DE_ABA关键词表_数据表.csv"
+    },
+    {
+      "keyword": "bodycam körperkamera mini",
+      "level": "L3",
+      "search_volume": 6467.0,
+      "conversion_rate": 0.0125,
+      "high_conv": false,
+      "_source_type": "order_winning",
+      "_source_file": "H88_DE_出单词表.csv"
+    },
+    {
+      "keyword": "mini camera",
+      "level": "L3",
+      "search_volume": 5801.0,
+      "conversion_rate": 0.0073,
+      "high_conv": false,
+      "_source_type": "order_winning",
+      "_source_file": "H88_DE_出单词表.csv"
+    },
+    {
+      "keyword": "action cam 4k+",
+      "level": "L3",
+      "search_volume": 5633.0,
+      "conversion_rate": 0.0,
+      "high_conv": false,
+      "_source_type": "aba",
+      "_source_file": "T70M_DE_ABA关键词表_数据表.csv"
+    },
+    {
+      "keyword": "helmkamera",
+      "level": "L3",
+      "search_volume": 5217.0,
+      "conversion_rate": 0.0,
+      "high_conv": false,
+      "_source_type": "aba",
+      "_source_file": "T70M_DE_ABA关键词表_数据表.csv"
+    }
+  ],
+  "competitor_brands": [
+    "GoPro",
+    "Insta360",
+    "DJI"
+  ],
+  "price_context": {
+    "price_median": null,
+    "currency": "EUR",
+    "sample_size": 0
+  },
+  "review_pain_points": [],
+  "rufus_high_freq_questions": [],
+  "_keyword_source": "real_vocab",
+  "_real_vocab_available": true
+}

@@ -1,27 +1,27 @@
 # Amazon Listing 最终仲裁报告
-- 生成时间：2026-04-03T18:02:49.383513
+- 生成时间：2026-04-03T18:04:49.505205
 - 站点：DE
 - 品牌：YourBrand
 - Listing 语言：German
 
 ## Module 1：最终 Listing（目标语言输出）
 **Title**
-YourBrand bodycam Radfahren 4K-Aufnahme 4K Unterwasser
+YourBrand spycam Radfahren 4K-Aufnahme 4K Unterwasser
 
 **Bullets**
 1. Comes with multiple mounting accessories, designed for Radfahren, features 4K-Aufnahme, supports 30m wasserdicht
 2. Supports 4K 30fps HD-Aufnahme, optimized for Unterwasser, Akkulaufzeit 150min
-3. Compared to competitors, actioncam performs better in Reisen, Akkulaufzeit 150min
-4. vielseitiges Design, suitable for Familie (based on lab test data), maximaler Speicher 256GB
+3. Compared to competitors, bodycam körperkamera mini performs better in Reisen, Akkulaufzeit 150min
+4. vielseitiges Design, suitable for Familie (with Wassergehäuse), maximaler Speicher 256GB
 5. Provides 12 Monate Garantie, professional customer support, compatible with multiple devices, Akkulaufzeit 150min
 
 **Description**
-The YourBrand bodycam Radfahren 4K-Aufnahme 4K Unterwasser is designed for Radfahren, delivering professional-grade 4K-Aufnahme experience. Features 4K-Aufnahme, elektronische Bildstabilisierung, WLAN-Verbindung and more, 
+The YourBrand spycam Radfahren 4K-Aufnahme 4K Unterwasser is designed for Radfahren, delivering professional-grade 4K-Aufnahme experience. Features 4K-Aufnahme, elektronische Bildstabilisierung, WLAN-Verbindung and more, 
 
 Key Features:
 • Comes with multiple mounting accessories, designed for Radfahren, features 4K-Aufnahme, supports 30m wasserdicht
 • Supports 4K 30fps HD-Aufnahme, optimized for Unterwasser, Akkulaufzeit 150min
-• Compared to competitors, actioncam performs better in Reisen, Akkulaufzeit 150min
+• Compared to competitors, bodycam körperkamera mini performs better in Reisen, Akkulaufzeit 150min
 
 Buy now and start capturing your moments!
 
@@ -40,7 +40,7 @@ Package includes: waterproofcase, Magnet-Halsband, Halterung
   A: 12个月 Garantie mit deutschlandweitem Service.
 
 **Search Terms**
-actioncam, travel_documentation, bodycam, action cam 4k, Actionkamera, mini camera, cycling_recording, Sportkamera, bodycam körperkamera mini, YourBrand, 4K recording, family_use, Videokamera, electronic stabilization, Aufnahmegerät, underwater_exploration
+bodycam körperkamera mini, spycam, action cam, Aufnahmegerät, Actionkamera, family_use, Sportkamera, WiFi connection, travel_documentation, YourBrand, action cam 4k+, Videokamera, mini camera, cycling_recording, electronic stabilization, 4K recording
 
 **A+ Content**
 # YourBrand Action Camera - Professional Shooting Solution
@@ -140,16 +140,16 @@ Experience the YourBrand Action Camera now and record every exciting moment! Pro
 | --- | --- | --- |
 | mini kamera | L1 | 未覆盖 |
 | action cam | L1 | Search Terms |
-| bodycam | L1 | Title、Description、Search Terms |
-| spycam | L1 | 未覆盖 |
+| bodycam | L1 | B3、Description、Search Terms |
+| spycam | L1 | Title、Description、Search Terms |
 | vlog kamera | L1 | 未覆盖 |
 | action cam 4k | L1 | Search Terms |
 | body cam | L1 | 未覆盖 |
 | actionkameras | L2 | 未覆盖 |
-| actioncam | L2 | B3、Description、Search Terms |
+| actioncam | L2 | 未覆盖 |
 | mini camera | L2 | Search Terms |
-| bodycam körperkamera mini | L2 | Search Terms |
-| action cam 4k+ | L2 | 未覆盖 |
+| bodycam körperkamera mini | L2 | B3、Description、Search Terms |
+| action cam 4k+ | L2 | Search Terms |
 
 ## Module 3：合规红线检查
 - 通过情况：2/6
@@ -173,7 +173,7 @@ Experience the YourBrand Action Camera now and record every exciting moment! Pro
 | STAG 场景 | 优先关键词 | 目标人群 | 投放建议 |
 | --- | --- | --- | --- |
 | cycling_recording | cycling_recording | 目标人群：cycling_recording爱好者20-45岁 | 建议：围绕cycling_recording场景组合 SB/SP 广告，融入高转化词。 |
-| underwater_exploration | underwater_exploration | 目标人群：underwater_exploration爱好者20-45岁 | 建议：围绕underwater_exploration场景组合 SB/SP 广告，融入高转化词。 |
+| underwater_exploration | bodycam körperkamera mini、spycam | 目标人群：underwater_exploration爱好者20-45岁 | 建议：围绕underwater_exploration场景组合 SB/SP 广告，融入高转化词。 |
 | travel_documentation | travel_documentation | 目标人群：travel_documentation爱好者20-45岁 | 建议：围绕travel_documentation场景组合 SB/SP 广告，融入高转化词。 |
 | family_use | family_use | 目标人群：family_use爱好者20-45岁 | 建议：围绕family_use场景组合 SB/SP 广告，融入高转化词。 |
 
@@ -189,7 +189,7 @@ Experience the YourBrand Action Camera now and record every exciting moment! Pro
 | 指标 | 满分 | 得分 | 说明 |
 | --- | --- | --- | --- |
 | title_front_80 | 40 | 15 | 包含品牌 |
-| keyword_tiering | 30 | 20 | L1:2 L2:1 L3:0 |
+| keyword_tiering | 30 | 20 | L1:3 L2:2 L3:0 |
 | conversion_signals | 30 | 10 | B4-B5 P2 tier得分10 |
 
 > 小计：45 分
@@ -221,7 +221,7 @@ Experience the YourBrand Action Camera now and record every exciting moment! Pro
 - 说明: 价格数据缺失，跳过评分
 
 ### 规则附加检查
-- 边界声明: 已检测 → vielseitiges Design, suitable for Familie (based on lab test data), maximaler Speicher 256GB
+- 边界声明: 已检测 → vielseitiges Design, suitable for Familie (with Wassergehäuse), maximaler Speicher 256GB
 - A+ 字数: 518 词，满足下限: True
 
 ### 算法对齐摘要

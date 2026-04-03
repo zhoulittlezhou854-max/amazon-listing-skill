@@ -1,27 +1,27 @@
 # Amazon Listing 最终仲裁报告
-- 生成时间：2026-04-03T18:02:49.383513
+- 生成时间：2026-04-03T18:04:12.140901
 - 站点：DE
 - 品牌：YourBrand
 - Listing 语言：German
 
 ## Module 1：最终 Listing（目标语言输出）
 **Title**
-YourBrand bodycam Radfahren 4K-Aufnahme 4K Unterwasser
+YourBrand action cam 4k Radfahren 4K-Aufnahme 4K Unterwasser
 
 **Bullets**
 1. Comes with multiple mounting accessories, designed for Radfahren, features 4K-Aufnahme, supports 30m wasserdicht
 2. Supports 4K 30fps HD-Aufnahme, optimized for Unterwasser, Akkulaufzeit 150min
-3. Compared to competitors, actioncam performs better in Reisen, Akkulaufzeit 150min
+3. Compared to competitors, action cam 4K+ performs better in Reisen, Akkulaufzeit 150min
 4. vielseitiges Design, suitable for Familie (based on lab test data), maximaler Speicher 256GB
 5. Provides 12 Monate Garantie, professional customer support, compatible with multiple devices, Akkulaufzeit 150min
 
 **Description**
-The YourBrand bodycam Radfahren 4K-Aufnahme 4K Unterwasser is designed for Radfahren, delivering professional-grade 4K-Aufnahme experience. Features 4K-Aufnahme, elektronische Bildstabilisierung, WLAN-Verbindung and more, 
+The YourBrand action cam 4K Radfahren 4K-Aufnahme 4K Unterwasser is designed for Radfahren, delivering professional-grade 4K-Aufnahme experience. Features 4K-Aufnahme, elektronische Bildstabilisierung, WLAN-Verbindung and more, 
 
 Key Features:
 • Comes with multiple mounting accessories, designed for Radfahren, features 4K-Aufnahme, supports 30m wasserdicht
 • Supports 4K 30fps HD-Aufnahme, optimized for Unterwasser, Akkulaufzeit 150min
-• Compared to competitors, actioncam performs better in Reisen, Akkulaufzeit 150min
+• Compared to competitors, action cam 4K+ performs better in Reisen, Akkulaufzeit 150min
 
 Buy now and start capturing your moments!
 
@@ -40,7 +40,7 @@ Package includes: waterproofcase, Magnet-Halsband, Halterung
   A: 12个月 Garantie mit deutschlandweitem Service.
 
 **Search Terms**
-actioncam, travel_documentation, bodycam, action cam 4k, Actionkamera, mini camera, cycling_recording, Sportkamera, bodycam körperkamera mini, YourBrand, 4K recording, family_use, Videokamera, electronic stabilization, Aufnahmegerät, underwater_exploration
+action cam 4k, YourBrand, action cam 4k+, family_use, mini kamera, cycling_recording, Videokamera, travel_documentation, actionkameras, underwater_exploration, 4K recording, helmkamera, Actionkamera, Sportkamera, WiFi connection, Aufnahmegerät
 
 **A+ Content**
 # YourBrand Action Camera - Professional Shooting Solution
@@ -138,18 +138,18 @@ Experience the YourBrand Action Camera now and record every exciting moment! Pro
 ## Module 2：关键词覆盖审计表
 | 关键词 | 层级 | 出现位置 |
 | --- | --- | --- |
-| mini kamera | L1 | 未覆盖 |
-| action cam | L1 | Search Terms |
-| bodycam | L1 | Title、Description、Search Terms |
+| mini kamera | L1 | Search Terms |
+| action cam | L1 | Title、B3、Description、Search Terms |
+| bodycam | L1 | 未覆盖 |
 | spycam | L1 | 未覆盖 |
 | vlog kamera | L1 | 未覆盖 |
-| action cam 4k | L1 | Search Terms |
+| action cam 4k | L1 | Title、B3、Description、Search Terms |
 | body cam | L1 | 未覆盖 |
-| actionkameras | L2 | 未覆盖 |
-| actioncam | L2 | B3、Description、Search Terms |
-| mini camera | L2 | Search Terms |
-| bodycam körperkamera mini | L2 | Search Terms |
-| action cam 4k+ | L2 | 未覆盖 |
+| actionkameras | L2 | Search Terms |
+| actioncam | L2 | 未覆盖 |
+| mini camera | L2 | 未覆盖 |
+| bodycam körperkamera mini | L2 | 未覆盖 |
+| action cam 4k+ | L2 | B3、Description、Search Terms |
 
 ## Module 3：合规红线检查
 - 通过情况：2/6
@@ -188,11 +188,11 @@ Experience the YourBrand Action Camera now and record every exciting moment! Pro
 ### A10 维度
 | 指标 | 满分 | 得分 | 说明 |
 | --- | --- | --- | --- |
-| title_front_80 | 40 | 15 | 包含品牌 |
-| keyword_tiering | 30 | 20 | L1:2 L2:1 L3:0 |
+| title_front_80 | 40 | 30 | 包含品牌，含L1词 |
+| keyword_tiering | 30 | 20 | L1:8 L2:1 L3:0 |
 | conversion_signals | 30 | 10 | B4-B5 P2 tier得分10 |
 
-> 小计：45 分
+> 小计：60 分
 
 ### COSMO 维度
 | 指标 | 满分 | 得分 | 说明 |
@@ -225,5 +225,5 @@ Experience the YourBrand Action Camera now and record every exciting moment! Pro
 - A+ 字数: 518 词，满足下限: True
 
 ### 算法对齐摘要
-- 总分: 149/300
-- 综合评级: 待优化 (49.7%)
+- 总分: 164/300
+- 综合评级: 待优化 (54.7%)

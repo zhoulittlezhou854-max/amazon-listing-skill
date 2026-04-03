@@ -298,6 +298,8 @@ def extract_tiered_keywords(preprocessed_data: Any, language: str = "Chinese", r
     优先级:
     - Priority 1: 真实国家词表（preprocessed_data.real_vocab）→ 本地语言关键词
     - Priority 2: keyword_data 中的关键词
+    - Priority 3: mapping 中的关键词（默认映射表）
+    - Priority 4: [SYNTH] 标记关键词
     """
     # ─── Priority 1: 真实国家词表（DE/FR 本地词） ───
     # 优先使用传入的 real_vocab，其次尝试从 preprocessed_data 重建
@@ -330,43 +332,51 @@ def extract_tiered_keywords(preprocessed_data: Any, language: str = "Chinese", r
     keyword_data = getattr(preprocessed_data, "keyword_data", None)
     result = {"l1": [], "l2": [], "l3": []}
 
-    if not keyword_data or not hasattr(keyword_data, 'keywords'):
-        # 返回默认关键词
-        default_keywords = {
-            "Chinese": {"l1": ["运动相机", "4K相机"], "l2": ["防水相机", "防抖相机"], "l3": ["户外相机"]},
-            "English": {"l1": ["action camera 4k"], "l2": ["sports camera", "waterproof camera"], "l3": ["helmet camera"]},
-            "German": {"l1": ["action camera 4k"], "l2": ["sports camera", "waterproof camera"], "l3": ["helmet camera"]},
-            "French": {"l1": ["caméra d'action 4K"], "l2": ["caméra sport", "caméra étanche"], "l3": ["caméra casco"]},
-            "Spanish": {"l1": ["cámara de acción 4K"], "l2": ["cámara deportiva", "cámara impermeable"], "l3": ["cámara casco"]},
-            "Italian": {"l1": ["videocamera sportiva 4K"], "l2": ["fotocamera sportiva", "fotocamera impermeabile"], "l3": ["fotocamera casco"]},
-            "Japanese": {"l1": ["アクションカメラ 4K"], "l2": ["スポーツカメラ", "防水カメラ"], "l3": ["ヘルメットカメラ"]}
-        }
-        return default_keywords.get(language, default_keywords["English"])
+    if keyword_data and hasattr(keyword_data, 'keywords'):
+        # 使用与scoring.py一致的阈值：L1 >= 10000, L2 >= 1000, L3 < 1000
+        l1_set = set()
+        l2_set = set()
+        l3_set = set()
 
-    # 使用与scoring.py一致的阈值：L1 >= 10000, L2 >= 1000, L3 < 1000
-    l1_set = set()
-    l2_set = set()
-    l3_set = set()
+        for row in keyword_data.keywords:
+            keyword = row.get('keyword', '') or row.get('search_term', '')
+            if not keyword:
+                continue
+            volume = float(row.get('search_volume') or 0)
 
-    for row in keyword_data.keywords:
-        keyword = row.get('keyword', '') or row.get('search_term', '')
-        if not keyword:
-            continue
-        volume = float(row.get('search_volume') or 0)
+            if volume >= 10000:
+                l1_set.add(keyword.lower())
+            elif volume >= 1000:
+                l2_set.add(keyword.lower())
+            else:
+                l3_set.add(keyword.lower())
 
-        if volume >= 10000:
-            l1_set.add(keyword.lower())
-        elif volume >= 1000:
-            l2_set.add(keyword.lower())
-        else:
-            l3_set.add(keyword.lower())
+        # 转换为列表
+        result["l1"] = list(l1_set)[:5]
+        result["l2"] = list(l2_set)[:5]
+        result["l3"] = list(l3_set)[:5]
+        return result
 
-    # 转换为列表
-    result["l1"] = list(l1_set)[:5]
-    result["l2"] = list(l2_set)[:5]
-    result["l3"] = list(l3_set)[:5]
+    # ─── Priority 3: mapping 中的关键词（默认映射表）───
+    default_keywords = {
+        "Chinese": {"l1": ["运动相机", "4K相机"], "l2": ["防水相机", "防抖相机"], "l3": ["户外相机"]},
+        "English": {"l1": ["action camera 4k"], "l2": ["sports camera", "waterproof camera"], "l3": ["helmet camera"]},
+        "German": {"l1": ["action camera 4k"], "l2": ["sports camera", "waterproof camera"], "l3": ["helmet camera"]},
+        "French": {"l1": ["caméra d'action 4K"], "l2": ["caméra sport", "caméra étanche"], "l3": ["caméra casco"]},
+        "Spanish": {"l1": ["cámara de acción 4K"], "l2": ["cámara deportiva", "cámara impermeable"], "l3": ["cámara casco"]},
+        "Italian": {"l1": ["videocamera sportiva 4K"], "l2": ["fotocamera sportiva", "fotocamera impermeabile"], "l3": ["fotocamera casco"]},
+        "Japanese": {"l1": ["アクションカメラ 4K"], "l2": ["スポーツカメラ", "防水カメラ"], "l3": ["ヘルメットカメラ"]}
+    }
 
-    return result
+    if language in default_keywords:
+        return default_keywords[language]
+
+    # ─── Priority 4: [SYNTH] 标记关键词 ───
+    return {
+        "l1": ["[SYNTH] action camera"],
+        "l2": ["[SYNTH] sports camera"],
+        "l3": ["[SYNTH] waterproof camera"]
+    }
 
 
 def extract_l1_keywords(keyword_data: Any, language: str = "Chinese") -> List[str]:
