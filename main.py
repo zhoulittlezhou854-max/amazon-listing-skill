@@ -221,7 +221,7 @@ class AmazonListingGenerator:
     def run_step_5(self) -> Dict[str, Any]:
         """
         Step 5: writing_policy 生成
-        生成文案写作策略
+        生成文案写作策略（使用默认4场景模板）
         """
         print("\n" + "=" * 60)
         print("Step 5: writing_policy 生成")
@@ -231,9 +231,9 @@ class AmazonListingGenerator:
             return {"status": "error", "error": "需要先运行 Step 0"}
 
         try:
-            # 调用writing_policy模块
-            policy = writing_policy.generate_policy(
-                self.preprocessed_data,
+            # 使用默认4场景策略模板（骑行记录、水下探索、旅行记录、家庭使用）
+            # keyword_allocation_strategy 默认为 "balanced"
+            policy = writing_policy.generate_default_4scene_policy(
                 self.preprocessed_data.core_selling_points,
                 self.preprocessed_data.language
             )
@@ -245,10 +245,10 @@ class AmazonListingGenerator:
             with open(policy_path, 'w', encoding='utf-8') as f:
                 json.dump(policy, f, ensure_ascii=False, indent=2)
 
-            print(f"✓ writing_policy 生成完成")
-            print(f"  场景优先级: {policy.get('scene_priority', [])[:3]}...")
+            print(f"✓ writing_policy 生成完成（默认4场景模板）")
+            print(f"  场景优先级: {policy.get('scene_priority', [])}")
+            print(f"  关键词分配策略: {policy.get('keyword_allocation_strategy', 'balanced')}")
             print(f"  能力场景绑定: {len(policy.get('capability_scene_bindings', []))}项")
-            print(f"  硬性约束: {len(policy.get('bullet_slot_rules', {}))}条规则")
 
             return {
                 "status": "success",
@@ -258,25 +258,26 @@ class AmazonListingGenerator:
 
         except Exception as e:
             print(f"✗ writing_policy 生成失败: {e}")
-            # 生成模拟policy
+            # 生成模拟policy（4场景默认）
             mock_policy = {
-                "scene_priority": ["户外运动", "骑行记录", "水下探索", "旅行记录", "家庭使用"],
+                "scene_priority": ["骑行记录", "水下探索", "旅行记录", "家庭使用"],
+                "keyword_allocation_strategy": "balanced",
                 "capability_scene_bindings": [
                     {
                         "capability": "4K录像",
                         "binding_type": "used_for_func",
-                        "allowed_scenes": ["户外运动", "水下探索"],
+                        "allowed_scenes": ["水下探索", "旅行记录"],
                         "forbidden_scenes": []
                     }
                 ],
-                "faq_only_capabilities": ["数字防抖限制说明"],
+                "faq_only_capabilities": ["数字防抖限制说明", "防水深度限制"],
                 "forbidden_pairs": [["5K", "防抖"]],
                 "bullet_slot_rules": {
-                    "B1": "挂载系统 + 主场景 + P0能力",
-                    "B2": "P0核心能力 + 量化参数",
-                    "B3": "P1竞品痛点对比 + 场景词",
-                    "B4": "P1/P2能力 + 边界声明句",
-                    "B5": "P2质保/售后/兼容性"
+                    "B1": "Mounting system + Primary scene + P0 capability",
+                    "B2": "P0 core capability + Quantified parameters",
+                    "B3": "P1 competitor pain point comparison + Scene keywords",
+                    "B4": "P1/P2 capability + Boundary statement",
+                    "B5": "P2 warranty/after-sale/compatibility"
                 }
             }
 
