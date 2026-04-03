@@ -661,6 +661,12 @@ def preprocess_data(
     review_data = read_review_table(review_path) if review_path else ReviewData(insights=[])
     aba_data = read_aba_table(aba_path) if aba_path else ABAData(trends=[])
 
+    # 3b. 加载真实国家词表（Priority 1，DE/FR 专用）
+    real_vocab = None
+    target_ctry = run_config.target_country.upper()
+    if target_ctry in ("DE", "FR"):
+        real_vocab = load_real_country_vocab(target_ctry)
+
     # 4. 处理填槽字段
     # 4.1 核心卖点处理
     if run_config.core_selling_points_raw:
