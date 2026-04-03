@@ -126,7 +126,7 @@ class RealVocabData:
     aba_count: int = 0                  # ABA 关键词数
     order_winning_count: int = 0        # 出单词数
     review_count: int = 0               # 评论抽取关键词数
-    top_keywords: List[Dict[str, Any]] = []  # Top 20 高搜索量关键词（本地词）
+    top_keywords: List[Dict[str, Any]] = field(default_factory=list)  # Top 20 高搜索量关键词（本地词）
     data_mode: str = "SYNTHETIC_COLD_START"  # 基于真实数据量判断
 
 
