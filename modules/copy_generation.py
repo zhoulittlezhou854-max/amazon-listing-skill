@@ -1670,8 +1670,8 @@ def _generate_title_in_language(title_struct: Dict[str, Any], target_language: s
     resolution = title_struct["resolution"]
 
     # 翻译场景
-    scene_1 = _translate_scene(scene_1_en, target_language)
-    scene_2 = _translate_scene(scene_2_en, target_language)
+    scene_1 = _translate_scene(scene_1_en, target_language, real_vocab, data_mode)
+    scene_2 = _translate_scene(scene_2_en, target_language, real_vocab, data_mode)
 
     # 翻译 hero_spec
     hero_spec_translated = _translate_capability(hero_spec, target_language)
