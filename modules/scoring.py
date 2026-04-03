@@ -202,9 +202,17 @@ def _score_capability_binding(writing_policy: Dict[str, Any], generated_copy: Di
     satisfied = 0
     for binding in bindings:
         capability = (binding.get("capability") or "").lower()
+        binding_type = (binding.get("binding_type") or "").lower()
         allowed = _lower_set(binding.get("allowed_scenes", []))
-        if capability and capability in text and any(scene in text for scene in allowed):
-            satisfied += 1
+
+        # 对于 capableof 类型，只需检查能力是否在文案中出现
+        if binding_type == "capableof":
+            if capability and capability in text:
+                satisfied += 1
+        # 对于其他类型，需要同时检查能力和场景
+        else:
+            if capability and capability in text and any(scene in text for scene in allowed):
+                satisfied += 1
     ratio = satisfied / len(bindings)
     score = min(max_score, int(ratio * max_score))
     return score, f"满足 {satisfied}/{len(bindings)} 条绑定"
