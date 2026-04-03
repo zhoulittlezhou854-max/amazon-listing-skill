@@ -784,7 +784,18 @@ def preprocess_data(
             # 保存完整aba数据
             "aba_data": {
                 "trends": aba_data.trends if aba_data.trends else []
-            }
+            },
+            # 保存真实国家词表（Priority 1）
+            "real_vocab": {
+                "country": real_vocab.country if real_vocab else None,
+                "is_available": real_vocab.is_available if real_vocab else False,
+                "total_count": real_vocab.total_count if real_vocab else 0,
+                "aba_count": real_vocab.aba_count if real_vocab else 0,
+                "order_winning_count": real_vocab.order_winning_count if real_vocab else 0,
+                "review_count": real_vocab.review_count if real_vocab else 0,
+                "top_keywords": real_vocab.top_keywords if real_vocab else [],
+                "data_mode": real_vocab.data_mode if real_vocab else "SYNTHETIC_COLD_START",
+            } if real_vocab else {"is_available": False}
         }
 
         with open(output_path, 'w', encoding='utf-8') as f:
