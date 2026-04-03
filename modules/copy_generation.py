@@ -282,9 +282,10 @@ def extract_high_conv_keywords(keyword_data: Any) -> List[str]:
 
 def generate_title(preprocessed_data: PreprocessedData,
                    writing_policy: Dict[str, Any],
-                   l1_keywords: List[str]) -> str:
+                   l1_keywords: List[str],
+                   tiered_keywords: Dict[str, List[str]] = None) -> str:
     """
-    生成标题
+    生成标题 - 优化版：确保L1关键词在前80字符，多场景覆盖
     """
     language = preprocessed_data.language
     brand = preprocessed_data.run_config.brand_name if hasattr(preprocessed_data.run_config, 'brand_name') else "TOSBARRFT"
@@ -294,13 +295,15 @@ def generate_title(preprocessed_data: PreprocessedData,
     if not core_capabilities:
         core_capabilities = ["4K录像", "防抖", "防水"]
 
-    # 获取场景词
+    # 获取场景词（优先使用前4个场景）
     scenes = writing_policy.get('scene_priority', [])
-    scene_word = scenes[0] if scenes else "户外运动"
+    if len(scenes) < 4:
+        scenes.extend(["户外运动", "运动训练", "旅行记录"][:4-len(scenes)])
 
     # 德语翻译映射
+    capability_translation = {}
+    scene_translation = {}
     if language == "German":
-        # 翻译核心能力
         capability_translation = {
             "双屏幕": "Dual Screen",
             "EIS防抖": "EIS Bildstabilisierung",
@@ -310,78 +313,83 @@ def generate_title(preprocessed_data: PreprocessedData,
             "4K录像": "4K Aufnahme",
             "高清录像": "HD Aufnahme"
         }
-        # 翻译场景词
         scene_translation = {
-            "骑行记录": "Radfahren Aufnahme",
+            "骑行记录": "Radfahren",
             "户外运动": "Outdoor Sport",
-            "水下探索": "Unterwasser Erkundung",
-            "旅行记录": "Reiseaufnahme",
+            "水下探索": "Unterwasser",
+            "旅行记录": "Reise",
             "运动训练": "Sporttraining",
-            "家庭使用": "Familiengebrauch"
+            "家庭使用": "Familie"
         }
 
-        # 翻译核心能力
-        translated_capabilities = []
-        for cap in core_capabilities:
-            translated = capability_translation.get(cap, cap)
-            # 如果未找到直接映射，尝试部分匹配
-            if translated == cap:
-                for key, value in capability_translation.items():
-                    if key in cap:
-                        translated = cap.replace(key, value)
-                        break
-            translated_capabilities.append(translated)
-        core_capabilities = translated_capabilities
+    # 翻译核心能力
+    translated_capabilities = []
+    for cap in core_capabilities:
+        translated = capability_translation.get(cap, cap)
+        if translated == cap:
+            for key, value in capability_translation.items():
+                if key in cap:
+                    translated = cap.replace(key, value)
+                    break
+        translated_capabilities.append(translated)
+    core_capabilities = translated_capabilities
 
-        # 翻译场景词
-        scene_word = scene_translation.get(scene_word, scene_word)
+    # 翻译场景词（前4个）
+    translated_scenes = []
+    for scene in scenes[:4]:
+        translated_scenes.append(scene_translation.get(scene, scene))
 
-    # 选择模板
-    templates = TITLE_TEMPLATES.get(language, TITLE_TEMPLATES["English"])
-    template = random.choice(templates)
+    # 获取L1关键词（确保至少有一个）
+    if not l1_keywords:
+        l1_keywords = ["Actionkamera 4K"] if language == "German" else ["action camera 4k"]
 
-    # 填充模板
-    title = template
-    title = title.replace("[品牌]", brand)
-    title = title.replace("[Brand]", brand)
+    # 构建标题：品牌 + L1关键词 + 场景1 + 核心能力 + 场景2
+    # 确保L1关键词在最开始且在前80字符内
+    attr_data = preprocessed_data.attribute_data.data if hasattr(preprocessed_data.attribute_data, 'data') else {}
+    resolution = attr_data.get('video_resolution', '4K')
 
-    if l1_keywords:
-        title = title.replace("[L1关键词]", l1_keywords[0])
-        title = title.replace("[L1_Keyword]", l1_keywords[0])
+    # 标题结构：[品牌] [L1] [场景1] [核心能力] [场景2]
+    if language == "German":
+        # 德语标题模板
+        title_parts = [brand]
+
+        # L1关键词必须在前80字符内
+        l1_part = l1_keywords[0] if l1_keywords else "Actionkamera 4K"
+        title_parts.append(l1_part)
+
+        # 添加第一个场景
+        if translated_scenes:
+            title_parts.append(translated_scenes[0])
+
+        # 添加核心能力（带分辨率）
+        if core_capabilities:
+            title_parts.append(f"{core_capabilities[0]} {resolution}")
+
+        # 添加第二个场景增加覆盖率
+        if len(translated_scenes) > 1:
+            title_parts.append(translated_scenes[1])
+
+        title = " ".join(title_parts)
     else:
-        # 根据语言设置默认L1关键词
-        default_l1 = {
-            "Chinese": "运动相机",
-            "English": "Action Camera",
-            "German": "Actionkamera",
-            "French": "caméra d'action",
-            "Spanish": "cámara de acción",
-            "Italian": "videocamera sportiva",
-            "Japanese": "アクションカメラ"
-        }
-        default_keyword = default_l1.get(language, "Action Camera")
-        title = title.replace("[L1关键词]", default_keyword)
-        title = title.replace("[L1_Keyword]", default_keyword)
-        # 同时将默认关键词添加到l1_keywords列表用于后续使用
-        l1_keywords = [default_keyword]
+        # 英文/其他语言模板
+        title_parts = [brand, l1_keywords[0] if l1_keywords else "Action Camera"]
+        if translated_scenes:
+            title_parts.append(translated_scenes[0])
+        if core_capabilities:
+            title_parts.append(f"{core_capabilities[0]} {resolution}")
+        if len(translated_scenes) > 1:
+            title_parts.append(translated_scenes[1])
+        title = " ".join(title_parts)
 
-    title = title.replace("[场景词]", scene_word)
-    title = title.replace("[Scene_Word]", scene_word)
+    # 清理多余空格
+    title = re.sub(r'\s+', ' ', title).strip()
 
-    if core_capabilities:
-        core_cap = core_capabilities[0]
-        # 添加参数（如果有）
-        attr_data = preprocessed_data.attribute_data.data if hasattr(preprocessed_data.attribute_data, 'data') else {}
-        if "video_resolution" in attr_data and "4K" in core_cap:
-            resolution = attr_data["video_resolution"]
-            core_cap = f"{core_cap} {resolution}"
-        title = title.replace("[核心能力+参数]", core_cap)
-        title = title.replace("[Core_Capability+Params]", core_cap)
-        title = title.replace("[核心能力]", core_cap.split()[0] if " " in core_cap else core_cap)
-        title = title.replace("[Core_Capability]", core_cap.split()[0] if " " in core_cap else core_cap)
+    # 如果标题太长，确保L1关键词仍在80字符内
+    if len(title) > 180:
+        # 截断但保留L1关键词
+        title = title[:177] + "..."
 
-    # 差异化特征
-    if len(core_capabilities) > 1:
+    return title
         differentiator = core_capabilities[1]
     else:
         differentiator = "专业级" if language == "Chinese" else "Professional"
