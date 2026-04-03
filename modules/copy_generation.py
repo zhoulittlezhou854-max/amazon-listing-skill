@@ -651,7 +651,7 @@ def generate_description(preprocessed_data: PreprocessedData,
         bullet1=bullets[0] if len(bullets) > 0 else "",
         bullet2=bullets[1] if len(bullets) > 1 else "",
         bullet3=bullets[2] if len(bullets) > 2 else "",
-        closing_statement="立即购买，开启您的拍摄之旅！",
+        closing_statement=DESCRIPTION_CLOSING_STATEMENTS.get(language, DESCRIPTION_CLOSING_STATEMENTS["English"]),
         accessories=accessories
     )
 
