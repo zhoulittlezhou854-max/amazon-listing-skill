@@ -132,7 +132,7 @@ class PreprocessedData:
     target_country: str
     reasoning_language: str = "EN"  # PRD v8.2: 固定为EN
     data_mode: str = "SYNTHETIC_COLD_START"  # DATA_DRIVEN or SYNTHETIC_COLD_START
-    processed_at: str
+    processed_at: str = ""
 
 
 # ==================== 文件读取与解析 ====================
