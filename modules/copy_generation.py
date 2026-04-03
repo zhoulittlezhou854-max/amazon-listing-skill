@@ -1658,7 +1658,7 @@ def _build_english_title_structure(preprocessed_data: Any, writing_policy: Dict[
 
 
 def _generate_title_in_language(title_struct: Dict[str, Any], target_language: str,
-                                 keyword_allocation_strategy: str) -> str:
+                                 keyword_allocation_strategy: str, real_vocab: Optional[Any] = None, data_mode: str = "SYNTHETIC_COLD_START") -> str:
     """
     PRD v8.2: 第二阶段 - 根据目标语言生成标题
     """
