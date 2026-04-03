@@ -88,6 +88,28 @@ def build_arsenal(preprocessed_data: Any) -> Dict[str, Any]:
     # ─── Priority 1: 真实国家词表 ───
     real_vocab = getattr(preprocessed_data, "real_vocab", None)
     reserve_keywords, kw_source = _build_from_real_vocab(real_vocab)
+
+    # 如果有真实词表，将其关键词同步到 keyword_data.keywords（供 scoring._tier_keywords 使用）
+    if reserve_keywords and getattr(real_vocab, "is_available", False):
+        # 重建 keyword_data.keywords 以便 scoring 模块能够正确分层
+        kw_list_for_scoring = []
+        for kw_dict in reserve_keywords:
+            kw_list_for_scoring.append({
+                "keyword": kw_dict.get("keyword", ""),
+                "search_term": kw_dict.get("keyword", ""),
+                "search_volume": kw_dict.get("search_volume", 0),
+                "conversion_rate": kw_dict.get("conversion_rate", 0),
+            })
+        # 同步到 preprocessed_data.keyword_data.keywords
+        keyword_data_obj = getattr(preprocessed_data, "keyword_data", None)
+        if keyword_data_obj is not None:
+            try:
+                keyword_data_obj.keywords = kw_list_for_scoring
+            except AttributeError:
+                # 如果 keyword_data 是 dict 类型，尝试直接赋值
+                if isinstance(keyword_data_obj, dict):
+                    keyword_data_obj["keywords"] = kw_list_for_scoring
+
     if not reserve_keywords:
         # ─── Priority 2: 预处理数据中的关键词表 ───
         keyword_rows = getattr(getattr(preprocessed_data, "keyword_data", None), "keywords", []) or []
