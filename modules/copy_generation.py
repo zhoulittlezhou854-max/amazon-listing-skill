@@ -268,6 +268,18 @@ def generate_title(preprocessed_data: PreprocessedData,
     return title
 
 
+def clean_bullet_text(bullet: str) -> str:
+    """
+    清理bullet文本，移除模板标记【...】
+    """
+    # 移除【...】模式，包括中英文括号
+    cleaned = re.sub(r'【[^】]*】', '', bullet)  # 中文括号
+    cleaned = re.sub(r'\[[^\]]*\]', '', cleaned)  # 英文括号
+    # 清理多余空格
+    cleaned = re.sub(r'\s+', ' ', cleaned).strip()
+    return cleaned
+
+
 def generate_bullet_points(preprocessed_data: PreprocessedData,
                           writing_policy: Dict[str, Any],
                           language: str = "Chinese") -> List[str]:

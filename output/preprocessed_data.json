@@ -1,0 +1,159 @@
+{
+  "preprocessed_data": {
+    "run_config": {
+      "target_country": "DE",
+      "brand_name": "TOSBARRFT",
+      "core_selling_points_raw": "双屏幕，EIS防抖，WiFi连接",
+      "accessory_params_raw": "防水壳30米，磁吸挂绳，车把支架",
+      "selling_points_source": "user_input",
+      "accessory_status": "parsed"
+    },
+    "attribute_data": {
+      "品牌": "TOSBARRFT",
+      "型号": "X12 双屏运动相机",
+      "video_resolution": "4K 60fps",
+      "waterproof_depth": "30米（需使用防水壳）",
+      "battery_life": "150分钟",
+      "image_stabilization": "EIS 数字防抖",
+      "connectivity": "WiFi, Bluetooth",
+      "weight": "150g",
+      "max_storage": "256GB",
+      "included_components": "主机, 防水壳, 磁吸挂绳, 车把支架",
+      "warranty_period": "12个月",
+      "price": "189"
+    },
+    "keyword_summary": {
+      "total_keywords": 5,
+      "keywords_sample": [
+        {
+          "keyword": "action camera 4k",
+          "search_volume": 18000,
+          "conversion_rate": 2.1,
+          "avg_price": 199
+        },
+        {
+          "keyword": "helmet camera",
+          "search_volume": 7200,
+          "conversion_rate": 1.8,
+          "avg_price": 185
+        },
+        {
+          "keyword": "waterproof sports cam",
+          "search_volume": 4200,
+          "conversion_rate": 1.6,
+          "avg_price": 210
+        },
+        {
+          "keyword": "dual screen action cam",
+          "search_volume": 2500,
+          "conversion_rate": 1.4,
+          "avg_price": 215
+        },
+        {
+          "keyword": "wifi sports camera",
+          "search_volume": 1200,
+          "conversion_rate": 1.2,
+          "avg_price": 180
+        }
+      ]
+    },
+    "review_summary": {
+      "total_insights": 5,
+      "insights_sample": [
+        {
+          "field_name": "Feature_Praise",
+          "content_text": "画质清晰，夜拍表现好",
+          "sentiment": "positive",
+          "count": 34
+        },
+        {
+          "field_name": "Feature_Praise",
+          "content_text": "附带的磁吸挂绳非常方便",
+          "sentiment": "positive",
+          "count": 12
+        },
+        {
+          "field_name": "negative_pain",
+          "content_text": "原厂配件不足，需自行购买",
+          "sentiment": "negative",
+          "count": 8
+        },
+        {
+          "field_name": "high_freq_question",
+          "content_text": "防水壳需要注意什么？",
+          "sentiment": "neutral",
+          "count": 5
+        },
+        {
+          "field_name": "rufus_faq",
+          "content_text": "电池续航能否覆盖整天骑行？",
+          "sentiment": "neutral",
+          "count": 11
+        }
+      ]
+    },
+    "aba_summary": {
+      "total_trends": 3,
+      "trends_sample": [
+        {
+          "keyword": "action camera",
+          "search_volume": 20000,
+          "conversion_rate": 2.3,
+          "click_share": 0.45,
+          "avg_cpc": 1.2
+        },
+        {
+          "keyword": "mountain bike camera",
+          "search_volume": 6500,
+          "conversion_rate": 1.7,
+          "click_share": 0.38,
+          "avg_cpc": 0.9
+        },
+        {
+          "keyword": "surf camera waterproof",
+          "search_volume": 3100,
+          "conversion_rate": 1.5,
+          "click_share": 0.32,
+          "avg_cpc": 1.1
+        }
+      ]
+    },
+    "core_selling_points": [
+      "双屏幕",
+      "防抖",
+      "WiFi连接"
+    ],
+    "accessory_descriptions": [
+      {
+        "name": "防水壳",
+        "specification": "防水壳30米",
+        "original": "防水壳30米",
+        "params": {
+          "depth_meters": 30
+        }
+      },
+      {
+        "name": "磁吸挂绳",
+        "specification": "磁吸挂绳",
+        "original": "磁吸挂绳",
+        "params": {}
+      },
+      {
+        "name": "支架",
+        "specification": "车把支架",
+        "original": "车把支架",
+        "params": {}
+      }
+    ],
+    "quality_score": 75,
+    "quality_breakdown": {
+      "selling_points_completeness": "良好",
+      "accessory_clarity": "parsed",
+      "attribute_coverage": "4/4",
+      "keyword_data_availability": "有限",
+      "review_insight_availability": "有限"
+    },
+    "language": "German",
+    "processed_at": "2026-04-03T10:22:36.484326"
+  }
+}

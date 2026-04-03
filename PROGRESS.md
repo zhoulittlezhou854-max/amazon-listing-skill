@@ -7,6 +7,23 @@
 
 ---
 
+## 2026-04-03 更新 - 差距复盘摘要
+
+- ✅ 重新通读 PRD v8.4.0 以及 `main.py` 与 `modules/*` 的现有实现，确认目前代码仅覆盖 Step 0（预处理）+ Step 3/5/6/7 的基础能力；Step 8/9 所需的 `modules/scoring.py` 与 `modules/report_generator.py` 完全缺失，`main.py` 只能 fallback 到不存在的 `utils.mock_modules`，导致流程无法闭环。
+- ❗ 关键词军火库、视觉审计、意图图谱等 Node 2/3/4 的数据资产在项目中仍未落地，writing_policy 与文案生成缺乏 L1/L2/L3 语义输入，与 PRD B/C 节约束存在显著差距。
+- ⚠️ 已有模块的输出结构与 PRD JSON/Markdown 规范不一致，例如 `capability_check` 未产出 `parameter_constraints`/`faq_only_capabilities`，`copy_generation` 未落实 6 条硬约束与 8 项自检，导致 Step 7 风险检查只能做粗糙校验。
+- 🎯 本轮优先实现 PRD C-7/C-6 对应的 **算法评分引擎** 与 **最终仲裁报告生成器**，打通 Step 8/9，并按 PRD J-1 提到的 `scoring_detail`、`final_report` 数据口径输出。
+
+## 2026-04-03 实施进展
+
+- ✅ 新增 `modules/scoring.py`（Step 8），实现 A10/COSMO/Rufus/价格竞争力四维评分、边界声明与 A+ 字数检查，产出符合 PRD C-7 的 `scoring_detail` 结构，并向 `main.py` 暴露 `calculate_scores`。评分逻辑内置 L1/L2/L3 划分（基于预处理 keywords）、场景/能力绑定命中率、FAQ 数字化程度，以及价格中位数对比。
+- ✅ 新增 `modules/report_generator.py`（Step 9），输出 Module 1-8 完整 Markdown。报告文字全部中文说明，Listing 字段保持目标语言，包含关键词覆盖表、合规/策略审计、差异化建议、STAG 建议、Rufus 种子以及 Module 8 评分细表与算法对齐摘要。
+- ✅ `main.py` 已接入 Step 1/2/4/8/9，去除 mock fallback，执行 `python3 main.py --steps 0,3,5,6,7,8,9 --config run_config.json` 可一次性生成 listing、评分与报告。
+- ✅ 新增 Node 2/3/4 基础模块：`visual_audit.py`、`keyword_arsenal.py`、`intent_translator.py`，输出符合 PRD 结构的占位 JSON，后续可迭代替换。
+- ✅ 提供 `sample_data/` mock 数据 + `run_config.json` 示例，配套 `TEST_GUIDE.md` 说明明天的冒烟步骤与预期产物。
+
+---
+
 ## PRD与当前实现对比分析
 
 ### PRD核心要求概述

@@ -24,10 +24,11 @@ try:
     from modules import risk_check
     from modules import scoring
     from modules import report_generator
+    from modules import visual_audit
+    from modules import keyword_arsenal
+    from modules import intent_translator
 except ImportError as e:
-    print(f"警告: 部分模块未实现，使用模拟版本: {e}")
-    # 如果模块不存在，使用模拟版本
-    from utils.mock_modules import *
+    raise RuntimeError(f"模块加载失败: {e}")
 
 # 配置常量
 DEFAULT_OUTPUT_DIR = "output"
@@ -48,6 +49,9 @@ class AmazonListingGenerator:
         self.config_path = config_path
         self.output_dir = output_dir or DEFAULT_OUTPUT_DIR
         self.preprocessed_data = None
+        self.visual_audit_result = None
+        self.arsenal_output = None
+        self.intent_graph = None
         self.writing_policy = None
         self.generated_copy = None
         self.risk_report = None
@@ -109,6 +113,50 @@ class AmazonListingGenerator:
                 "error": str(e)
             }
 
+    def run_step_1(self) -> Dict[str, Any]:
+        """Step 1: 视觉审计"""
+        print("\n" + "=" * 60)
+        print("Step 1: 视觉审计 (Visual Audit)")
+        print("=" * 60)
+
+        if not self.preprocessed_data:
+            return {"status": "error", "error": "需要先运行 Step 0"}
+
+        image_paths = (_safe_list(self.preprocessed_data.run_config.input_files.get("product_images"))
+                       if self.preprocessed_data.run_config.input_files else [])
+        try:
+            audit_result = visual_audit.run_visual_audit(image_paths)
+            self.visual_audit_result = audit_result
+            output_path = os.path.join(self.output_dir, "visual_audit.json")
+            with open(output_path, 'w', encoding='utf-8') as f:
+                json.dump(audit_result, f, ensure_ascii=False, indent=2)
+            print("✓ 视觉审计生成完成")
+            return {"status": "success", "output": output_path}
+        except Exception as e:
+            print(f"✗ 视觉审计失败: {e}")
+            return {"status": "error", "error": str(e)}
+
+    def run_step_2(self) -> Dict[str, Any]:
+        """Step 2: 关键词军火库构建"""
+        print("\n" + "=" * 60)
+        print("Step 2: 关键词军火库 (Keyword Arsenal)")
+        print("=" * 60)
+
+        if not self.preprocessed_data:
+            return {"status": "error", "error": "需要先运行 Step 0"}
+
+        try:
+            arsenal = keyword_arsenal.build_arsenal(self.preprocessed_data)
+            self.arsenal_output = arsenal
+            output_path = os.path.join(self.output_dir, "arsenal_output.json")
+            with open(output_path, 'w', encoding='utf-8') as f:
+                json.dump(arsenal, f, ensure_ascii=False, indent=2)
+            print(f"✓ 军火库生成，关键词数: {len(arsenal.get('reserve_keywords', []))}")
+            return {"status": "success", "output": output_path}
+        except Exception as e:
+            print(f"✗ 军火库生成失败: {e}")
+            return {"status": "error", "error": str(e)}
+
     def run_step_3(self) -> Dict[str, Any]:
         """
         Step 3: 能力熔断与合规检查
@@ -149,6 +197,26 @@ class AmazonListingGenerator:
                     "forbidden": []
                 }
             }
+
+    def run_step_4(self) -> Dict[str, Any]:
+        """Step 4: COSMO 意图图谱"""
+        print("\n" + "=" * 60)
+        print("Step 4: COSMO 意图图谱")
+        print("=" * 60)
+
+        if not self.arsenal_output:
+            print("警告: 军火库未生成，使用预处理关键词")
+        try:
+            intent = intent_translator.generate_intent_graph(self.arsenal_output, self.preprocessed_data)
+            self.intent_graph = intent
+            output_path = os.path.join(self.output_dir, "intent_graph.json")
+            with open(output_path, 'w', encoding='utf-8') as f:
+                json.dump(intent, f, ensure_ascii=False, indent=2)
+            print(f"✓ 意图图谱生成，High-Conv 场景: {len(intent.get('intent_graph', []))}")
+            return {"status": "success", "output": output_path}
+        except Exception as e:
+            print(f"✗ 意图图谱失败: {e}")
+            return {"status": "error", "error": str(e)}
 
     def run_step_5(self) -> Dict[str, Any]:
         """
@@ -384,7 +452,9 @@ class AmazonListingGenerator:
             print(f"  A10评分: {scores.get('a10_score', 0)}/100")
             print(f"  COSMO评分: {scores.get('cosmo_score', 0)}/100")
             print(f"  Rufus评分: {scores.get('rufus_score', 0)}/100")
-            print(f"  价格竞争力: {scores.get('price_competitiveness', 0)}/10")
+            price_info = scores.get('price_competitiveness', {}) or {}
+            price_score = price_info.get('score', '—') if isinstance(price_info, dict) else price_info
+            print(f"  价格竞争力: {price_score}/10")
             print(f"  总分: {total_score}/310")
             print(f"  等级: {'优秀' if total_score >= 250 else '良好' if total_score >= 200 else '需要改进'}")
 
@@ -488,14 +558,17 @@ class AmazonListingGenerator:
                   None表示运行所有步骤
         """
         if steps is None:
-            steps = [0, 3, 5, 6, 7, 8, 9]  # 增量实现的核心步骤
+            steps = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 
         results = {}
 
         # 步骤映射到函数
         step_functions = {
             0: self.run_step_0,
+            1: self.run_step_1,
+            2: self.run_step_2,
             3: self.run_step_3,
+            4: self.run_step_4,
             5: self.run_step_5,
             6: self.run_step_6,
             7: self.run_step_7,
@@ -535,6 +608,14 @@ class AmazonListingGenerator:
         print(f"所有输出文件位于: {self.output_dir}")
 
         return summary
+
+
+def _safe_list(value):
+    if not value:
+        return []
+    if isinstance(value, list):
+        return value
+    return [value]
 
 
 def main():

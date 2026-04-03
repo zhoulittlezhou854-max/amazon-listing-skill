@@ -1,0 +1,85 @@
+{
+  "a10": {
+    "title_front_80": {
+      "max": 40,
+      "score": 25,
+      "note": "包含品牌，含首要场景"
+    },
+    "keyword_tiering": {
+      "max": 30,
+      "score": 10,
+      "note": "L1:0 L2:1 L3:0"
+    },
+    "conversion_signals": {
+      "max": 30,
+      "score": 30,
+      "note": "含数字 Bullets 5/5，属性参数 3"
+    },
+    "subtotal": 65
+  },
+  "cosmo": {
+    "scene_coverage": {
+      "max": 40,
+      "score": 20,
+      "note": "覆盖 3/6 个场景"
+    },
+    "capability_scene_binding": {
+      "max": 40,
+      "score": 26,
+      "note": "满足 2/3 条绑定"
+    },
+    "audience_tags": {
+      "max": 20,
+      "score": 20,
+      "note": "触达人群: 骑行, 旅行, 家庭, 户外"
+    },
+    "subtotal": 66
+  },
+  "rufus": {
+    "fact_completeness": {
+      "max": 40,
+      "score": 33,
+      "note": "事实覆盖 5/6 个参数"
+    },
+    "faq_coverage": {
+      "max": 40,
+      "score": 34,
+      "note": "FAQ 数量 5，含数字回答 4"
+    },
+    "conflict_check": {
+      "max": 20,
+      "score": 20,
+      "note": "无冲突"
+    },
+    "subtotal": 87
+  },
+  "price_competitiveness": {
+    "price_median": 199.0,
+    "current_price": 189.0,
+    "max": 10,
+    "score": 9,
+    "range": "定价贴近中位",
+    "data_available": true,
+    "note": "品类中位 199.00 vs 当前 189.00"
+  },
+  "total_score": 227,
+  "max_total": 310,
+  "grade_percent": 73.2,
+  "rating": "良好",
+  "boundary_declaration_check": {
+    "exists": true,
+    "sentence": "【P1/P2 Capability + Usage Scene + Boundary Statement】支持WiFi连接，适用于旅行记录(requires smartphone app connection)",
+    "score_impact": "+10"
+  },
+  "aplus_word_count_check": {
+    "word_count": 191,
+    "meets_minimum": false,
+    "score_impact": "0"
+  },
+  "scoring_detail_version": "v8.4.0",
+  "a10_score": 65,
+  "cosmo_score": 66,
+  "rufus_score": 87,
+  "price_competitiveness_score": 9,
+  "grade": "良好"
+}
