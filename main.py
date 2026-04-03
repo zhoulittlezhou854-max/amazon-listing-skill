@@ -401,11 +401,25 @@ class AmazonListingGenerator:
         print("Step 7: 风险检查")
         print("=" * 60)
 
+        # 懒加载 generated_copy
         if not self.generated_copy:
-            return {"status": "error", "error": "需要先运行 Step 6"}
+            copy_path = os.path.join(self.output_dir, "generated_copy.json")
+            if os.path.exists(copy_path):
+                print("  从磁盘加载 generated_copy...")
+                with open(copy_path, 'r', encoding='utf-8') as f:
+                    self.generated_copy = json.load(f)
+            else:
+                return {"status": "error", "error": "需要先运行 Step 6"}
 
+        # 懒加载 writing_policy
         if not self.writing_policy:
-            return {"status": "error", "error": "需要先运行 Step 5"}
+            wp_path = os.path.join(self.output_dir, "writing_policy.json")
+            if os.path.exists(wp_path):
+                print("  从磁盘加载 writing_policy...")
+                with open(wp_path, 'r', encoding='utf-8') as f:
+                    self.writing_policy = json.load(f)
+            else:
+                return {"status": "error", "error": "需要先运行 Step 5"}
 
         try:
             # 调用风险检查模块
