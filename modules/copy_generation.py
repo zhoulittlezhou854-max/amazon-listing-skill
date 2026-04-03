@@ -399,9 +399,16 @@ def clean_bullet_text(bullet: str) -> str:
 def generate_bullet_points(preprocessed_data: PreprocessedData,
                           writing_policy: Dict[str, Any],
                           language: str = "Chinese",
-                          tiered_keywords: Dict[str, List[str]] = None) -> List[str]:
+                          tiered_keywords: Dict[str, List[str]] = None,
+                          keyword_allocation_strategy: str = "balanced") -> List[str]:
     """
     生成5条bullet points - 优化版：多场景覆盖，L2/L3关键词使用
+
+    keyword_allocation_strategy:
+    - "balanced": L1 in B1, L2 in B2-B3, L3 in B4-B5
+    - "aggressive_l1": L1 in B1-B3, L2 in B4, L3 in B5
+    - "l2_focus": L2 in B1-B4, L3 in B5
+    - "conservative": L1 only in B1-B2, L3 in B3-B5
     """
     bullets = []
     brand = preprocessed_data.run_config.brand_name if hasattr(preprocessed_data.run_config, 'brand_name') else "TOSBARRFT"
