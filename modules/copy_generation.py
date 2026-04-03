@@ -446,11 +446,11 @@ def clean_bullet_text(bullet: str) -> str:
 
 def generate_bullet_points(preprocessed_data: PreprocessedData,
                           writing_policy: Dict[str, Any],
-                          language: str = "Chinese",
+                          language: str = "English",
                           tiered_keywords: Dict[str, List[str]] = None,
                           keyword_allocation_strategy: str = "balanced") -> List[str]:
     """
-    生成5条bullet points - 优化版：多场景覆盖，L2/L3关键词使用
+    生成5条bullet points (English content — translated to target language by caller)
 
     keyword_allocation_strategy:
     - "balanced": L1 in B1, L2 in B2-B3, L3 in B4-B5
@@ -459,114 +459,102 @@ def generate_bullet_points(preprocessed_data: PreprocessedData,
     - "conservative": L1 only in B1-B2, L3 in B3-B5
     """
     bullets = []
-    brand = preprocessed_data.run_config.brand_name if hasattr(preprocessed_data.run_config, 'brand_name') else "TOSBARRFT"
+    brand = preprocessed_data.run_config.brand_name if hasattr(preprocessed_data.run_config, 'brand_name') else "Brand"
     core_capabilities = preprocessed_data.core_selling_points
+    # scene_priority is now English labels (PRD v8.2)
     scenes = writing_policy.get('scene_priority', [])
     attr_data = preprocessed_data.attribute_data.data if hasattr(preprocessed_data.attribute_data, 'data') else {}
 
-    # 确保至少有4个场景
+    # Fallback scenes (English)
+    default_scenes = ["outdoor_sports", "cycling_recording", "underwater_exploration", "travel_documentation", "family_use"]
     while len(scenes) < 4:
-        scenes.extend(["户外运动", "旅行记录", "运动训练", "家庭使用"][:4-len(scenes)])
+        scenes.extend([s for s in default_scenes if s not in scenes][:4-len(scenes)])
 
-    # 提取属性参数
-    waterproof_depth = attr_data.get('waterproof_depth', '30米')
-    battery_life = attr_data.get('battery_life', '150分钟')
+    # Extract attributes
+    waterproof_depth = attr_data.get('waterproof_depth', '30m')
+    battery_life = attr_data.get('battery_life', '150min')
     resolution = attr_data.get('video_resolution', '4K 30fps')
     weight = attr_data.get('weight', '150g')
     max_storage = attr_data.get('max_storage', '256GB')
-    warranty_period = attr_data.get('warranty_period', '12个月')
+    warranty_period = attr_data.get('warranty_period', '12 months')
 
-    # 获取L1/L2/L3关键词
+    # Get L1/L2/L3 keywords
     l1_keywords = tiered_keywords.get("l1", []) if tiered_keywords else []
     l2_keywords = tiered_keywords.get("l2", []) if tiered_keywords else []
     l3_keywords = tiered_keywords.get("l3", []) if tiered_keywords else []
 
-    # 德语场景翻译
-    scene_translation = {
-        "骑行记录": "Radfahren",
-        "户外运动": "Outdoor Sport",
-        "水下探索": "Unterwasser",
-        "旅行记录": "Reise",
-        "运动训练": "Sporttraining",
-        "家庭使用": "Familie"
-    }
+    # English scene labels (internal)
+    scene1 = scenes[0]  # e.g. "cycling_recording"
+    scene2 = scenes[1] if len(scenes) > 1 else scenes[0]
+    scene3 = scenes[2] if len(scenes) > 2 else scenes[0]
+    scene4 = scenes[3] if len(scenes) > 3 else scenes[0]
+    capability1 = core_capabilities[0] if core_capabilities else "4K recording"
+    capability2 = core_capabilities[1] if len(core_capabilities) > 1 else capability1
+    capability3 = core_capabilities[2] if len(core_capabilities) > 2 else capability1
 
-    # 注意：Bullets中保持原始场景名以确保scoring匹配
-    # 仅标题使用翻译后的场景
-    def get_scene_for_title(scene):
-        if language == "German":
-            return scene_translation.get(scene, scene)
-        return scene
-
-    # B1: 挂载系统 + 主场景 + L1能力 + 数字参数
-    if scenes and core_capabilities:
-        scene = scenes[0]  # 保持原始场景名以匹配scoring
-        capability = core_capabilities[0]
-        template = BULLET_TEMPLATES["B1"].get(language, BULLET_TEMPLATES["B1"]["English"])
-        content = f"配备多种挂载配件，专为{scene}设计，提供{capability}功能，支持{waterproof_depth}防水"
-        bullets.append(template.format(content=content))
-
-    # B2: L1核心能力 + 次场景 + 量化参数
-    if len(core_capabilities) > 0:
-        scene2 = scenes[1] if len(scenes) > 1 else scenes[0]  # 保持原始场景名
-        capability = core_capabilities[0]
-        template = BULLET_TEMPLATES["B2"].get(language, BULLET_TEMPLATES["B2"]["English"])
-        if "4K" in capability or "录像" in capability:
-            content = f"支持{resolution}高清录像，专为{scene2}优化，电池续航{battery_life}"
-        elif "防抖" in capability:
-            content = f"采用先进防抖技术，适合{scene2}拍摄，电池续航{battery_life}"
-        elif "防水" in capability:
-            content = f"支持{waterproof_depth}防水，适合{scene2}，重量仅{weight}"
-        else:
-            content = f"提供{capability}功能，适合{scene2}，性能出色可靠"
-        bullets.append(template.format(content=content))
-
-    # B3: L2关键词 + 第三场景 + 竞品对比
-    scene3 = scenes[2] if len(scenes) > 2 else scenes[0]  # 保持原始场景名
-    capability = core_capabilities[1] if len(core_capabilities) > 1 else core_capabilities[0]
-    template = BULLET_TEMPLATES["B3"].get(language, BULLET_TEMPLATES["B3"]["English"])
-
-    # 根据策略选择关键词
-    if keyword_allocation_strategy == "aggressive_l1":
-        lx_word = l1_keywords[1] if len(l1_keywords) > 1 else (l1_keywords[0] if l1_keywords else "防水运动相机")
-    elif keyword_allocation_strategy == "l2_focus":
-        lx_word = l2_keywords[0] if l2_keywords else "防水运动相机"
-    elif keyword_allocation_strategy == "conservative":
-        lx_word = l3_keywords[0] if l3_keywords else "多功能设计"
-    else:  # balanced
-        lx_word = l2_keywords[0] if l2_keywords else "防水运动相机"
-
-    content = f"相比竞品，{lx_word}在{scene3}表现更优异，电池续航{battery_life}"
+    # B1: Mounting + Primary scene + P0 capability
+    template = BULLET_TEMPLATES["B1"].get(language, BULLET_TEMPLATES["B1"]["English"])
+    content = (f"Comes with multiple mounting accessories, designed for {scene1}, "
+               f"features {capability1}, supports {waterproof_depth} waterproof")
     bullets.append(template.format(content=content))
 
-    # B4: L3关键词 + 第四场景 + 边界声明
-    scene4 = scenes[3] if len(scenes) > 3 else scenes[0]  # 保持原始场景名
-    capability = core_capabilities[2] if len(core_capabilities) > 2 else core_capabilities[0]
+    # B2: P0 core capability + second scene + quantified params
+    template = BULLET_TEMPLATES["B2"].get(language, BULLET_TEMPLATES["B2"]["English"])
+    if "4K" in capability1 or "录像" in capability1 or "recording" in capability1.lower():
+        content = (f"Supports {resolution} HD recording, optimized for {scene2}, "
+                   f"battery life {battery_life}")
+    elif "防抖" in capability1 or "stabilization" in capability1.lower() or "stabil" in capability1.lower():
+        content = (f"Advanced stabilization technology, ideal for {scene2}, "
+                   f"battery life {battery_life}")
+    elif "防水" in capability1 or "waterproof" in capability1.lower():
+        content = (f"Supports {waterproof_depth} waterproof, suitable for {scene2}, "
+                   f"weighs only {weight}")
+    else:
+        content = (f"Features {capability1}, suitable for {scene2}, "
+                   f"reliable and excellent performance")
+    bullets.append(template.format(content=content))
+
+    # B3: L2 keyword + third scene + competitor comparison
+    template = BULLET_TEMPLATES["B3"].get(language, BULLET_TEMPLATES["B3"]["English"])
+    if keyword_allocation_strategy == "aggressive_l1":
+        lx_word = l1_keywords[1] if len(l1_keywords) > 1 else (l1_keywords[0] if l1_keywords else "waterproof action camera")
+    elif keyword_allocation_strategy == "l2_focus":
+        lx_word = l2_keywords[0] if l2_keywords else "waterproof action camera"
+    elif keyword_allocation_strategy == "conservative":
+        lx_word = l3_keywords[0] if l3_keywords else "versatile design"
+    else:  # balanced
+        lx_word = l2_keywords[0] if l2_keywords else "waterproof action camera"
+
+    content = (f"Compared to competitors, {lx_word} performs better in {scene3}, "
+               f"battery life {battery_life}")
+    bullets.append(template.format(content=content))
+
+    # B4: L3 keyword + fourth scene + boundary statement
     template = BULLET_TEMPLATES["B4"].get(language, BULLET_TEMPLATES["B4"]["English"])
     boundary = random.choice(BOUNDARY_STATEMENTS.get(language, BOUNDARY_STATEMENTS["English"]))
-
-    # 根据策略选择关键词
     if keyword_allocation_strategy == "aggressive_l1":
-        lx_word = l2_keywords[0] if l2_keywords else "多功能设计"
+        lx_word = l2_keywords[0] if l2_keywords else "versatile design"
     elif keyword_allocation_strategy == "l2_focus":
-        lx_word = l2_keywords[1] if len(l2_keywords) > 1 else (l3_keywords[0] if l3_keywords else "多功能设计")
+        lx_word = l2_keywords[1] if len(l2_keywords) > 1 else (l3_keywords[0] if l3_keywords else "versatile design")
     elif keyword_allocation_strategy == "conservative":
-        lx_word = l3_keywords[0] if l3_keywords else "多功能设计"
+        lx_word = l3_keywords[0] if l3_keywords else "versatile design"
     else:  # balanced
-        lx_word = l3_keywords[0] if l3_keywords else "多功能设计"
+        lx_word = l3_keywords[0] if l3_keywords else "versatile design"
 
-    content = f"{lx_word}，适用于{scene4}{boundary}，最大存储{max_storage}"
+    content = (f"{lx_word}, suitable for {scene4} {boundary}, "
+               f"max storage {max_storage}")
     bullets.append(template.format(content=content))
 
-    # B5: P2质保/售后/兼容性 + 数字参数
+    # B5: P2 warranty/after-sale + quantified params
     template = BULLET_TEMPLATES["B5"].get(language, BULLET_TEMPLATES["B5"]["English"])
-    content = f"提供{warranty_period}质保，专业客服支持，兼容多种设备，电池续航{battery_life}"
+    content = (f"Provides {warranty_period} warranty, professional customer support, "
+               f"compatible with multiple devices, battery life {battery_life}")
     bullets.append(template.format(content=content))
 
-    # 清理模板标记
+    # Clean template markers
     bullets = [clean_bullet_text(bullet) for bullet in bullets]
 
-    # 确保每条bullet不超过250字符
+    # Ensure each bullet ≤ 250 chars
     for i in range(len(bullets)):
         if len(bullets[i]) > 250:
             bullets[i] = bullets[i][:247] + "..."
