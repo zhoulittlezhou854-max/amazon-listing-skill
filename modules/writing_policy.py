@@ -504,8 +504,8 @@ def generate_default_4scene_policy(core_selling_points: List[str], language: str
     Returns:
         4场景默认writing_policy字典
     """
-    # 4个固定场景
-    four_scenes = ["骑行记录", "水下探索", "旅行记录", "家庭使用"]
+    # 4个固定场景 (English)
+    four_scenes = ["cycling_recording", "underwater_exploration", "travel_documentation", "family_use"]
 
     # 根据语言调整bullet slot规则
     bullet_slot_rules = DEFAULT_BULLET_SLOT_RULES.copy()
