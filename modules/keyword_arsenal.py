@@ -110,10 +110,11 @@ def build_arsenal(preprocessed_data: Any) -> Dict[str, Any]:
                 if isinstance(keyword_data_obj, dict):
                     keyword_data_obj["keywords"] = kw_list_for_scoring
 
+    prices = []  # Always initialize prices before conditional block
+
     if not reserve_keywords:
         # ─── Priority 2: 预处理数据中的关键词表 ───
         keyword_rows = getattr(getattr(preprocessed_data, "keyword_data", None), "keywords", []) or []
-        prices = []
 
         # 计算百分位阈值
         volumes = []
