@@ -125,14 +125,48 @@ def _stag_rows(writing_policy: Dict[str, Any], generated_copy: Dict[str, Any]) -
     rows: List[List[str]] = []
     scenes = writing_policy.get("scene_priority", []) or []
     search_terms = generated_copy.get("search_terms", []) or []
+
+    # 场景到目标人群的映射
+    scene_to_audience = {
+        "骑行记录": "骑行爱好者25-45岁，通勤族，户外运动达人",
+        "户外运动": "户外运动爱好者20-40岁，登山、滑雪、徒步爱好者",
+        "水下探索": "潜水爱好者25-50岁，水上运动爱好者，海洋摄影师",
+        "旅行记录": "旅行爱好者22-55岁，背包客，旅游博主，家庭出游",
+        "运动训练": "健身爱好者18-35岁，运动员，体育教练，训练记录者",
+        "家庭使用": "家庭用户25-45岁，宠物主人，亲子家庭，生活记录者",
+        "骑行": "骑行爱好者25-45岁，自行车通勤者，户外运动爱好者",
+        "滑雪": "滑雪爱好者20-40岁，冬季运动爱好者，极限运动玩家",
+        "登山": "登山爱好者25-50岁，徒步旅行者，户外探险家",
+        "潜水": "潜水爱好者25-50岁，水下摄影师，海洋探索者",
+        "旅行": "旅行爱好者22-55岁，背包客，旅游达人，度假家庭",
+        "运动": "运动爱好者18-40岁，健身人群，运动员，体育爱好者",
+        "家庭": "家庭用户25-45岁，父母，宠物主人，家庭活动记录者",
+        "宠物": "宠物主人20-50岁，宠物爱好者，动物记录者",
+        "儿童": "父母25-40岁，家庭用户，儿童成长记录者"
+    }
+
     for scene in scenes[:5]:
         linked_terms = [kw for kw in search_terms if kw.lower().startswith(scene[:2].lower())][:2]
         if not linked_terms:
             linked_terms = search_terms[:2]
+
+        # 获取目标人群描述，如果找不到则使用通用描述
+        audience = scene_to_audience.get(scene)
+        if not audience:
+            # 尝试部分匹配
+            for key, value in scene_to_audience.items():
+                if key in scene:
+                    audience = value
+                    break
+            if not audience:
+                audience = f"目标人群：{scene or '泛用'}爱好者20-45岁"
+        else:
+            audience = f"目标人群：{audience}"
+
         rows.append([
             scene or "—",
             "、".join(linked_terms) if linked_terms else "—",
-            f"目标人群：{scene or '泛用'}",
+            audience,
             f"建议：围绕{scene or '该'}场景组合 SB/SP 广告，融入高转化词。"
         ])
     if not rows:
