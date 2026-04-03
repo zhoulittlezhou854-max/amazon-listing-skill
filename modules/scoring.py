@@ -410,7 +410,8 @@ def calculate_scores(
     boundary_check = _boundary_check(bullets)
     aplus_check = _aplus_check(generated_copy.get("aplus_content", ""))
 
-    max_total = MAX_A10 + MAX_COSMO + MAX_RUFUS + (MAX_PRICE if price_available else 0)
+    # 当价格数据不可用时，总分上限为300（不含价格维度10分）
+    max_total = 300 + (MAX_PRICE if price_available else 0)
     total_score = a10_subtotal + cosmo_subtotal + rufus_subtotal + (price_score if price_available else 0)
     percent = (total_score / max_total) * 100 if max_total else 0
     if percent >= 90:
