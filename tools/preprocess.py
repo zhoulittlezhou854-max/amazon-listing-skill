@@ -553,6 +553,69 @@ def calculate_quality_score(
     return min(100, score)  # 确保不超过100分
 
 
+# ==================== 真实国家词表加载 ====================
+
+# 延迟导入以避免循环依赖
+_COUNTRY_VOCAB_AVAILABLE = True
+
+
+def load_real_country_vocab(country: str) -> RealVocabData:
+    """
+    为指定国家加载真实词表（Priority 1 关键词来源）。
+
+    从 language_data/DE/*.csv 和 language_data/FR/*.csv 读取
+    ABA 关键词表和出单词表。
+
+    Returns:
+        RealVocabData 对象（is_available=False 表示加载失败或国家不支持）
+    """
+    try:
+        # 动态导入避免循环依赖
+        from tools.country_vocab import load_country_vocab, find_high_volume_keywords
+    except ImportError:
+        return RealVocabData(country=country, is_available=False)
+
+    try:
+        vocab = load_country_vocab(country)
+    except Exception:
+        return RealVocabData(country=country, is_available=False)
+
+    all_entries = vocab.get("all", [])
+    if not all_entries:
+        return RealVocabData(country=country, is_available=False)
+
+    # 取 Top 20 高搜索量本地关键词
+    top_entries = find_high_volume_keywords(vocab, min_volume=0, top_n=20)
+    top_keywords = []
+    for e in top_entries:
+        top_keywords.append({
+            "keyword": e.keyword,
+            "source_type": e.source_type,
+            "source_file": e.source_file,
+            "search_volume": e.search_volume,
+            "conversion_rate": e.conversion_rate,
+            "avg_cpc": e.avg_cpc,
+            "spr": e.spr,
+            "country": e.country,
+            "model": e.model,
+        })
+
+    # 判断 data_mode（基于真实词表行数）
+    total = len(all_entries)
+    vocab_data_mode = "DATA_DRIVEN" if total >= 10 else "SYNTHETIC_COLD_START"
+
+    return RealVocabData(
+        country=country,
+        is_available=True,
+        total_count=total,
+        aba_count=len(vocab.get("aba", [])),
+        order_winning_count=len(vocab.get("order_winning", [])),
+        review_count=len(vocab.get("review", [])),
+        top_keywords=top_keywords,
+        data_mode=vocab_data_mode,
+    )
+
+
 # ==================== 主预处理函数 ====================
 
 def preprocess_data(
