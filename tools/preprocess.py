@@ -666,6 +666,18 @@ def preprocess_data(
                 },
                 "language": language,
                 "processed_at": preprocessed.processed_at
+            },
+            # 保存完整关键词数据供scoring.py使用
+            "keyword_data": {
+                "keywords": keyword_data.keywords if keyword_data.keywords else []
+            },
+            # 保存完整review数据
+            "review_data": {
+                "insights": review_data.insights if review_data.insights else []
+            },
+            # 保存完整aba数据
+            "aba_data": {
+                "trends": aba_data.trends if aba_data.trends else []
             }
         }
 
