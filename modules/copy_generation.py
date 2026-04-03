@@ -411,8 +411,8 @@ def generate_bullet_points(preprocessed_data: PreprocessedData,
             content = f"提供{capability}功能，适合{scene2}，性能出色可靠"
         bullets.append(template.format(content=content))
 
-    # B3: L2关键词 + 第三场景(Familie) + 竞品对比
-    scene3 = get_scene(scenes[2]) if len(scenes) > 2 else get_scene(scenes[0])  # 家庭使用
+    # B3: L2关键词 + 第三场景 + 竞品对比
+    scene3 = scenes[2] if len(scenes) > 2 else scenes[0]  # 保持原始场景名
     capability = core_capabilities[1] if len(core_capabilities) > 1 else core_capabilities[0]
     template = BULLET_TEMPLATES["B3"].get(language, BULLET_TEMPLATES["B3"]["English"])
     l2_word = l2_keywords[0] if l2_keywords else "防水运动相机"
