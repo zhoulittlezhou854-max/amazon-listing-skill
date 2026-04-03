@@ -110,10 +110,64 @@ def _score_conversion_signals(bullets: List[str], attribute_data: Dict[str, Any]
     max_score = 30
     if not bullets:
         return 0, "缺少 Bullets"
-    numeric_bullets = sum(1 for bullet in bullets if re.search(r"\d", bullet))
-    attr_params = [key for key in ("video_resolution", "battery_life", "waterproof_depth") if attribute_data.get(key)]
-    score = min(max_score, int((numeric_bullets / 5.0) * 20) + (10 if len(attr_params) >= 2 else 0))
-    return score, f"含数字 Bullets {numeric_bullets}/5，属性参数 {len(attr_params)}"
+
+    score = 0
+    notes = []
+
+    # B1 应为 P0 tier（核心能力+主场景）
+    if len(bullets) >= 1:
+        # 简单检查：B1是否包含数字和关键描述
+        bullet1 = bullets[0].lower()
+        # 检查是否包含数字和场景/能力关键词
+        has_number = bool(re.search(r"\d", bullet1))
+        # 包含"防水"、"防抖"、"4K"等关键词
+        has_keyword = any(kw in bullet1 for kw in ["防水", "防抖", "4k", "wifi", "双屏幕", "waterproof", "stabilization", "dual screen"])
+        if has_number and has_keyword:
+            score += 10
+            notes.append("B1符合P0 tier")
+
+    # B2-B3 应为 P1 tier（量化参数+场景词）
+    p1_score = 0
+    if len(bullets) >= 3:
+        bullet2 = bullets[1].lower() if len(bullets) > 1 else ""
+        bullet3 = bullets[2].lower() if len(bullets) > 2 else ""
+        # 检查是否包含数字和量化参数
+        has_number2 = bool(re.search(r"\d", bullet2))
+        has_number3 = bool(re.search(r"\d", bullet3))
+        # 检查是否包含参数关键词（如分钟、米、gb、g等）
+        has_param2 = any(kw in bullet2 for kw in ["分钟", "米", "gb", "g", "min", "m", "克", "续航", "存储", "重量"])
+        has_param3 = any(kw in bullet3 for kw in ["分钟", "米", "gb", "g", "min", "m", "克", "续航", "存储", "重量"])
+        if has_number2 and has_param2:
+            p1_score += 5
+        if has_number3 and has_param3:
+            p1_score += 5
+    if p1_score > 0:
+        score += p1_score
+        notes.append(f"B2-B3 P1 tier得分{p1_score}")
+
+    # B4-B5 应为 P2 tier（边界声明/质保售后）
+    p2_score = 0
+    if len(bullets) >= 5:
+        bullet4 = bullets[3].lower() if len(bullets) > 3 else ""
+        bullet5 = bullets[4].lower() if len(bullets) > 4 else ""
+        # 检查边界声明关键词
+        has_boundary4 = any(kw in bullet4 for kw in ["需", "需要", "not", "（", "(", "with ", "in "])
+        has_warranty5 = any(kw in bullet5 for kw in ["质保", "保修", "warranty", "售后", "支持", "兼容"])
+        # 检查是否包含数字
+        has_number4 = bool(re.search(r"\d", bullet4))
+        has_number5 = bool(re.search(r"\d", bullet5))
+        if (has_boundary4 or has_number4):
+            p2_score += 5
+        if (has_warranty5 or has_number5):
+            p2_score += 5
+    if p2_score > 0:
+        score += p2_score
+        notes.append(f"B4-B5 P2 tier得分{p2_score}")
+
+    # 确保不超过最高分
+    score = min(score, max_score)
+    note_str = "，".join(notes) if notes else "未达到tier要求"
+    return score, note_str
 
 
 def _score_scene_coverage(writing_policy: Dict[str, Any], generated_copy: Dict[str, Any]) -> Tuple[int, str]:
