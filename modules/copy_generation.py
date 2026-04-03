@@ -910,7 +910,7 @@ def generate_listing_copy(preprocessed_data: PreprocessedData,
                          writing_policy: Dict[str, Any],
                          language: str = "Chinese") -> Dict[str, Any]:
     """
-    生成完整的Listing文案
+    生成完整的Listing文案 - 优化版：使用分层关键词
 
     Args:
         preprocessed_data: 预处理数据
@@ -920,14 +920,15 @@ def generate_listing_copy(preprocessed_data: PreprocessedData,
     Returns:
         包含所有文案组件的字典
     """
-    # 提取L1关键词
-    l1_keywords = extract_l1_keywords(preprocessed_data.keyword_data, language)
+    # 提取分层关键词（L1/L2/L3）
+    tiered_keywords = extract_tiered_keywords(preprocessed_data.keyword_data, language)
+    l1_keywords = tiered_keywords.get("l1", [])
 
-    # 生成标题
-    title = generate_title(preprocessed_data, writing_policy, l1_keywords)
+    # 生成标题（确保L1在首80字符内，多场景）
+    title = generate_title(preprocessed_data, writing_policy, l1_keywords, tiered_keywords)
 
-    # 生成bullet points
-    bullets = generate_bullet_points(preprocessed_data, writing_policy, language)
+    # 生成bullet points（多场景覆盖，使用L2/L3关键词）
+    bullets = generate_bullet_points(preprocessed_data, writing_policy, language, tiered_keywords)
 
     # 生成描述
     description = generate_description(preprocessed_data, writing_policy, title, bullets, language)
@@ -935,8 +936,8 @@ def generate_listing_copy(preprocessed_data: PreprocessedData,
     # 生成FAQ
     faq = generate_faq(preprocessed_data, writing_policy, language)
 
-    # 生成搜索词
-    search_terms = generate_search_terms(preprocessed_data, writing_policy, title, bullets, language)
+    # 生成搜索词（优先L2/L3长尾关键词）
+    search_terms = generate_search_terms(preprocessed_data, writing_policy, title, bullets, language, tiered_keywords)
 
     # 生成A+内容
     aplus_content = generate_aplus_content(preprocessed_data, writing_policy, language)
