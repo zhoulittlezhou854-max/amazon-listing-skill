@@ -1,5 +1,5 @@
 # Amazon Listing 最终仲裁报告
-- 生成时间：2026-04-03T15:35:41.402468
+- 生成时间：2026-04-03T15:38:41.969393
 - 站点：FR
 - 品牌：YourBrand
 - Listing 语言：French
@@ -9,23 +9,23 @@
 YourBrand action camera 4k cyclisme [SYNTH]_4K画质 4K
 
 **Bullets**
-1. Comes with multiple supporting accessories, designed for cyclisme, features 4K画质, supports 30m étanche
+1. Comes with multiple supporting accessories, designed for cyclisme, features enregistrement 4K, supports 30m étanche
 2. Supports 4K 30fps enregistrement HD, optimized for plongée, autonomie 150min
 3. Compared to competitors, caméra d'action étanche performs better in voyage, autonomie 150min
-4. conception polyvalente, suitable for famille (requires smartphone app connection), max storage 256 Go
+4. conception polyvalente, suitable for famille (with boîtier étanche), max storage 256 Go
 5. Provides 12 mois garantie, professional customer support, compatible with multiple devices, autonomie 150min
 
 **Description**
-The YourBrand caméra d'action 4k cyclisme [SYNTH]_4K画质 4K is designed for cyclisme, delivering professional-grade 4K画质 experience. Features 4K画质, 电子stabilisation, connexion WiFi and more, 
+The YourBrand caméra d'action 4k cyclisme [SYNTH]_4K画质 4K is designed for cyclisme, delivering professional-grade enregistrement 4K experience. Features enregistrement 4K, electronic stabilisation, WiFi connection and more, 
 
 Key Features:
-• Comes with multiple supporting accessories, designed for cyclisme, features 4K画质, supports 30m étanche
+• Comes with multiple supporting accessories, designed for cyclisme, features enregistrement 4K, supports 30m étanche
 • Supports 4K 30fps enregistrement HD, optimized for plongée, autonomie 150min
 • Compared to competitors, caméra d'action étanche performs better in voyage, autonomie 150min
 
 立即购买，开启您的拍摄之旅！
 
-Package includes: boîtier waterproof, 磁吸挂绳, support
+Package includes: étanche壳, magnetic strap, support
 
 **FAQ**
 - Q: Le produit est-t-il waterproof?
@@ -40,13 +40,13 @@ Package includes: boîtier waterproof, 磁吸挂绳, support
   A: Garantie 12个月 avec couverture nationale.
 
 **Search Terms**
-WiFi连接, YourBrand, caméra sport, 电子防抖, family_use, caméscope, appareil d'enregistrement, underwater_exploration, caméra d'action, travel_documentation, cycling_recording, 4K画质
+caméscope, WiFi connection, electronic stabilization, caméra sport, appareil d'enregistrement, YourBrand, underwater_exploration, travel_documentation, 4K recording, caméra d'action, family_use, cycling_recording
 
 **A+ Content**
 # YourBrand Action Camera - Professional Shooting Solution
 
 ## Product Overview
-The YourBrand Action Camera is designed for cycling_recording, underwater_exploration, travel_documentation and other scenarios, delivering professional-grade shooting experience. Features core capabilities like 4K画质, 电子防抖, WiFi连接 to meet various shooting needs.
+The YourBrand Action Camera is designed for cycling_recording, underwater_exploration, travel_documentation and other scenarios, delivering professional-grade shooting experience. Features core capabilities like 4K recording, electronic stabilization, WiFi connection to meet various shooting needs.
 
 ## Core Technologies
 ### 1. High-Definition Imaging System
@@ -187,10 +187,10 @@ Experience the YourBrand Action Camera now and record every exciting moment! Pro
 | 指标 | 满分 | 得分 | 说明 |
 | --- | --- | --- | --- |
 | scene_coverage | 40 | 30 | 覆盖 3/4 个场景 |
-| capability_scene_binding | 40 | 24 | 满足 3/5 条绑定 |
+| capability_scene_binding | 40 | 8 | 满足 1/5 条绑定 |
 | audience_tags | 20 | 20 | 触达人群: 骑行, 旅行, 家庭, 户外 |
 
-> 小计：74 分
+> 小计：58 分
 
 ### Rufus 维度
 | 指标 | 满分 | 得分 | 说明 |
@@ -210,9 +210,9 @@ Experience the YourBrand Action Camera now and record every exciting moment! Pro
 - 说明: 价格数据缺失，跳过评分
 
 ### 规则附加检查
-- 边界声明: 已检测 → conception polyvalente, suitable for famille (requires smartphone app connection), max storage 256 Go
-- A+ 字数: 515 词，满足下限: True
+- 边界声明: 已检测 → conception polyvalente, suitable for famille (with boîtier étanche), max storage 256 Go
+- A+ 字数: 518 词，满足下限: True
 
 ### 算法对齐摘要
-- 总分: 153/300
-- 综合评级: 待优化 (51.0%)
+- 总分: 137/300
+- 综合评级: 待优化 (45.7%)

@@ -1,5 +1,5 @@
 # Amazon Listing 最终仲裁报告
-- 生成时间：2026-04-03T15:35:41.410372
+- 生成时间：2026-04-03T15:38:41.973583
 - 站点：IT
 - 品牌：YourBrand
 - Listing 语言：Italian
@@ -9,23 +9,23 @@
 YourBrand action camera 4k ciclismo [SYNTH]_4K画质 4K
 
 **Bullets**
-1. Comes with multiple supportoing accessories, designed for ciclismo, features 4K画质, supports 30m impermeabile
+1. Comes with multiple supportoing accessories, designed for ciclismo, features registrazione 4K, supports 30m impermeabile
 2. Supports 4K 30fps registrazione HD, optimized for subacqueo, durata batteria 150min
 3. Compared to competitors, fotocamera sportiva impermeabile performs better in viaggio, durata batteria 150min
-4. design versatile, suitable for famiglia (with custodia impermeabile), max storage 256GB
+4. design versatile, suitable for famiglia (requires smartphone app connection), max storage 256GB
 5. Provides 12 mesi garanzia, professional customer support, compatible with multiple devices, durata batteria 150min
 
 **Description**
-The YourBrand videocamera sportiva 4k ciclismo [SYNTH]_4K画质 4K is designed for ciclismo, delivering professional-grade 4K画质 experience. Features 4K画质, 电子stabilizzazione, connessione WiFi and more, 
+The YourBrand videocamera sportiva 4k ciclismo [SYNTH]_4K画质 4K is designed for ciclismo, delivering professional-grade registrazione 4K experience. Features registrazione 4K, electronic stabilizzazione, WiFi connection and more, 
 
 Key Features:
-• Comes with multiple supportoing accessories, designed for ciclismo, features 4K画质, supports 30m impermeabile
+• Comes with multiple supportoing accessories, designed for ciclismo, features registrazione 4K, supports 30m impermeabile
 • Supports 4K 30fps registrazione HD, optimized for subacqueo, durata batteria 150min
 • Compared to competitors, fotocamera sportiva impermeabile performs better in viaggio, durata batteria 150min
 
 立即购买，开启您的拍摄之旅！
 
-Package includes: custodia waterproof, 磁吸挂绳, supporto
+Package includes: impermeabile壳, magnetic strap, supporto
 
 **FAQ**
 - Q: Il prodotto è impermeabile?
@@ -40,13 +40,13 @@ Package includes: custodia waterproof, 磁吸挂绳, supporto
   A: Garanzia di 12个月 con copertura nazionale.
 
 **Search Terms**
-videocamera, dispositivo di registrazione, videocamera sportiva, YourBrand, travel_documentation, underwater_exploration, family_use, 电子防抖, WiFi连接, fotocamera sportiva, cycling_recording, 4K画质
+dispositivo di registrazione, electronic stabilization, videocamera sportiva, 4K recording, videocamera, cycling_recording, underwater_exploration, WiFi connection, fotocamera sportiva, family_use, YourBrand, travel_documentation
 
 **A+ Content**
 # YourBrand Action Camera - Professional Shooting Solution
 
 ## Product Overview
-The YourBrand Action Camera is designed for cycling_recording, underwater_exploration, travel_documentation and other scenarios, delivering professional-grade shooting experience. Features core capabilities like 4K画质, 电子防抖, WiFi连接 to meet various shooting needs.
+The YourBrand Action Camera is designed for cycling_recording, underwater_exploration, travel_documentation and other scenarios, delivering professional-grade shooting experience. Features core capabilities like 4K recording, electronic stabilization, WiFi connection to meet various shooting needs.
 
 ## Core Technologies
 ### 1. High-Definition Imaging System
@@ -187,10 +187,10 @@ Experience the YourBrand Action Camera now and record every exciting moment! Pro
 | 指标 | 满分 | 得分 | 说明 |
 | --- | --- | --- | --- |
 | scene_coverage | 40 | 30 | 覆盖 3/4 个场景 |
-| capability_scene_binding | 40 | 24 | 满足 3/5 条绑定 |
+| capability_scene_binding | 40 | 8 | 满足 1/5 条绑定 |
 | audience_tags | 20 | 20 | 触达人群: 骑行, 旅行, 家庭, 户外 |
 
-> 小计：74 分
+> 小计：58 分
 
 ### Rufus 维度
 | 指标 | 满分 | 得分 | 说明 |
@@ -210,9 +210,9 @@ Experience the YourBrand Action Camera now and record every exciting moment! Pro
 - 说明: 价格数据缺失，跳过评分
 
 ### 规则附加检查
-- 边界声明: 已检测 → design versatile, suitable for famiglia (with custodia impermeabile), max storage 256GB
-- A+ 字数: 515 词，满足下限: True
+- 边界声明: 已检测 → design versatile, suitable for famiglia (requires smartphone app connection), max storage 256GB
+- A+ 字数: 518 词，满足下限: True
 
 ### 算法对齐摘要
-- 总分: 153/300
-- 综合评级: 待优化 (51.0%)
+- 总分: 137/300
+- 综合评级: 待优化 (45.7%)

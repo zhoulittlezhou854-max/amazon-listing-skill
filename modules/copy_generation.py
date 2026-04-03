@@ -1478,6 +1478,7 @@ def _translate_text_to_language(text: str, target_language: str) -> str:
 
 # Chinese -> English 标准化映射 (用于 normalize core_selling_points)
 CHINESE_TO_ENGLISH = {
+    # Capabilities
     "4K画质": "4K recording",
     "电子防抖": "electronic stabilization",
     "WiFi连接": "WiFi connection",
@@ -1487,10 +1488,21 @@ CHINESE_TO_ENGLISH = {
     "防抖": "stabilization",
     "防水": "waterproof",
     "长续航": "long battery life",
+    # Accessories
     "防水壳": "waterproof case",
     "磁吸挂绳": "magnetic strap",
     "车把支架": "handlebar mount",
     "头盔底座": "helmet mount",
+    "支架": "mount",
+    "胸带": "chest strap",
+    "头盔支架": "helmet mount",
+    "防水壳30米": "30m waterproof case",
+    # Other terms that appear in attribute data
+    "防水壳": "waterproof case",
+    "壳": "case",
+    "配件": "accessory",
+    "支持": "supports",
+    "最大": "max",
 }
 
 
