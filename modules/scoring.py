@@ -335,16 +335,18 @@ def _price_stats(preprocessed_data: Any, attribute_data: Dict[str, Any]) -> Tupl
 def _score_price(price_median: Optional[float], current_price: Optional[float]) -> Tuple[int, bool, str]:
     if price_median and current_price:
         ratio = current_price / price_median
-        if ratio <= 0.9:
+        if 0.85 <= ratio <= 1.10:
             score = 10
-        elif ratio <= 1.0:
-            score = 9
-        elif ratio <= 1.1:
+        elif 0.70 <= ratio < 0.85:
             score = 7
-        elif ratio <= 1.2:
-            score = 5
+        elif 1.10 < ratio <= 1.15:
+            score = 6
+        elif ratio > 1.15:
+            score = 0
+        elif ratio < 0.70:
+            score = 3
         else:
-            score = 2
+            score = 0
         return score, True, f"品类中位 {price_median:.2f} vs 当前 {current_price:.2f}"
     return 0, False, "价格数据缺失，跳过评分"
 
