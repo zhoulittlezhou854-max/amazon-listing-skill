@@ -986,6 +986,15 @@ Experience the {brand} Action Camera now and record every exciting moment! Profe
 # -----------------------------------------------------------------------
 CAPABILITY_TRANSLATIONS = {
     "German": {
+        # --- 4K/高清录像 (English phrases first for phrase-match priority) ---
+        "4K recording": "4K-Aufnahme",
+        "HD recording": "HD-Aufnahme",
+        "advanced stabilization technology": "fortschrittliche Stabilisierungstechnologie",
+        "stabilization technology": "Stabilisierungstechnologie",
+        "action camera": "Actionkamera",
+        "waterproof action camera": "wasserdichte Actionkamera",
+        "sports camera": "Sportkamera",
+        "versatile design": "vielseitiges Design",
         # --- 4K/高清录像 ---
         "4K录像": "4K-Aufnahme",
         "4K video": "4K-Video",
@@ -994,6 +1003,8 @@ CAPABILITY_TRANSLATIONS = {
         "高清录像": "HD-Aufnahme",
         "HD video": "HD-Video",
         "高清": "HD",
+        "recording": "Aufnahme",
+        "video": "Video",
         # --- 防抖/Stabilization ---
         "防抖": "Bildstabilisierung",
         "EIS防抖": "EIS-Bildstabilisierung",
