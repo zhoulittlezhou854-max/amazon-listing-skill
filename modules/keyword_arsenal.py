@@ -9,16 +9,16 @@ from statistics import median
 from typing import Any, Dict, List, Tuple
 
 
-def _tier_keyword(row: Dict[str, Any]) -> Tuple[str, float]:
+def _tier_keyword(row: Dict[str, Any], l1_threshold: float, l2_threshold: float) -> Tuple[str, float]:
     volume = row.get("search_volume") or row.get("月搜索量") or 0
     try:
         volume = float(volume)
     except (TypeError, ValueError):
         volume = 0
 
-    if volume >= 10000:
+    if volume >= l1_threshold:
         level = "L1"
-    elif volume >= 1000:
+    elif volume >= l2_threshold:
         level = "L2"
     else:
         level = "L3"

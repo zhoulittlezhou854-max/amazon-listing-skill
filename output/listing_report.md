@@ -1,27 +1,27 @@
 # Amazon Listing 最终仲裁报告
-- 生成时间：2026-04-03T10:22:36.484326
+- 生成时间：2026-04-03T10:51:17.448182
 - 站点：DE
 - 品牌：TOSBARRFT
 - Listing 语言：German
 
 ## Module 1：最终 Listing（目标语言输出）
 **Title**
-TOSBARRFT 双屏幕 骑行记录 wifi sports camera Actionkamera
+TOSBARRFT helmet camera Unterwasser Erkundung Dual Screen Bildstabilisierung
 
 **Bullets**
-1. 【Mounting System + Primary Scene + P0 Capability】配备多种挂载配件，专为骑行记录设计，提供双屏幕功能
-2. 【P0 Core Capability + Quantified Parameters】提供双屏幕功能，性能出色可靠
-3. 【P1 Competitor Pain Point Comparison + Scene Keywords】相比竞品，在水下探索场景下防抖表现更优异
-4. 【P1/P2 Capability + Usage Scene + Boundary Statement】支持WiFi连接，适用于旅行记录(requires smartphone app connection)
-5. 【P2 Warranty/After-sale/Compatibility】提供12个月质保，专业客服支持，兼容多种设备
+1. 配备多种挂载配件，专为水下探索设计，提供双屏幕功能
+2. 提供双屏幕功能，性能出色可靠
+3. 相比竞品，在户外运动场景下防抖表现更优异
+4. 支持WiFi连接，适用于运动训练(in specific modes)
+5. 提供12个月质保，专业客服支持，兼容多种设备
 
 **Description**
-The TOSBARRFT 双屏幕 骑行记录 wifi sports camera Actionkamera is designed for 骑行记录, delivering professional-grade 双屏幕 experience. 具备双屏幕, 防抖, WiFi连接等多项功能，
+The TOSBARRFT helmet camera Unterwasser Erkundung Dual Screen Bildstabilisierung is designed for 水下探索, delivering professional-grade 双屏幕 experience. 具备双屏幕, 防抖, WiFi连接等多项功能，
 
 Key Features:
-• 【Mounting System + Primary Scene + P0 Capability】配备多种挂载配件，专为骑行记录设计，提供双屏幕功能
-• 【P0 Core Capability + Quantified Parameters】提供双屏幕功能，性能出色可靠
-• 【P1 Competitor Pain Point Comparison + Scene Keywords】相比竞品，在水下探索场景下防抖表现更优异
+• 配备多种挂载配件，专为水下探索设计，提供双屏幕功能
+• 提供双屏幕功能，性能出色可靠
+• 相比竞品，在户外运动场景下防抖表现更优异
 
 立即购买，开启您的拍摄之旅！
 
@@ -40,75 +40,115 @@ Package includes: 防水壳, 磁吸挂绳, 支架
   A: It comes with 12个月 warranty with nationwide service coverage.
 
 **Search Terms**
-Sportkamera, Actionkamera, 骑行记录, 旅行记录, Videokamera, 水下探索, WiFi连接, 防抖, 双屏幕, Aufnahmegerät
+户外运动, Actionkamera, 运动训练, Videokamera, Aufnahmegerät, 水下探索, Sportkamera, 双屏幕, 防抖, WiFi连接
 
 **A+ Content**
 # TOSBARRFT Action Camera - Professional Shooting Solution
 
 ## Product Overview
-The TOSBARRFT Action Camera is designed for 骑行记录, 水下探索, 旅行记录 and other scenarios, delivering professional-grade shooting experience. Features core capabilities like 双屏幕, 防抖, WiFi连接 to meet various shooting needs.
+The TOSBARRFT Action Camera is designed for 水下探索, 户外运动, 运动训练 and other scenarios, delivering professional-grade shooting experience. Features core capabilities like 双屏幕, 防抖, WiFi连接 to meet various shooting needs.
 
 ## Core Technologies
 ### 1. High-Definition Imaging System
 - Supports 4K 60fps ultra HD recording
-- Advanced image processing engine
-- Wide dynamic range
+- Advanced image processing engine for true-to-life colors
+- Wide dynamic range for excellent backlight performance
+- Low-light optimization for clear night shots
 
 ### 2. Professional Stabilization Technology
-- Multiple stabilization modes
-- Sports scene optimization
-- Smooth shooting experience
+- Multiple stabilization modes (EIS + algorithm compensation)
+- Sports scene optimization for running and biking
+- Smooth shooting experience with no shake or blur
+- Intelligent motion recognition with auto stabilization adjustment
 
 ### 3. Durable Design
-- 30米（需使用防水壳） waterproof performance
-- Lightweight design, only 150g
-- Shock and drop resistant structure
+- 30米（需使用防水壳） waterproof performance for rain and underwater use
+- Lightweight design, only 150g, easy to carry
+- Shock and drop resistant structure, tested for 1m drops
+- Temperature tolerance from -10°C to 45°C for reliable operation
 
 ## Usage Scenarios
 ### Outdoor Sports
-- Recording for biking, skiing, hiking, etc.
-- Waterproof design adapts to various weather
+- Recording for biking, skiing, hiking, and other sports
+- Waterproof design adapts to various weather conditions
 - Long battery life supports all-day shooting
+- Multiple accessories for helmet, handlebar, and wrist mounting
 
 ### Travel Recording
 - Portable and easy to carry, perfect travel companion
-- Quick sharing of travel highlights
-- Multiple shooting mode options
+- Quick sharing of travel highlights via smartphone app
+- Multiple shooting modes (time-lapse, slow motion, burst)
+- GPS geotagging to record travel routes
 
 ### Family Use
-- Daily pet recording
-- Family activity shooting
-- Children's growth records
+- Daily pet recording to capture cute moments
+- Family activity shooting for birthdays and gatherings
+- Children's growth records to preserve precious memories
+- Indoor shooting optimization for clear imaging in low light
+
+## Installation & Usage Guide
+### Quick Start
+1. Install memory card: Open side cover, insert Micro SD card (up to 256GB)
+2. Charge and power on: Use included cable to charge, press power button for 3 seconds
+3. Connect APP: Download official APP, connect via WiFi
+4. Start shooting: Select shooting mode, press record button
+
+### Accessory Installation
+- Helmet mount: Use helmet base with 3M adhesive
+- Handlebar mount: Use handlebar clamp for 22-35mm diameter
+- Chest mount: Use chest strap, adjust tightness
+- Waterproof case: Ensure seal is clean, lock clasps securely
+
+## Maintenance & Care
+- Cleaning: Use soft cloth for lens, avoid corrosive cleaners
+- Storage: Remove battery when not in use for extended periods
+- Waterproof case care: Rinse with fresh water after use, dry before storage
+- Battery care: Avoid complete discharge, charge when below 20%
 
 ## Technical Specifications
 - Resolution: 4K 60fps
+- Sensor: 1/2.3-inch CMOS
 - Waterproof Rating: 30米（需使用防水壳）
 - Battery Life: 150分钟
 - Product Weight: 150g
 - Storage Support: Micro SD card, up to 256GB
+- Connectivity: WiFi 2.4GHz, USB-C, HDMI output
+- Screens: 2-inch LCD touchscreen + 1.5-inch front screen
+- Shooting Modes: Video, Photo, Time-lapse, Slow Motion, Burst
+- System Languages: Multiple languages (English, German, French, Spanish, etc.)
 
 ## Package Contents
-- TOSBARRFT Action Camera Main Unit
-- Waterproof Case
-- Multiple Mounting Accessories
-- Data Cable
-- User Manual
+- TOSBARRFT Action Camera Main Unit x1
+- Waterproof Case x1
+- Handlebar Mount x1
+- Helmet Mount x1
+- Chest Strap x1
+- Data Cable x1
+- User Manual x1
+- Warranty Card x1
 
-Experience the TOSBARRFT Action Camera now and record every exciting moment!
+## Warranty & Support
+- Warranty Period: 12个月
+- After-sales Service: Nationwide warranty, online technical support
+- Accessory Purchase: Original accessories available in official store
+- Software Updates: Regular firmware updates for performance improvements
+
+Experience the TOSBARRFT Action Camera now and record every exciting moment! Professional shooting, simple operation, make every moment last forever.
 
 ## Module 2：关键词覆盖审计表
 | 关键词 | 层级 | 出现位置 |
 | --- | --- | --- |
 | action camera 4k | L1 | 未覆盖 |
-| helmet camera | L2 | 未覆盖 |
+| helmet camera | L2 | Title、Description |
 | waterproof sports cam | L2 | 未覆盖 |
 | dual screen action cam | L2 | 未覆盖 |
-| wifi sports camera | L2 | Title、Description |
+| wifi sports camera | L2 | 未覆盖 |
 
 ## Module 3：合规红线检查
-- 通过情况：4/6
-- 风险条目：2
+- 通过情况：3/6
+- 风险条目：3
   - [high] 禁止提及价格、折扣或促销信息 (sale)
+  - [medium] 避免使用绝对化宣称 (hot)
   - [medium] 谨慎使用保证或退款宣称 (warranty)
 
 ## Module 4：writing_policy 执行审计
@@ -126,11 +166,11 @@ Experience the TOSBARRFT Action Camera now and record every exciting moment!
 ## Module 6：STAG 广告投放建议
 | STAG 场景 | 优先关键词 | 目标人群 | 投放建议 |
 | --- | --- | --- | --- |
-| 骑行记录 | 骑行记录 | 目标人群：骑行记录 | 建议：围绕骑行记录场景组合 SB/SP 广告，融入高转化词。 |
-| 水下探索 | 水下探索 | 目标人群：水下探索 | 建议：围绕水下探索场景组合 SB/SP 广告，融入高转化词。 |
-| 旅行记录 | 旅行记录 | 目标人群：旅行记录 | 建议：围绕旅行记录场景组合 SB/SP 广告，融入高转化词。 |
-| 运动训练 | Sportkamera、Actionkamera | 目标人群：运动训练 | 建议：围绕运动训练场景组合 SB/SP 广告，融入高转化词。 |
-| 家庭使用 | Sportkamera、Actionkamera | 目标人群：家庭使用 | 建议：围绕家庭使用场景组合 SB/SP 广告，融入高转化词。 |
+| 水下探索 | 水下探索 | 目标人群：潜水爱好者25-50岁，水上运动爱好者，海洋摄影师 | 建议：围绕水下探索场景组合 SB/SP 广告，融入高转化词。 |
+| 户外运动 | 户外运动 | 目标人群：户外运动爱好者20-40岁，登山、滑雪、徒步爱好者 | 建议：围绕户外运动场景组合 SB/SP 广告，融入高转化词。 |
+| 运动训练 | 运动训练 | 目标人群：健身爱好者18-35岁，运动员，体育教练，训练记录者 | 建议：围绕运动训练场景组合 SB/SP 广告，融入高转化词。 |
+| 家庭使用 | 户外运动、Actionkamera | 目标人群：家庭用户25-45岁，宠物主人，亲子家庭，生活记录者 | 建议：围绕家庭使用场景组合 SB/SP 广告，融入高转化词。 |
+| 骑行记录 | 户外运动、Actionkamera | 目标人群：骑行爱好者25-45岁，通勤族，户外运动达人 | 建议：围绕骑行记录场景组合 SB/SP 广告，融入高转化词。 |
 
 ## Module 7：Rufus Q&A 种子列表
 | 序号 | 问题种子 | 答案要点 |
@@ -145,20 +185,20 @@ Experience the TOSBARRFT Action Camera now and record every exciting moment!
 ### A10 维度
 | 指标 | 满分 | 得分 | 说明 |
 | --- | --- | --- | --- |
-| title_front_80 | 40 | 25 | 包含品牌，含首要场景 |
+| title_front_80 | 40 | 15 | 包含品牌 |
 | keyword_tiering | 30 | 10 | L1:0 L2:1 L3:0 |
-| conversion_signals | 30 | 30 | 含数字 Bullets 5/5，属性参数 3 |
+| conversion_signals | 30 | 14 | 含数字 Bullets 1/5，属性参数 3 |
 
-> 小计：65 分
+> 小计：39 分
 
 ### COSMO 维度
 | 指标 | 满分 | 得分 | 说明 |
 | --- | --- | --- | --- |
 | scene_coverage | 40 | 20 | 覆盖 3/6 个场景 |
-| capability_scene_binding | 40 | 26 | 满足 2/3 条绑定 |
+| capability_scene_binding | 40 | 13 | 满足 1/3 条绑定 |
 | audience_tags | 20 | 20 | 触达人群: 骑行, 旅行, 家庭, 户外 |
 
-> 小计：66 分
+> 小计：53 分
 
 ### Rufus 维度
 | 指标 | 满分 | 得分 | 说明 |
@@ -178,9 +218,9 @@ Experience the TOSBARRFT Action Camera now and record every exciting moment!
 - 说明: 品类中位 199.00 vs 当前 189.00
 
 ### 规则附加检查
-- 边界声明: 已检测 → 【P1/P2 Capability + Usage Scene + Boundary Statement】支持WiFi连接，适用于旅行记录(requires smartphone app connection)
-- A+ 字数: 191 词，满足下限: False
+- 边界声明: 已检测 → 支持WiFi连接，适用于运动训练(in specific modes)
+- A+ 字数: 517 词，满足下限: True
 
 ### 算法对齐摘要
-- 总分: 227/310
-- 综合评级: 良好 (73.2%)
+- 总分: 188/310
+- 综合评级: 待优化 (60.6%)

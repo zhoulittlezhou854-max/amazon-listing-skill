@@ -2,8 +2,8 @@
   "a10": {
     "title_front_80": {
       "max": 40,
-      "score": 25,
-      "note": "包含品牌，含首要场景"
+      "score": 15,
+      "note": "包含品牌"
     },
     "keyword_tiering": {
       "max": 30,
@@ -12,10 +12,10 @@
     },
     "conversion_signals": {
       "max": 30,
-      "score": 30,
-      "note": "含数字 Bullets 5/5，属性参数 3"
+      "score": 14,
+      "note": "含数字 Bullets 1/5，属性参数 3"
     },
-    "subtotal": 65
+    "subtotal": 39
   },
   "cosmo": {
     "scene_coverage": {
@@ -25,15 +25,15 @@
     },
     "capability_scene_binding": {
       "max": 40,
-      "score": 26,
-      "note": "满足 2/3 条绑定"
+      "score": 13,
+      "note": "满足 1/3 条绑定"
     },
     "audience_tags": {
       "max": 20,
       "score": 20,
       "note": "触达人群: 骑行, 旅行, 家庭, 户外"
     },
-    "subtotal": 66
+    "subtotal": 53
   },
   "rufus": {
     "fact_completeness": {
@@ -62,24 +62,24 @@
     "data_available": true,
     "note": "品类中位 199.00 vs 当前 189.00"
   },
-  "total_score": 227,
+  "total_score": 188,
   "max_total": 310,
-  "grade_percent": 73.2,
-  "rating": "良好",
+  "grade_percent": 60.6,
+  "rating": "待优化",
   "boundary_declaration_check": {
     "exists": true,
-    "sentence": "【P1/P2 Capability + Usage Scene + Boundary Statement】支持WiFi连接，适用于旅行记录(requires smartphone app connection)",
+    "sentence": "支持WiFi连接，适用于运动训练(in specific modes)",
     "score_impact": "+10"
   },
   "aplus_word_count_check": {
-    "word_count": 191,
-    "meets_minimum": false,
-    "score_impact": "0"
+    "word_count": 517,
+    "meets_minimum": true,
+    "score_impact": "+15"
   },
   "scoring_detail_version": "v8.4.0",
-  "a10_score": 65,
-  "cosmo_score": 66,
+  "a10_score": 39,
+  "cosmo_score": 53,
   "rufus_score": 87,
   "price_competitiveness_score": 9,
-  "grade": "良好"
+  "grade": "待优化"
 }
