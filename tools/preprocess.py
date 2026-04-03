@@ -118,6 +118,19 @@ class ABAData:
 
 
 @dataclass
+class RealVocabData:
+    """真实国家词表数据 (Priority 1 关键词来源)"""
+    country: str                          # "DE" / "FR"
+    is_available: bool = False           # 是否有真实词表
+    total_count: int = 0                # 总关键词数
+    aba_count: int = 0                  # ABA 关键词数
+    order_winning_count: int = 0        # 出单词数
+    review_count: int = 0               # 评论抽取关键词数
+    top_keywords: List[Dict[str, Any]] = []  # Top 20 高搜索量关键词（本地词）
+    data_mode: str = "SYNTHETIC_COLD_START"  # 基于真实数据量判断
+
+
+@dataclass
 class PreprocessedData:
     """预处理后的完整数据"""
     run_config: RunConfig
