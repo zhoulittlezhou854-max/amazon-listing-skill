@@ -231,6 +231,20 @@ FAQ_TEMPLATES = {
 }
 
 
+def _has_real_vocab(preprocessed_data: Any) -> bool:
+    """检查是否有真实国家词表（Priority 1）"""
+    rv = getattr(preprocessed_data, "real_vocab", None)
+    return rv is not None and getattr(rv, "is_available", False)
+
+
+def _get_real_vocab_keywords(preprocessed_data: Any) -> List[Dict[str, Any]]:
+    """获取真实国家词表关键词列表（Priority 1）"""
+    if not _has_real_vocab(preprocessed_data):
+        return []
+    rv = getattr(preprocessed_data, "real_vocab", None)
+    return getattr(rv, "top_keywords", []) or []
+
+
 def extract_tiered_keywords(keyword_data: Any, language: str = "Chinese") -> Dict[str, List[str]]:
     """
     提取分层关键词（L1/L2/L3），使用与scoring.py一致的阈值逻辑（>=10000是L1）
