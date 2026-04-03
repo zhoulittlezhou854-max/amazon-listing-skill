@@ -676,7 +676,11 @@ def preprocess_data(
                     "keyword_data_availability": "充足" if keyword_data.keywords and len(keyword_data.keywords) > 10 else "有限" if keyword_data.keywords else "缺失",
                     "review_insight_availability": "充足" if review_data.insights and len(review_data.insights) > 5 else "有限" if review_data.insights else "缺失"
                 },
-                "language": language,
+                "language": target_language,
+                "target_country": run_config.target_country,
+                "reasoning_language": "EN",
+                "data_mode": data_mode,
+                "data_mode_note": f"ABA rows: {len(aba_data.trends)}, Review rows: {len(review_data.insights)}, Total: {total_data_rows}",
                 "processed_at": preprocessed.processed_at
             },
             # 保存完整关键词数据供scoring.py使用
