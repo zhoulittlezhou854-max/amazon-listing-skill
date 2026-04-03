@@ -226,6 +226,52 @@ def create_capability_scene_bindings(capabilities: List[str], prioritized_scenes
             "usage_notes": f"可在{', '.join(allowed_scenes[:2])}等场景中使用" if allowed_scenes else "无特定场景限制"
         })
 
+    # 确保三个关键场景都有绑定
+    target_scenes = ["骑行记录", "水下探索", "旅行记录"]
+    bound_scenes = set()
+    for binding in bindings:
+        bound_scenes.update(binding.get("allowed_scenes", []))
+
+    # 为缺失的场景添加绑定
+    missing_scenes = [scene for scene in target_scenes if scene not in bound_scenes]
+    if missing_scenes and attribute_data and hasattr(attribute_data, 'data'):
+        attr_data = attribute_data.data
+
+        for scene in missing_scenes:
+            capability = None
+            binding_type = "used_for_func"
+
+            if scene == "水下探索":
+                if attr_data.get('waterproof_depth'):
+                    capability = "防水"
+                    binding_type = "environmental_feature"
+                elif attr_data.get('video_resolution'):
+                    capability = "高清录像"
+                    binding_type = "performance_feature"
+            elif scene == "骑行记录":
+                if any('防抖' in cap for cap in capabilities):
+                    # 已经可能有防抖绑定
+                    continue
+                elif attr_data.get('image_stabilization'):
+                    capability = "防抖"
+                    binding_type = "performance_feature"
+            elif scene == "旅行记录":
+                if attr_data.get('video_resolution'):
+                    capability = "高清录像"
+                    binding_type = "performance_feature"
+                elif attr_data.get('weight'):
+                    capability = "轻便设计"
+                    binding_type = "design_feature"
+
+            if capability:
+                bindings.append({
+                    "capability": capability,
+                    "binding_type": binding_type,
+                    "allowed_scenes": [scene],
+                    "forbidden_scenes": [],
+                    "usage_notes": f"可在{scene}场景中使用"
+                })
+
     return bindings
 
 
