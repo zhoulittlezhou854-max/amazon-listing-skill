@@ -68,7 +68,7 @@
   "rating": "待优化",
   "boundary_declaration_check": {
     "exists": true,
-    "sentence": "design versatile, suitable for famiglia (based on lab test data), max storage 256GB",
+    "sentence": "design versatile, suitable for famiglia (requires smartphone app connection), max storage 256GB",
     "score_impact": "+10"
   },
   "aplus_word_count_check": {

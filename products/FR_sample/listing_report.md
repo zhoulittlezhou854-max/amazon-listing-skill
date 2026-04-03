@@ -1,5 +1,5 @@
 # Amazon Listing 最终仲裁报告
-- 生成时间：2026-04-03T15:40:43.220705
+- 生成时间：2026-04-03T15:43:51.691170
 - 站点：FR
 - 品牌：YourBrand
 - Listing 语言：French
@@ -9,23 +9,23 @@
 YourBrand action camera 4k cyclisme enregistrement 4K 4K
 
 **Bullets**
-1. Comes with multiple supporting accessories, designed for cyclisme, features enregistrement 4K, supports 30m étanche
+1. Comes with multiple mounting accessories, designed for cyclisme, features enregistrement 4K, supports 30m étanche
 2. Supports 4K 30fps enregistrement HD, optimized for plongée, autonomie 150min
 3. Compared to competitors, caméra d'action étanche performs better in voyage, autonomie 150min
 4. conception polyvalente, suitable for famille (with included accessories), max storage 256 Go
 5. Provides 12 mois garantie, professional customer support, compatible with multiple devices, autonomie 150min
 
 **Description**
-The YourBrand caméra d'action 4k cyclisme enregistrement 4K 4K is designed for cyclisme, delivering professional-grade enregistrement 4K experience. Features enregistrement 4K, electronic stabilisation, WiFi connection and more, 
+The YourBrand caméra d'action 4K cyclisme enregistrement 4K 4K is designed for cyclisme, delivering professional-grade enregistrement 4K experience. Features enregistrement 4K, electronic stabilisation, WiFi connection and more, 
 
 Key Features:
-• Comes with multiple supporting accessories, designed for cyclisme, features enregistrement 4K, supports 30m étanche
+• Comes with multiple mounting accessories, designed for cyclisme, features enregistrement 4K, supports 30m étanche
 • Supports 4K 30fps enregistrement HD, optimized for plongée, autonomie 150min
 • Compared to competitors, caméra d'action étanche performs better in voyage, autonomie 150min
 
-立即购买，开启您的拍摄之旅！
+Buy now and start capturing your moments!
 
-Package includes: étanchecase, magnetic strap, support
+Package includes: waterproofcase, magnetic strap, support
 
 **FAQ**
 - Q: Le produit est-t-il waterproof?
@@ -40,7 +40,7 @@ Package includes: étanchecase, magnetic strap, support
   A: Garantie 12个月 avec couverture nationale.
 
 **Search Terms**
-YourBrand, underwater_exploration, caméscope, caméra sport, caméra d'action, cycling_recording, family_use, WiFi connection, appareil d'enregistrement, electronic stabilization, 4K recording, travel_documentation
+family_use, caméscope, WiFi connection, appareil d'enregistrement, electronic stabilization, YourBrand, underwater_exploration, caméra d'action, travel_documentation, 4K recording, caméra sport, cycling_recording
 
 **A+ Content**
 # YourBrand Action Camera - Professional Shooting Solution

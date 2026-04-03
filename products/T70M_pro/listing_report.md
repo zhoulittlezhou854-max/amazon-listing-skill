@@ -1,5 +1,5 @@
 # Amazon Listing 最终仲裁报告
-- 生成时间：2026-04-03T15:40:43.211730
+- 生成时间：2026-04-03T15:43:51.646064
 - 站点：DE
 - 品牌：YourBrand
 - Listing 语言：German
@@ -9,23 +9,23 @@
 YourBrand action camera 4k Radfahren 4K-Aufnahme 4K Unterwasser
 
 **Bullets**
-1. Comes with multiple Halterunging accessories, designed for Radfahren, features 4K-Aufnahme, supports 30m wasserdicht
+1. Comes with multiple mounting accessories, designed for Radfahren, features 4K-Aufnahme, supports 30m wasserdicht
 2. Supports 4K 30fps HD-Aufnahme, optimized for Unterwasser, Akkulaufzeit 150min
 3. Compared to competitors, wasserdichte Actionkamera performs better in Reisen, Akkulaufzeit 150min
-4. vielseitiges Design, suitable for Familie (with Wassergehäuse), maximaler Speicher 256GB
+4. vielseitiges Design, suitable for Familie (based on lab test data), maximaler Speicher 256GB
 5. Provides 12 Monate Garantie, professional customer support, compatible with multiple devices, Akkulaufzeit 150min
 
 **Description**
-The YourBrand Actionkamera 4k Radfahren 4K-Aufnahme 4K Unterwasser is designed for Radfahren, delivering professional-grade 4K-Aufnahme experience. Features 4K-Aufnahme, electronic Bildstabilisierung, WLAN connection and more, 
+The YourBrand Actionkamera 4K Radfahren 4K-Aufnahme 4K Unterwasser is designed for Radfahren, delivering professional-grade 4K-Aufnahme experience. Features 4K-Aufnahme, elektronische Bildstabilisierung, WLAN-Verbindung and more, 
 
 Key Features:
-• Comes with multiple Halterunging accessories, designed for Radfahren, features 4K-Aufnahme, supports 30m wasserdicht
+• Comes with multiple mounting accessories, designed for Radfahren, features 4K-Aufnahme, supports 30m wasserdicht
 • Supports 4K 30fps HD-Aufnahme, optimized for Unterwasser, Akkulaufzeit 150min
 • Compared to competitors, wasserdichte Actionkamera performs better in Reisen, Akkulaufzeit 150min
 
-立即购买，开启您的拍摄之旅！
+Buy now and start capturing your moments!
 
-Package includes: wasserdichtcase, Magnet-Halsband, Halterung
+Package includes: waterproofcase, Magnet-Halsband, Halterung
 
 **FAQ**
 - Q: Ist das Produkt wasserdicht?
@@ -40,7 +40,7 @@ Package includes: wasserdichtcase, Magnet-Halsband, Halterung
   A: 12个月 Garantie mit deutschlandweitem Service.
 
 **Search Terms**
-Aufnahmegerät, 4K recording, electronic stabilization, WiFi connection, Videokamera, cycling_recording, Sportkamera, travel_documentation, YourBrand, underwater_exploration, family_use, Actionkamera
+WiFi connection, Actionkamera, family_use, underwater_exploration, Sportkamera, electronic stabilization, Videokamera, travel_documentation, cycling_recording, YourBrand, 4K recording, Aufnahmegerät
 
 **A+ Content**
 # YourBrand Action Camera - Professional Shooting Solution
@@ -210,7 +210,7 @@ Experience the YourBrand Action Camera now and record every exciting moment! Pro
 - 说明: 价格数据缺失，跳过评分
 
 ### 规则附加检查
-- 边界声明: 已检测 → vielseitiges Design, suitable for Familie (with Wassergehäuse), maximaler Speicher 256GB
+- 边界声明: 已检测 → vielseitiges Design, suitable for Familie (based on lab test data), maximaler Speicher 256GB
 - A+ 字数: 518 词，满足下限: True
 
 ### 算法对齐摘要

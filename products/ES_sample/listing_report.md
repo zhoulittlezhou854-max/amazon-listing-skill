@@ -1,5 +1,5 @@
 # Amazon Listing 最终仲裁报告
-- 生成时间：2026-04-03T15:40:47.104721
+- 生成时间：2026-04-03T15:43:51.779601
 - 站点：ES
 - 品牌：YourBrand
 - Listing 语言：Spanish
@@ -9,23 +9,23 @@
 YourBrand action camera 4k ciclismo grabación 4K 4K
 
 **Bullets**
-1. Comes with multiple soporteing accessories, designed for ciclismo, features grabación 4K, supports 30m resistente al agua
+1. Comes with multiple mounting accessories, designed for ciclismo, features grabación 4K, supports 30m resistente al agua
 2. Supports 4K 30fps grabación HD, optimized for submarino, duración de batería 150min
 3. Compared to competitors, cámara de acción resistente al agua performs better in viaje, duración de batería 150min
-4. diseño versátil, suitable for familia (with included accessories), max storage 256GB
+4. diseño versátil, suitable for familia (requires smartphone app connection), max storage 256GB
 5. Provides 12 meses garantía, professional customer support, compatible with multiple devices, duración de batería 150min
 
 **Description**
-The YourBrand cámara de acción 4k ciclismo grabación 4K 4K is designed for ciclismo, delivering professional-grade grabación 4K experience. Features grabación 4K, electronic estabilización, WiFi connection and more, 
+The YourBrand cámara de acción 4K ciclismo grabación 4K 4K is designed for ciclismo, delivering professional-grade grabación 4K experience. Features grabación 4K, electronic estabilización, WiFi connection and more, 
 
 Key Features:
-• Comes with multiple soporteing accessories, designed for ciclismo, features grabación 4K, supports 30m resistente al agua
+• Comes with multiple mounting accessories, designed for ciclismo, features grabación 4K, supports 30m resistente al agua
 • Supports 4K 30fps grabación HD, optimized for submarino, duración de batería 150min
 • Compared to competitors, cámara de acción resistente al agua performs better in viaje, duración de batería 150min
 
-立即购买，开启您的拍摄之旅！
+Buy now and start capturing your moments!
 
-Package includes: resistente al aguacase, magnetic strap, soporte
+Package includes: waterproofcase, magnetic strap, soporte
 
 **FAQ**
 - Q: ¿El producto es resistente al agua?
@@ -40,7 +40,7 @@ Package includes: resistente al aguacase, magnetic strap, soporte
   A: Garantía de 12个月 con cobertura nacional.
 
 **Search Terms**
-travel_documentation, YourBrand, underwater_exploration, cámara de acción, family_use, videocámara, 4K recording, cycling_recording, electronic stabilization, WiFi connection, cámara deportiva, dispositivo de grabación
+cycling_recording, dispositivo de grabación, 4K recording, underwater_exploration, travel_documentation, family_use, electronic stabilization, videocámara, WiFi connection, cámara de acción, YourBrand, cámara deportiva
 
 **A+ Content**
 # YourBrand Action Camera - Professional Shooting Solution
@@ -210,7 +210,7 @@ Experience the YourBrand Action Camera now and record every exciting moment! Pro
 - 说明: 价格数据缺失，跳过评分
 
 ### 规则附加检查
-- 边界声明: 已检测 → diseño versátil, suitable for familia (with included accessories), max storage 256GB
+- 边界声明: 已检测 → diseño versátil, suitable for familia (requires smartphone app connection), max storage 256GB
 - A+ 字数: 518 词，满足下限: True
 
 ### 算法对齐摘要

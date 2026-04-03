@@ -1,5 +1,5 @@
 # Amazon Listing 最终仲裁报告
-- 生成时间：2026-04-03T15:40:47.062383
+- 生成时间：2026-04-03T15:43:51.735474
 - 站点：IT
 - 品牌：YourBrand
 - Listing 语言：Italian
@@ -9,23 +9,23 @@
 YourBrand action camera 4k ciclismo registrazione 4K 4K
 
 **Bullets**
-1. Comes with multiple supportoing accessories, designed for ciclismo, features registrazione 4K, supports 30m impermeabile
+1. Comes with multiple mounting accessories, designed for ciclismo, features registrazione 4K, supports 30m impermeabile
 2. Supports 4K 30fps registrazione HD, optimized for subacqueo, durata batteria 150min
 3. Compared to competitors, fotocamera sportiva impermeabile performs better in viaggio, durata batteria 150min
-4. design versatile, suitable for famiglia (based on lab test data), max storage 256GB
+4. design versatile, suitable for famiglia (requires smartphone app connection), max storage 256GB
 5. Provides 12 mesi garanzia, professional customer support, compatible with multiple devices, durata batteria 150min
 
 **Description**
-The YourBrand videocamera sportiva 4k ciclismo registrazione 4K 4K is designed for ciclismo, delivering professional-grade registrazione 4K experience. Features registrazione 4K, electronic stabilizzazione, WiFi connection and more, 
+The YourBrand videocamera sportiva 4K ciclismo registrazione 4K 4K is designed for ciclismo, delivering professional-grade registrazione 4K experience. Features registrazione 4K, electronic stabilizzazione, WiFi connection and more, 
 
 Key Features:
-• Comes with multiple supportoing accessories, designed for ciclismo, features registrazione 4K, supports 30m impermeabile
+• Comes with multiple mounting accessories, designed for ciclismo, features registrazione 4K, supports 30m impermeabile
 • Supports 4K 30fps registrazione HD, optimized for subacqueo, durata batteria 150min
 • Compared to competitors, fotocamera sportiva impermeabile performs better in viaggio, durata batteria 150min
 
-立即购买，开启您的拍摄之旅！
+Buy now and start capturing your moments!
 
-Package includes: impermeabilecase, magnetic strap, supporto
+Package includes: waterproofcase, magnetic strap, supporto
 
 **FAQ**
 - Q: Il prodotto è impermeabile?
@@ -40,7 +40,7 @@ Package includes: impermeabilecase, magnetic strap, supporto
   A: Garanzia di 12个月 con copertura nazionale.
 
 **Search Terms**
-videocamera sportiva, electronic stabilization, cycling_recording, fotocamera sportiva, WiFi connection, underwater_exploration, family_use, YourBrand, videocamera, 4K recording, travel_documentation, dispositivo di registrazione
+4K recording, underwater_exploration, videocamera, videocamera sportiva, WiFi connection, electronic stabilization, cycling_recording, travel_documentation, fotocamera sportiva, dispositivo di registrazione, family_use, YourBrand
 
 **A+ Content**
 # YourBrand Action Camera - Professional Shooting Solution
@@ -210,7 +210,7 @@ Experience the YourBrand Action Camera now and record every exciting moment! Pro
 - 说明: 价格数据缺失，跳过评分
 
 ### 规则附加检查
-- 边界声明: 已检测 → design versatile, suitable for famiglia (based on lab test data), max storage 256GB
+- 边界声明: 已检测 → design versatile, suitable for famiglia (requires smartphone app connection), max storage 256GB
 - A+ 字数: 518 词，满足下限: True
 
 ### 算法对齐摘要
