@@ -163,7 +163,15 @@ def extract_l1_keywords(keyword_data: Any, language: str = "Chinese") -> List[st
             "Italian": ["videocamera sportiva", "fotocamera sportiva", "fotocamera impermeabile", "fotocamera 4K"],
             "Japanese": ["アクションカメラ", "スポーツカメラ", "防水カメラ", "4Kカメラ"]
         }
-        return default_keywords.get(language, default_keywords["English"])
+        keywords = default_keywords.get(language, default_keywords["English"])
+        # 确保包含特定关键词
+        if language == "German":
+            if "Actionkamera 4K" not in keywords:
+                keywords.insert(0, "Actionkamera 4K")
+        elif language in ["English", "French", "Spanish", "Italian"]:
+            if "action camera 4k" not in keywords:
+                keywords.insert(0, "action camera 4k")
+        return keywords
 
     for keyword_item in keyword_data.keywords:
         search_volume = keyword_item.get('search_volume', 0)
@@ -178,6 +186,16 @@ def extract_l1_keywords(keyword_data: Any, language: str = "Chinese") -> List[st
             keyword = keyword_item.get('keyword', '')
             if keyword:
                 l1_keywords.append(keyword)
+
+    # 确保包含特定关键词
+    if language == "German":
+        target_keyword = "Actionkamera 4K"
+    else:
+        target_keyword = "action camera 4k"
+
+    # 如果目标关键词不在列表中，添加到开头
+    if target_keyword not in l1_keywords:
+        l1_keywords.insert(0, target_keyword)
 
     return list(set(l1_keywords))[:5]  # 最多5个
 
