@@ -1677,19 +1677,19 @@ def generate_multilingual_copy(preprocessed_data: PreprocessedData,
                     break
         bullets.append(bullet_translated)
 
-    # 生成描述
-    description_en = generate_description(preprocessed_data, writing_policy, title, bullets_en, "English")
+    # 生成描述 (使用 English 标准化版本)
+    description_en = generate_description(preprocessed_en, writing_policy, title, bullets_en, "English")
     description = _translate_text_to_language(description_en, target_language)
 
     # 生成 FAQ
-    faq = generate_faq(preprocessed_data, writing_policy, target_language)
+    faq = generate_faq(preprocessed_en, writing_policy, target_language)
 
-    # 生成搜索词
-    search_terms = generate_search_terms(preprocessed_data, writing_policy, title, bullets,
+    # 生成搜索词 (使用 English 标准化版本)
+    search_terms = generate_search_terms(preprocessed_en, writing_policy, title, bullets,
                                          target_language, tiered_keywords)
 
-    # 生成 A+ 内容
-    aplus_content = generate_aplus_content(preprocessed_data, writing_policy, target_language)
+    # 生成 A+ 内容 (使用 English 标准化版本)
+    aplus_content = generate_aplus_content(preprocessed_en, writing_policy, target_language)
 
     # 构建完整文案
     copy_dict = {
