@@ -235,12 +235,48 @@ FAQ_TEMPLATES = {
 def _has_real_vocab(preprocessed_data: Any) -> bool:
     """检查是否有真实国家词表（Priority 1）"""
     rv = getattr(preprocessed_data, "real_vocab", None)
-    return rv is not None and getattr(rv, "is_available", False)
+    if rv is None:
+        # Fallback: 检查 real_vocab 是否为 dict（来自JSON反序列化）
+        rv_dict = getattr(preprocessed_data, "__dict__", {}).get("real_vocab")
+        if rv_dict and isinstance(rv_dict, dict) and rv_dict.get("is_available"):
+            return True
+        return False
+    return getattr(rv, "is_available", False)
+
+
+def _reconstruct_real_vocab(preprocessed_data: Any) -> Any:
+    """
+    尝试从 preprocessed_data.__dict__.get("real_vocab") dict 重建 RealVocabData 对象。
+    用于处理 JSON 反序列化后 real_vocab 变成 dict 的情况。
+    """
+    rv_dict = getattr(preprocessed_data, "__dict__", {}).get("real_vocab")
+    if not rv_dict or not isinstance(rv_dict, dict):
+        return None
+    if not rv_dict.get("is_available"):
+        return None
+
+    # 创建一个类似 RealVocabData 的对象
+    class ReconstructedRealVocab:
+        def __init__(self, d):
+            self.country = d.get("country", "")
+            self.is_available = d.get("is_available", False)
+            self.total_count = d.get("total_count", 0)
+            self.aba_count = d.get("aba_count", 0)
+            self.order_winning_count = d.get("order_winning_count", 0)
+            self.review_count = d.get("review_count", 0)
+            self.top_keywords = d.get("top_keywords", []) or []
+            self.data_mode = d.get("data_mode", "SYNTHETIC_COLD_START")
+
+    return ReconstructedRealVocab(rv_dict)
 
 
 def _get_real_vocab_keywords(preprocessed_data: Any) -> List[Dict[str, Any]]:
     """获取真实国家词表关键词列表（Priority 1）"""
     if not _has_real_vocab(preprocessed_data):
+        # 尝试重建
+        rv = _reconstruct_real_vocab(preprocessed_data)
+        if rv:
+            return rv.top_keywords
         return []
     rv = getattr(preprocessed_data, "real_vocab", None)
     return getattr(rv, "top_keywords", []) or []
@@ -255,8 +291,13 @@ def extract_tiered_keywords(preprocessed_data: Any, language: str = "Chinese") -
     - Priority 2: keyword_data 中的关键词
     """
     # ─── Priority 1: 真实国家词表（DE/FR 本地词） ───
-    if _has_real_vocab(preprocessed_data):
-        real_kw = _get_real_vocab_keywords(preprocessed_data)
+    # 尝试重建 real_vocab（处理 JSON 反序列化后变成 dict 的情况）
+    rv = getattr(preprocessed_data, "real_vocab", None)
+    if rv is None:
+        rv = _reconstruct_real_vocab(preprocessed_data)
+
+    if rv is not None and getattr(rv, "is_available", False):
+        real_kw = getattr(rv, "top_keywords", []) or []
         if real_kw:
             l1_set, l2_set, l3_set = set(), set(), set()
             for row in real_kw:
