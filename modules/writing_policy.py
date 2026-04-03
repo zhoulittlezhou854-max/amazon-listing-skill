@@ -434,6 +434,7 @@ def generate_policy(preprocessed_data: PreprocessedData,
     # 6. 构建完整policy
     policy = {
         "scene_priority": prioritized_scenes,
+        "keyword_allocation_strategy": "balanced",  # 默认使用balanced策略
         "capability_scene_bindings": capability_scene_bindings,
         "faq_only_capabilities": faq_only_capabilities,
         "forbidden_pairs": forbidden_pairs,
