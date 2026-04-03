@@ -546,16 +546,16 @@ def generate_default_4scene_policy(core_selling_points: List[str], language: str
         if scene not in bound_scenes:
             capability = None
             binding_type = "used_for_func"
-            if scene == "骑行记录":
+            if scene == "cycling_recording":
                 capability = "防抖"
                 binding_type = "performance_feature"
-            elif scene == "水下探索":
+            elif scene == "underwater_exploration":
                 capability = "防水"
                 binding_type = "environmental_feature"
-            elif scene == "旅行记录":
+            elif scene == "travel_documentation":
                 capability = "高清录像"
                 binding_type = "performance_feature"
-            elif scene == "家庭使用":
+            elif scene == "family_use":
                 capability = "WiFi连接"
                 binding_type = "connectivity_feature"
 
