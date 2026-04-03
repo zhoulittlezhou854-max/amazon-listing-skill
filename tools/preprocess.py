@@ -128,7 +128,10 @@ class PreprocessedData:
     core_selling_points: List[str]
     accessory_descriptions: List[Dict[str, Any]]
     quality_score: int
-    language: str
+    language: str  # target_language from COUNTRY_LANGUAGE_MAP
+    target_country: str
+    reasoning_language: str = "EN"  # PRD v8.2: 固定为EN
+    data_mode: str = "SYNTHETIC_COLD_START"  # DATA_DRIVEN or SYNTHETIC_COLD_START
     processed_at: str
 
 

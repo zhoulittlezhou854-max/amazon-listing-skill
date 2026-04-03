@@ -1,0 +1,94 @@
+{
+  "scene_priority": [
+    "骑行记录",
+    "水下探索",
+    "旅行记录",
+    "家庭使用"
+  ],
+  "keyword_allocation_strategy": "balanced",
+  "capability_scene_bindings": [
+    {
+      "capability": "4K画质",
+      "binding_type": "used_for_func",
+      "allowed_scenes": [
+        "骑行记录",
+        "水下探索",
+        "旅行记录"
+      ],
+      "forbidden_scenes": [],
+      "usage_notes": "可在骑行记录, 水下探索等场景中使用"
+    },
+    {
+      "capability": "电子防抖",
+      "binding_type": "performance_feature",
+      "allowed_scenes": [
+        "骑行记录",
+        "水下探索",
+        "旅行记录"
+      ],
+      "forbidden_scenes": [],
+      "usage_notes": "可在骑行记录, 水下探索等场景中使用"
+    },
+    {
+      "capability": "WiFi连接",
+      "binding_type": "connectivity_feature",
+      "allowed_scenes": [
+        "骑行记录",
+        "水下探索",
+        "旅行记录"
+      ],
+      "forbidden_scenes": [],
+      "usage_notes": "可在骑行记录, 水下探索等场景中使用"
+    },
+    {
+      "capability": "双屏幕",
+      "binding_type": "used_for_func",
+      "allowed_scenes": [
+        "骑行记录",
+        "水下探索",
+        "旅行记录"
+      ],
+      "forbidden_scenes": [],
+      "usage_notes": "可在骑行记录, 水下探索等场景中使用"
+    },
+    {
+      "capability": "WiFi连接",
+      "binding_type": "connectivity_feature",
+      "allowed_scenes": [
+        "家庭使用"
+      ],
+      "forbidden_scenes": [],
+      "usage_notes": "可在家庭使用场景中使用"
+    }
+  ],
+  "faq_only_capabilities": [
+    "数字防抖限制说明",
+    "防水深度限制",
+    "电池更换说明"
+  ],
+  "forbidden_pairs": [
+    [
+      "5K",
+      "防抖"
+    ],
+    [
+      "8K",
+      "实时直播"
+    ]
+  ],
+  "bullet_slot_rules": {
+    "B1": "Mounting system + Primary scene + P0 capability",
+    "B2": "P0 core capability + Quantified parameters",
+    "B3": "P1 competitor pain point comparison + Scene keywords",
+    "B4": "P1/P2 capability + Boundary statement",
+    "B5": "P2 warranty/after-sale/compatibility"
+  },
+  "language": "German",
+  "metadata": {
+    "core_selling_points_count": 4,
+    "scenes_count": 4,
+    "bindings_count": 5,
+    "is_default_4scene_template": true,
+    "generated_at": ""
+  }
+}
