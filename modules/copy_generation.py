@@ -1715,6 +1715,7 @@ def generate_multilingual_copy(preprocessed_data: PreprocessedData,
                 self.keyword_data = pd.keyword_data
                 self.review_data = pd.review_data
                 self.aba_data = pd.aba_data
+                self.real_vocab = getattr(pd, "real_vocab", None)  # 保留真实词表
                 self.core_selling_points = caps
                 self.accessory_descriptions = accs
                 self.quality_score = pd.quality_score
