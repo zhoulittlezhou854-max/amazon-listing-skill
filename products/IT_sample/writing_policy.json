@@ -83,13 +83,13 @@
     "B4": "P1/P2 capability + Boundary statement",
     "B5": "P2 warranty/after-sale/compatibility"
   },
-  "language": "German",
-  "target_language": "German",
+  "language": "Italian",
+  "target_language": "Italian",
   "reasoning_language": "EN",
   "product_profile": {
     "profile_version": "v8.2",
     "reasoning_language": "EN",
-    "target_language": "German",
+    "target_language": "Italian",
     "category_type": "action_camera",
     "physical_form": "compact_wearable_camera",
     "hero_spec": "4K画质",
@@ -112,7 +112,7 @@
       "tactical_equipment",
       "weapon_context"
     ],
-    "tone_hint": "technical_direct",
+    "tone_hint": "passionate_creative",
     "actioncam_specific": {
       "mount_system": "multi_mount_compatible",
       "battery_strategy": "180min_continuous_recording",

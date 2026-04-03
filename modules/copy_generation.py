@@ -1476,6 +1476,47 @@ def _translate_text_to_language(text: str, target_language: str) -> str:
     return text
 
 
+# Chinese -> English 标准化映射 (用于 normalize core_selling_points)
+CHINESE_TO_ENGLISH = {
+    "4K画质": "4K recording",
+    "电子防抖": "electronic stabilization",
+    "WiFi连接": "WiFi connection",
+    "双屏幕": "dual screen",
+    "高清录像": "HD recording",
+    "4K录像": "4K recording",
+    "防抖": "stabilization",
+    "防水": "waterproof",
+    "长续航": "long battery life",
+    "防水壳": "waterproof case",
+    "磁吸挂绳": "magnetic strap",
+    "车把支架": "handlebar mount",
+    "头盔底座": "helmet mount",
+}
+
+
+def _normalize_to_english(text: str) -> str:
+    """将中文术语标准化为英文（内部规划用）"""
+    for cn, en in CHINESE_TO_ENGLISH.items():
+        text = text.replace(cn, en)
+    return text
+
+
+def _normalize_core_selling_points(caps: List[str]) -> List[str]:
+    """将中文 core_selling_points 标准化为英文"""
+    return [_normalize_to_english(c) for c in caps]
+
+
+def _normalize_accessory_descriptions(accessories: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """将中文 accessory_descriptions 标准化为英文"""
+    result = []
+    for acc in accessories:
+        new_acc = dict(acc)
+        new_acc["name"] = _normalize_to_english(acc.get("name", ""))
+        new_acc["specification"] = _normalize_to_english(acc.get("specification", ""))
+        result.append(new_acc)
+    return result
+
+
 def _build_english_title_structure(preprocessed_data: Any, writing_policy: Dict[str, Any],
                                     tiered_keywords: Dict[str, List[str]],
                                     keyword_allocation_strategy: str) -> Dict[str, Any]:

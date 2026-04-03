@@ -47,11 +47,11 @@
     "total": 1,
     "issues": [
       {
-        "claim": "基本属性宣称",
-        "source": "整体文案",
-        "field": "video_resolution,battery_life,waterproof_depth",
-        "description": "属性表中缺少关键字段: video_resolution, battery_life, waterproof_depth",
-        "severity": "medium"
+        "claim": "Features 4K画质, 电子stabilizzazione, connessione WiFi and more, \n\nKey Features:\n• Comes with multiple supportoing accessories, designed for ciclismo, features 4K画质, supports 30m impermeabile\n• Supports 4K 30fps registrazione HD, optimized for subacqueo, durata batteria 150min\n• Compared to competitors, fotocamera sportiva impermeabile performs better in viaggio, durata batteria 150min\n\n立即购买，开启您的拍摄之旅",
+        "source": "description",
+        "field": "connectivity",
+        "description": "连接功能宣称: 属性表中缺少connectivity字段数据支持",
+        "severity": "high"
       }
     ],
     "all_passed": false

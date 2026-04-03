@@ -1,46 +1,46 @@
 # Amazon Listing 最终仲裁报告
-- 生成时间：2026-04-03T15:35:36.210939
-- 站点：DE
+- 生成时间：2026-04-03T15:35:41.402468
+- 站点：FR
 - 品牌：YourBrand
-- Listing 语言：German
+- Listing 语言：French
 
 ## Module 1：最终 Listing（目标语言输出）
 **Title**
-YourBrand action camera 4k Radfahren [SYNTH]_4K画质 4K Unterwasser
+YourBrand action camera 4k cyclisme [SYNTH]_4K画质 4K
 
 **Bullets**
-1. Comes with multiple Halterunging accessories, designed for Radfahren, features 4K画质, supports 30m wasserdicht
-2. Supports 4K 30fps HD-Aufnahme, optimized for Unterwasser, Akkulaufzeit 150min
-3. Compared to competitors, wasserdichte Actionkamera performs better in Reisen, Akkulaufzeit 150min
-4. vielseitiges Design, suitable for Familie (based on lab test data), maximaler Speicher 256GB
-5. Provides 12 Monate Garantie, professional customer support, compatible with multiple devices, Akkulaufzeit 150min
+1. Comes with multiple supporting accessories, designed for cyclisme, features 4K画质, supports 30m étanche
+2. Supports 4K 30fps enregistrement HD, optimized for plongée, autonomie 150min
+3. Compared to competitors, caméra d'action étanche performs better in voyage, autonomie 150min
+4. conception polyvalente, suitable for famille (requires smartphone app connection), max storage 256 Go
+5. Provides 12 mois garantie, professional customer support, compatible with multiple devices, autonomie 150min
 
 **Description**
-The YourBrand Actionkamera 4k Radfahren [SYNTH]_4K画质 4K Unterwasser is designed for Radfahren, delivering professional-grade 4K画质 experience. Features 4K画质, 电子Bildstabilisierung, WLAN-Verbindung and more, 
+The YourBrand caméra d'action 4k cyclisme [SYNTH]_4K画质 4K is designed for cyclisme, delivering professional-grade 4K画质 experience. Features 4K画质, 电子stabilisation, connexion WiFi and more, 
 
 Key Features:
-• Comes with multiple Halterunging accessories, designed for Radfahren, features 4K画质, supports 30m wasserdicht
-• Supports 4K 30fps HD-Aufnahme, optimized for Unterwasser, Akkulaufzeit 150min
-• Compared to competitors, wasserdichte Actionkamera performs better in Reisen, Akkulaufzeit 150min
+• Comes with multiple supporting accessories, designed for cyclisme, features 4K画质, supports 30m étanche
+• Supports 4K 30fps enregistrement HD, optimized for plongée, autonomie 150min
+• Compared to competitors, caméra d'action étanche performs better in voyage, autonomie 150min
 
 立即购买，开启您的拍摄之旅！
 
-Package includes: Wassergehäuse, Magnet-Halsband, Halterung
+Package includes: boîtier waterproof, 磁吸挂绳, support
 
 **FAQ**
-- Q: Ist das Produkt wasserdicht?
-  A: Ja, es wird mit einem Wassergehäuse geliefert, das 30米 unterstützt.
-- Q: Wie lange hält der Akku?
-  A: Der Akku hält ca. 150分钟 und unterstützt Aufladen während der Aufnahme.
-- Q: Welche Speicherkarten werden unterstützt?
-  A: Unterstützt Micro SD-Karten bis zu 256GB.
-- Q: Wie übertrage ich Dateien?
-  A: Dateien können über WLAN oder USB-Verbindung übertragen werden.
-- Q: Wie lang ist die Garantiezeit?
-  A: 12个月 Garantie mit deutschlandweitem Service.
+- Q: Le produit est-t-il waterproof?
+  A: Oui, il est livré avec un boîtier waterproof supportant 30米.
+- Q: Quelle est l'autonomie de la batterie?
+  A: La batterie dure environ 150分钟 et supporte la charge pendant l'enregistrement.
+- Q: Quelles cartes mémoire sont supportées?
+  A: Supporte les cartes Micro SD jusqu'à 256GB.
+- Q: Comment transférer les fichiers?
+  A: Les fichiers peuvent être transférés via WiFi ou connexion USB.
+- Q: Quelle est la période de garantie?
+  A: Garantie 12个月 avec couverture nationale.
 
 **Search Terms**
-travel_documentation, 电子防抖, Actionkamera, underwater_exploration, YourBrand, WiFi连接, Sportkamera, family_use, 4K画质, cycling_recording, Videokamera, Aufnahmegerät
+WiFi连接, YourBrand, caméra sport, 电子防抖, family_use, caméscope, appareil d'enregistrement, underwater_exploration, caméra d'action, travel_documentation, cycling_recording, 4K画质
 
 **A+ Content**
 # YourBrand Action Camera - Professional Shooting Solution
@@ -169,9 +169,9 @@ Experience the YourBrand Action Camera now and record every exciting moment! Pro
 ## Module 7：Rufus Q&A 种子列表
 | 序号 | 问题种子 | 答案要点 |
 | --- | --- | --- |
-| 1 | Ist das Produkt wasserdicht? | Ja, es wird mit einem Wassergehäuse geliefert, das 30米 unterstützt. |
-| 2 | Wie lange hält der Akku? | Der Akku hält ca. 150分钟 und unterstützt Aufladen während der Aufnahme. |
-| 3 | Welche Speicherkarten werden unterstützt? | Unterstützt Micro SD-Karten bis zu 256GB. |
+| 1 | Le produit est-t-il waterproof? | Oui, il est livré avec un boîtier waterproof supportant 30米. |
+| 2 | Quelle est l'autonomie de la batterie? | La batterie dure environ 150分钟 et supporte la charge pendant l'enregistrement. |
+| 3 | Quelles cartes mémoire sont supportées? | Supporte les cartes Micro SD jusqu'à 256GB. |
 
 ## Module 8：算法对齐评分 & 摘要
 ### A10 维度
@@ -210,7 +210,7 @@ Experience the YourBrand Action Camera now and record every exciting moment! Pro
 - 说明: 价格数据缺失，跳过评分
 
 ### 规则附加检查
-- 边界声明: 已检测 → vielseitiges Design, suitable for Familie (based on lab test data), maximaler Speicher 256GB
+- 边界声明: 已检测 → conception polyvalente, suitable for famille (requires smartphone app connection), max storage 256 Go
 - A+ 字数: 515 词，满足下限: True
 
 ### 算法对齐摘要

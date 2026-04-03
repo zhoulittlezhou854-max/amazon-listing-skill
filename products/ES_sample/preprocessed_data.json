@@ -1,7 +1,7 @@
 {
   "preprocessed_data": {
     "run_config": {
-      "target_country": "DE",
+      "target_country": "ES",
       "brand_name": "YourBrand",
       "core_selling_points_raw": "4K录像，电子防抖，WiFi连接，双屏幕",
       "accessory_params_raw": "防水壳30米，磁吸挂绳，车把支架，头盔底座",
@@ -63,12 +63,12 @@
       "keyword_data_availability": "缺失",
       "review_insight_availability": "缺失"
     },
-    "language": "German",
-    "target_country": "DE",
+    "language": "Spanish",
+    "target_country": "ES",
     "reasoning_language": "EN",
     "data_mode": "SYNTHETIC_COLD_START",
     "data_mode_note": "ABA rows: 0, Review rows: 0, Total: 0",
-    "processed_at": "2026-04-03T15:35:36.210939"
+    "processed_at": "2026-04-03T15:35:41.416058"
   },
   "keyword_data": {
     "keywords": []
