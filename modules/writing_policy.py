@@ -33,16 +33,16 @@ ACTION_CAMERA_SCENES = [
     "sports_training", "sports_event_recording", "wilderness_exploration", "extreme_sports", "daily_lifelogging"
 ]
 
-# 能力与场景的默认绑定关系
+# 能力与场景的默认绑定关系 (English scene labels internally)
 DEFAULT_CAPABILITY_SCENE_BINDINGS = {
-    "4K录像": ["户外运动", "水下探索", "旅行记录", "赛事记录"],
-    "防抖": ["骑行记录", "滑雪运动", "登山徒步", "运动训练"],
-    "防水": ["水下探索", "雨天使用", "游泳", "冲浪"],
-    "WiFi连接": ["家庭使用", "vlog制作", "日常记录", "宠物拍摄"],
-    "双屏幕": ["自拍vlog", "家庭使用", "旅行记录", "宠物拍摄"],
-    "长续航": ["户外运动", "登山徒步", "自驾游", "野外探险"],
-    "语音控制": ["运动训练", "骑行记录", "滑雪运动", "极限运动"],
-    "直播功能": ["赛事记录", "vlog制作", "户外运动", "旅行记录"]
+    "4K录像": ["outdoor_sports", "underwater_exploration", "travel_documentation", "sports_event_recording"],
+    "防抖": ["cycling_recording", "skiing", "hiking_trekking", "sports_training"],
+    "防水": ["underwater_exploration", "rainy_use", "swimming", "surfing"],
+    "WiFi连接": ["family_use", "vlog_content_creation", "daily_lifelogging", "pet_photography"],
+    "双屏幕": ["selfie_vlog", "family_use", "travel_documentation", "pet_photography"],
+    "长续航": ["outdoor_sports", "hiking_trekking", "road_trip", "wilderness_exploration"],
+    "语音控制": ["sports_training", "cycling_recording", "skiing", "extreme_sports"],
+    "直播功能": ["sports_event_recording", "vlog_content_creation", "outdoor_sports", "travel_documentation"]
 }
 
 # 需要限制的能力（只能在FAQ中提及）
