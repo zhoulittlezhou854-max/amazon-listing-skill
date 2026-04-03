@@ -1,0 +1,12 @@
+品牌: YourBrand
+型号: T70M Pro
+video_resolution: 4K 60fps
+waterproof_depth: 30米（需使用防水壳）
+battery_life: 180分钟
+image_stabilization: EIS 电子防抖
+connectivity: WiFi, Bluetooth, USB-C
+weight: 120g
+max_storage: 256GB
+included_components: 主机, 防水壳, 磁吸挂绳, 车把支架, 头盔底座
+warranty_period: 12个月
+price: 219

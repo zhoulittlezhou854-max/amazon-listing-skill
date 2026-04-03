@@ -154,6 +154,99 @@
       "review_insight_availability": "有限"
     },
     "language": "German",
-    "processed_at": "2026-04-03T14:06:38.368838"
+    "processed_at": "2026-04-03T14:31:52.508200"
+  },
+  "keyword_data": {
+    "keywords": [
+      {
+        "keyword": "action camera 4k",
+        "search_volume": 18000,
+        "conversion_rate": 2.1,
+        "avg_price": 199
+      },
+      {
+        "keyword": "helmet camera",
+        "search_volume": 7200,
+        "conversion_rate": 1.8,
+        "avg_price": 185
+      },
+      {
+        "keyword": "waterproof sports cam",
+        "search_volume": 4200,
+        "conversion_rate": 1.6,
+        "avg_price": 210
+      },
+      {
+        "keyword": "dual screen action cam",
+        "search_volume": 2500,
+        "conversion_rate": 1.4,
+        "avg_price": 215
+      },
+      {
+        "keyword": "wifi sports camera",
+        "search_volume": 1200,
+        "conversion_rate": 1.2,
+        "avg_price": 180
+      }
+    ]
+  },
+  "review_data": {
+    "insights": [
+      {
+        "field_name": "Feature_Praise",
+        "content_text": "画质清晰，夜拍表现好",
+        "sentiment": "positive",
+        "count": 34
+      },
+      {
+        "field_name": "Feature_Praise",
+        "content_text": "附带的磁吸挂绳非常方便",
+        "sentiment": "positive",
+        "count": 12
+      },
+      {
+        "field_name": "negative_pain",
+        "content_text": "原厂配件不足，需自行购买",
+        "sentiment": "negative",
+        "count": 8
+      },
+      {
+        "field_name": "high_freq_question",
+        "content_text": "防水壳需要注意什么？",
+        "sentiment": "neutral",
+        "count": 5
+      },
+      {
+        "field_name": "rufus_faq",
+        "content_text": "电池续航能否覆盖整天骑行？",
+        "sentiment": "neutral",
+        "count": 11
+      }
+    ]
+  },
+  "aba_data": {
+    "trends": [
+      {
+        "keyword": "action camera",
+        "search_volume": 20000,
+        "conversion_rate": 2.3,
+        "click_share": 0.45,
+        "avg_cpc": 1.2
+      },
+      {
+        "keyword": "mountain bike camera",
+        "search_volume": 6500,
+        "conversion_rate": 1.7,
+        "click_share": 0.38,
+        "avg_cpc": 0.9
+      },
+      {
+        "keyword": "surf camera waterproof",
+        "search_volume": 3100,
+        "conversion_rate": 1.5,
+        "click_share": 0.32,
+        "avg_cpc": 1.1
+      }
+    ]
   }
 }
