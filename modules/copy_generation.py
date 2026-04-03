@@ -914,6 +914,305 @@ Experience the {brand} Action Camera now and record every exciting moment! Profe
     return aplus
 
 
+# ==================== PRD v8.2 Node 4 多语言生成 ====================
+
+# 多语言翻译映射 (English -> Target Language)
+CAPABILITY_TRANSLATIONS = {
+    "German": {
+        "4K录像": "4K Aufnahme",
+        "4K video": "4K Video",
+        "防抖": "Bildstabilisierung",
+        "stabilization": "Bildstabilisierung",
+        "EIS防抖": "EIS Bildstabilisierung",
+        "防水": "Wasserdicht",
+        "waterproof": "wasserdicht",
+        "WiFi连接": "WiFi Verbindung",
+        "WiFi": "WiFi",
+        "双屏幕": "Dual Screen",
+        "dual screen": "Dual Screen",
+        "高清录像": "HD Aufnahme",
+        "长续航": "lange Akkulaufzeit",
+        "long battery": "lange Akkulaufzeit"
+    },
+    "French": {
+        "4K录像": "enregistrement 4K",
+        "4K video": "vidéo 4K",
+        "防抖": "stabilisation",
+        "stabilization": "stabilisation",
+        "防水": "étanche",
+        "waterproof": "étanche",
+        "WiFi连接": "connexion WiFi",
+        "双屏幕": "écran double",
+        "dual screen": "double écran"
+    },
+    "Spanish": {
+        "4K录像": "grabación 4K",
+        "4K video": "vídeo 4K",
+        "防抖": "estabilización",
+        "stabilization": "estabilización",
+        "防水": "resistente al agua",
+        "waterproof": "impermeable",
+        "WiFi连接": "conexión WiFi",
+        "双屏幕": "pantalla dual",
+        "dual screen": "pantalla dual"
+    },
+    "Italian": {
+        "4K录像": "registrazione 4K",
+        "4K video": "video 4K",
+        "防抖": "stabilizzazione",
+        "stabilization": "stabilizzazione",
+        "防水": "impermeabile",
+        "waterproof": "impermeabile",
+        "WiFi连接": "connessione WiFi",
+        "双屏幕": "schermo doppio",
+        "dual screen": "doppio schermo"
+    }
+}
+
+# 场景翻译映射 (English -> Target Language)
+SCENE_TRANSLATIONS = {
+    "German": {
+        "cycling_recording": "Radfahren",
+        "underwater_exploration": "Unterwasser",
+        "travel_documentation": "Reise",
+        "family_use": "Familie",
+        "outdoor_sports": "Outdoor Sport",
+        "hiking_trekking": "Wandern",
+        "skiing": "Skifahren",
+        "road_trip": "Autoreise",
+        "vlog_content_creation": "Vlog"
+    },
+    "French": {
+        "cycling_recording": "cyclisme",
+        "underwater_exploration": "plongée",
+        "travel_documentation": "voyage",
+        "family_use": "famille",
+        "outdoor_sports": "sports outdoor",
+        "hiking_trekking": "randonnée"
+    },
+    "Spanish": {
+        "cycling_recording": "ciclismo",
+        "underwater_exploration": "submarino",
+        "travel_documentation": "viaje",
+        "family_use": "familia",
+        "outdoor_sports": "deportes al aire libre",
+        "hiking_trekking": "senderismo"
+    },
+    "Italian": {
+        "cycling_recording": "ciclismo",
+        "underwater_exploration": "subacqueo",
+        "travel_documentation": "viaggio",
+        "family_use": "famiglia",
+        "outdoor_sports": "sport all'aperto",
+        "hiking_trekking": "escursionismo"
+    }
+}
+
+
+def _translate_capability(capability: str, target_language: str) -> str:
+    """将能力词翻译为目标语言，若无映射则原样返回并标记 [SYNTH]"""
+    if target_language == "English":
+        return capability
+
+    translations = CAPABILITY_TRANSLATIONS.get(target_language, {})
+    translated = translations.get(capability, capability)
+
+    if translated == capability and target_language != "English":
+        return f"[SYNTH]_{capability}"
+    return translated
+
+
+def _translate_scene(scene_label: str, target_language: str) -> str:
+    """将英文场景标签翻译为目标语言，若无映射则原样返回并标记 [SYNTH]"""
+    if target_language == "English":
+        return scene_label
+
+    translations = SCENE_TRANSLATIONS.get(target_language, {})
+    translated = translations.get(scene_label, scene_label)
+
+    if translated == scene_label and target_language != "English":
+        return f"[SYNTH]_{scene_label}"
+    return translated
+
+
+def _build_english_title_structure(preprocessed_data: Any, writing_policy: Dict[str, Any],
+                                    tiered_keywords: Dict[str, List[str]],
+                                    keyword_allocation_strategy: str) -> Dict[str, Any]:
+    """
+    PRD v8.2: 第一阶段 - 用 English 构建标题信息结构
+    返回: {brand, l1_keywords, scene_1, capability_1, scene_2, resolution}
+    """
+    brand = preprocessed_data.run_config.brand_name if hasattr(preprocessed_data.run_config, 'brand_name') else "Brand"
+
+    # 获取 Profile 中的 hero_spec
+    profile = writing_policy.get("product_profile", {})
+    hero_spec = profile.get("hero_spec", "action camera")
+
+    # 获取场景
+    scenes_en = profile.get("primary_use_cases", ["outdoor_sports", "cycling_recording"])
+
+    # 获取 L1 关键词
+    l1_keywords = tiered_keywords.get("l1", [])
+    if not l1_keywords:
+        l1_keywords = ["action camera 4k"]
+
+    # 获取分辨率
+    attr_data = preprocessed_data.attribute_data.data if hasattr(preprocessed_data.attribute_data, 'data') else {}
+    resolution = attr_data.get('video_resolution', '4K')
+
+    return {
+        "brand": brand,
+        "l1_keywords": l1_keywords,
+        "scene_1": scenes_en[0] if scenes_en else "outdoor_sports",
+        "scene_2": scenes_en[1] if len(scenes_en) > 1 else scenes_en[0],
+        "hero_spec": hero_spec,
+        "resolution": resolution
+    }
+
+
+def _generate_title_in_language(title_struct: Dict[str, Any], target_language: str,
+                                 keyword_allocation_strategy: str) -> str:
+    """
+    PRD v8.2: 第二阶段 - 根据目标语言生成标题
+    """
+    brand = title_struct["brand"]
+    l1_keywords = title_struct["l1_keywords"]
+    scene_1_en = title_struct["scene_1"]
+    scene_2_en = title_struct["scene_2"]
+    hero_spec = title_struct["hero_spec"]
+    resolution = title_struct["resolution"]
+
+    # 翻译场景
+    scene_1 = _translate_scene(scene_1_en, target_language)
+    scene_2 = _translate_scene(scene_2_en, target_language)
+
+    # 翻译 hero_spec
+    hero_spec_translated = _translate_capability(hero_spec, target_language)
+
+    # 构建标题
+    if target_language == "English":
+        title = f"{brand} {l1_keywords[0]} {scene_1} {hero_spec_translated} {resolution}"
+    elif target_language == "German":
+        title = f"{brand} {l1_keywords[0]} {scene_1} {hero_spec_translated} {resolution} {scene_2}"
+    else:
+        title = f"{brand} {l1_keywords[0]} {scene_1} {hero_spec_translated} {resolution}"
+
+    # 清理 [SYNTH] 标记在标题中的显示（可选择保留或移除）
+    # 这里保留 [SYNTH] 用于审计
+    return title
+
+
+def generate_multilingual_copy(preprocessed_data: PreprocessedData,
+                              writing_policy: Dict[str, Any],
+                              language: str = None) -> Dict[str, Any]:
+    """
+    PRD v8.2 Node 4: 多语言文案生成
+
+    流程:
+    1. 从 writing_policy.product_profile 提取 English 策略
+    2. 从 writing_policy.intent_graph 提取 English Intent Graph
+    3. 内部规划用 English 构建信息结构
+    4. 最后一步根据 target_language 翻译/生成目标语句子
+    5. 缺本地词时添加 [SYNTH] 标记
+
+    Args:
+        preprocessed_data: 预处理数据
+        writing_policy: writing_policy策略 (含 product_profile, intent_graph)
+        language: 目标语言 (默认从 preprocessed_data.language 获取)
+
+    Returns:
+        包含所有文案组件的字典
+    """
+    # 确定目标语言
+    target_language = language or getattr(preprocessed_data, 'language', 'English')
+
+    # PRD v8.2: 从 Profile 获取 reasoning_language (固定为 EN)
+    profile = writing_policy.get("product_profile", {})
+    reasoning_language = profile.get("reasoning_language", "EN")
+    data_mode = getattr(preprocessed_data, 'data_mode', 'SYNTHETIC_COLD_START')
+
+    # 读取关键词分配策略
+    keyword_allocation_strategy = writing_policy.get("keyword_allocation_strategy", "balanced")
+
+    # 提取分层关键词
+    tiered_keywords = extract_tiered_keywords(preprocessed_data.keyword_data, "English")
+    l1_keywords = tiered_keywords.get("l1", [])
+
+    # 第一阶段: 用 English 构建标题结构
+    title_struct = _build_english_title_structure(
+        preprocessed_data, writing_policy, tiered_keywords, keyword_allocation_strategy
+    )
+
+    # 第二阶段: 生成目标语言标题
+    title = _generate_title_in_language(title_struct, target_language, keyword_allocation_strategy)
+
+    # 生成 bullets (使用现有逻辑，但传入 English 关键词和目标语言)
+    bullets_en = generate_bullet_points(preprocessed_data, writing_policy, "English",
+                                        tiered_keywords, keyword_allocation_strategy)
+
+    # 翻译 bullets 到目标语言
+    bullets = []
+    for bullet in bullets_en:
+        # 简单翻译：替换已知的能力词和场景词
+        bullet_translated = bullet
+        for eng_cap, trans_map in CAPABILITY_TRANSLATIONS.get(target_language, {}).items():
+            bullet_translated = bullet_translated.replace(eng_cap, trans_map)
+        for eng_scene, trans_map in SCENE_TRANSLATIONS.get(target_language, {}).items():
+            bullet_translated = bullet_translated.replace(eng_scene, trans_map)
+
+        # 如果是 SYNTHETIC_COLD_START 且没有翻译发生，标记 [SYNTH]
+        if data_mode == "SYNTHETIC_COLD_START" and bullet_translated == bullet:
+            # 检查是否包含需要翻译的词
+            if any(cap in bullet for cap in ["action camera", "stabilization", "waterproof", "4K"]):
+                bullet_translated = bullet_translated.replace(
+                    "action camera", f"[SYNTH]_action camera"
+                )
+        bullets.append(bullet_translated)
+
+    # 生成描述
+    description_en = generate_description(preprocessed_data, writing_policy, title, bullets_en, "English")
+    # 简单翻译描述
+    description = description_en
+    for eng_cap, trans in CAPABILITY_TRANSLATIONS.get(target_language, {}).items():
+        description = description.replace(eng_cap, trans)
+
+    # 生成 FAQ
+    faq = generate_faq(preprocessed_data, writing_policy, target_language)
+
+    # 生成搜索词
+    search_terms = generate_search_terms(preprocessed_data, writing_policy, title, bullets,
+                                         target_language, tiered_keywords)
+
+    # 生成 A+ 内容
+    aplus_content = generate_aplus_content(preprocessed_data, writing_policy, target_language)
+
+    # 构建完整文案
+    copy_dict = {
+        "title": title,
+        "bullets": bullets,
+        "description": description,
+        "faq": faq,
+        "search_terms": search_terms,
+        "aplus_content": aplus_content,
+        "metadata": {
+            "version": "v8.2",
+            "reasoning_language": reasoning_language,
+            "target_language": target_language,
+            "data_mode": data_mode,
+            "has_synthetic": "[SYNTH]" in title or any("[SYNTH]" in b for b in bullets),
+            "title_length": len(title),
+            "bullets_count": len(bullets),
+            "description_length": len(description),
+            "faq_count": len(faq),
+            "search_terms_count": len(search_terms),
+            "aplus_content_length": len(aplus_content),
+            "generated_at": preprocessed_data.processed_at
+        }
+    }
+
+    return copy_dict
+
+
 def generate_listing_copy(preprocessed_data: PreprocessedData,
                          writing_policy: Dict[str, Any],
                          language: str = "Chinese") -> Dict[str, Any]:
