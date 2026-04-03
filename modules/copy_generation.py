@@ -630,21 +630,37 @@ def generate_search_terms(preprocessed_data: PreprocessedData,
                          writing_policy: Dict[str, Any],
                          title: str,
                          bullets: List[str],
-                         language: str = "Chinese") -> List[str]:
+                         language: str = "Chinese",
+                         tiered_keywords: Dict[str, List[str]] = None) -> List[str]:
     """
-    生成搜索词
+    生成搜索词 - 优化版：优先使用L2/L3长尾关键词
     """
     search_terms = set()
     core_capabilities = preprocessed_data.core_selling_points
     scenes = writing_policy.get('scene_priority', [])
+
+    # 获取L2/L3关键词（优先使用长尾词）
+    l2_keywords = tiered_keywords.get("l2", []) if tiered_keywords else []
+    l3_keywords = tiered_keywords.get("l3", []) if tiered_keywords else []
+
+    # 添加L2/L3长尾关键词（优先）
+    for kw in l2_keywords[:3]:
+        search_terms.add(kw)
+    for kw in l3_keywords[:3]:
+        search_terms.add(kw)
 
     # 添加核心能力词
     for capability in core_capabilities[:3]:
         search_terms.add(capability)
 
     # 添加场景词
-    for scene in scenes[:3]:
+    for scene in scenes[:4]:  # 增加到4个场景
         search_terms.add(scene)
+
+    # 添加L1类目词（英文原词用于搜索）
+    l1_keywords = tiered_keywords.get("l1", []) if tiered_keywords else []
+    for kw in l1_keywords[:2]:
+        search_terms.add(kw)
 
     # 添加类目词
     category_terms = {
