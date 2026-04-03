@@ -397,9 +397,9 @@ def generate_bullet_points(preprocessed_data: PreprocessedData,
         content = f"多功能设计，满足多种拍摄需求{boundary}，重量仅{weight}"
         bullets.append(template.format(content=content))
 
-    # B5: P2质保/售后/兼容性
+    # B5: P2质保/售后/兼容性 + 数字参数
     template = BULLET_TEMPLATES["B5"].get(language, BULLET_TEMPLATES["B5"]["English"])
-    content = "提供12个月质保，专业客服支持，兼容多种设备"
+    content = f"提供{warranty_period}质保，专业客服支持，兼容多种设备，电池续航{battery_life}"
     bullets.append(template.format(content=content))
 
     # 清理模板标记
