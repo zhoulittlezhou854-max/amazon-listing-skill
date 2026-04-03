@@ -116,13 +116,14 @@ def _score_conversion_signals(bullets: List[str], attribute_data: Dict[str, Any]
 
     # B1 应为 P0 tier（核心能力+主场景）
     if len(bullets) >= 1:
-        # 简单检查：B1是否包含数字和关键描述
         bullet1 = bullets[0].lower()
-        # 检查是否包含数字和场景/能力关键词
-        has_number = bool(re.search(r"\d", bullet1))
-        # 包含"防水"、"防抖"、"4K"等关键词
-        has_keyword = any(kw in bullet1 for kw in ["防水", "防抖", "4k", "wifi", "双屏幕", "waterproof", "stabilization", "dual screen"])
-        if has_number and has_keyword:
+        # P0 tier检查：核心能力关键词 + 主场景关键词
+        core_keywords = ["防水", "防抖", "4k", "wifi", "双屏幕", "waterproof", "stabilization", "dual screen", "image stabilization", "dual screen"]
+        scene_keywords = ["水下", "骑行", "旅行", "户外", "运动", "underwater", "biking", "travel", "outdoor", "sports"]
+
+        has_core = any(kw in bullet1 for kw in core_keywords)
+        has_scene = any(kw in bullet1 for kw in scene_keywords)
+        if has_core and has_scene:
             score += 10
             notes.append("B1符合P0 tier")
 
@@ -131,16 +132,22 @@ def _score_conversion_signals(bullets: List[str], attribute_data: Dict[str, Any]
     if len(bullets) >= 3:
         bullet2 = bullets[1].lower() if len(bullets) > 1 else ""
         bullet3 = bullets[2].lower() if len(bullets) > 2 else ""
-        # 检查是否包含数字和量化参数
-        has_number2 = bool(re.search(r"\d", bullet2))
-        has_number3 = bool(re.search(r"\d", bullet3))
-        # 检查是否包含参数关键词（如分钟、米、gb、g等）
-        has_param2 = any(kw in bullet2 for kw in ["分钟", "米", "gb", "g", "min", "m", "克", "续航", "存储", "重量"])
-        has_param3 = any(kw in bullet3 for kw in ["分钟", "米", "gb", "g", "min", "m", "克", "续航", "存储", "重量"])
-        if has_number2 and has_param2:
+
+        # P1 tier检查：量化参数关键词 + 场景词
+        param_keywords = ["分钟", "米", "gb", "g", "克", "续航", "存储", "重量", "小时", "mm", "min", "hour", "gram", "storage", "weight", "battery"]
+
+        # B2检查
+        has_param2 = any(kw in bullet2 for kw in param_keywords)
+        has_scene2 = any(kw in bullet2 for kw in scene_keywords) if 'scene_keywords' in locals() else False
+        if has_param2 and has_scene2:
             p1_score += 5
-        if has_number3 and has_param3:
+
+        # B3检查
+        has_param3 = any(kw in bullet3 for kw in param_keywords)
+        has_scene3 = any(kw in bullet3 for kw in scene_keywords) if 'scene_keywords' in locals() else False
+        if has_param3 and has_scene3:
             p1_score += 5
+
     if p1_score > 0:
         score += p1_score
         notes.append(f"B2-B3 P1 tier得分{p1_score}")
@@ -150,16 +157,21 @@ def _score_conversion_signals(bullets: List[str], attribute_data: Dict[str, Any]
     if len(bullets) >= 5:
         bullet4 = bullets[3].lower() if len(bullets) > 3 else ""
         bullet5 = bullets[4].lower() if len(bullets) > 4 else ""
-        # 检查边界声明关键词
-        has_boundary4 = any(kw in bullet4 for kw in ["需", "需要", "not", "（", "(", "with ", "in "])
-        has_warranty5 = any(kw in bullet5 for kw in ["质保", "保修", "warranty", "售后", "支持", "兼容"])
-        # 检查是否包含数字
-        has_number4 = bool(re.search(r"\d", bullet4))
-        has_number5 = bool(re.search(r"\d", bullet5))
-        if (has_boundary4 or has_number4):
+
+        # P2 tier检查：边界声明或质保售后关键词
+        boundary_keywords = ["需", "需要", "not", "（", "(", "with ", "in ", "requires", "needs", "with the", "when using"]
+        warranty_keywords = ["质保", "保修", "warranty", "售后", "支持", "兼容", "after-sale", "support", "compatible", "guarantee"]
+
+        # B4检查：边界声明
+        has_boundary4 = any(kw in bullet4 for kw in boundary_keywords)
+        if has_boundary4:
             p2_score += 5
-        if (has_warranty5 or has_number5):
+
+        # B5检查：质保售后
+        has_warranty5 = any(kw in bullet5 for kw in warranty_keywords)
+        if has_warranty5:
             p2_score += 5
+
     if p2_score > 0:
         score += p2_score
         notes.append(f"B4-B5 P2 tier得分{p2_score}")
