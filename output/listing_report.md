@@ -1,27 +1,27 @@
 # Amazon Listing 最终仲裁报告
-- 生成时间：2026-04-03T10:51:17.448182
+- 生成时间：2026-04-03T11:08:58.710486
 - 站点：DE
 - 品牌：TOSBARRFT
 - Listing 语言：German
 
 ## Module 1：最终 Listing（目标语言输出）
 **Title**
-TOSBARRFT helmet camera Unterwasser Erkundung Dual Screen Bildstabilisierung
+TOSBARRFT dual screen action cam Unterwasser Erkundung Dual Screen Bildstabilisierung
 
 **Bullets**
-1. 配备多种挂载配件，专为水下探索设计，提供双屏幕功能
-2. 提供双屏幕功能，性能出色可靠
-3. 相比竞品，在户外运动场景下防抖表现更优异
-4. 支持WiFi连接，适用于运动训练(in specific modes)
-5. 提供12个月质保，专业客服支持，兼容多种设备
+1. 配备多种挂载配件，专为水下探索设计，提供双屏幕功能，支持30米（需使用防水壳）防水
+2. 提供双屏幕功能，性能出色可靠，重量仅150g
+3. 相比竞品，在运动训练场景下防抖表现更优异，电池续航150分钟
+4. 支持WiFi连接，适用于旅行记录(with waterproof case)，最大存储256GB
+5. 提供12个月质保，专业客服支持，兼容多种设备，电池续航150分钟
 
 **Description**
-The TOSBARRFT helmet camera Unterwasser Erkundung Dual Screen Bildstabilisierung is designed for 水下探索, delivering professional-grade 双屏幕 experience. 具备双屏幕, 防抖, WiFi连接等多项功能，
+The TOSBARRFT dual screen action cam Unterwasser Erkundung Dual Screen Bildstabilisierung is designed for 水下探索, delivering professional-grade 双屏幕 experience. 具备双屏幕, 防抖, WiFi连接等多项功能，
 
 Key Features:
-• 配备多种挂载配件，专为水下探索设计，提供双屏幕功能
-• 提供双屏幕功能，性能出色可靠
-• 相比竞品，在户外运动场景下防抖表现更优异
+• 配备多种挂载配件，专为水下探索设计，提供双屏幕功能，支持30米（需使用防水壳）防水
+• 提供双屏幕功能，性能出色可靠，重量仅150g
+• 相比竞品，在运动训练场景下防抖表现更优异，电池续航150分钟
 
 立即购买，开启您的拍摄之旅！
 
@@ -40,13 +40,13 @@ Package includes: 防水壳, 磁吸挂绳, 支架
   A: It comes with 12个月 warranty with nationwide service coverage.
 
 **Search Terms**
-户外运动, Actionkamera, 运动训练, Videokamera, Aufnahmegerät, 水下探索, Sportkamera, 双屏幕, 防抖, WiFi连接
+运动训练, Videokamera, 防抖, Actionkamera, 双屏幕, 旅行记录, Sportkamera, 水下探索, Aufnahmegerät, WiFi连接
 
 **A+ Content**
 # TOSBARRFT Action Camera - Professional Shooting Solution
 
 ## Product Overview
-The TOSBARRFT Action Camera is designed for 水下探索, 户外运动, 运动训练 and other scenarios, delivering professional-grade shooting experience. Features core capabilities like 双屏幕, 防抖, WiFi连接 to meet various shooting needs.
+The TOSBARRFT Action Camera is designed for 水下探索, 运动训练, 旅行记录 and other scenarios, delivering professional-grade shooting experience. Features core capabilities like 双屏幕, 防抖, WiFi连接 to meet various shooting needs.
 
 ## Core Technologies
 ### 1. High-Definition Imaging System
@@ -139,9 +139,9 @@ Experience the TOSBARRFT Action Camera now and record every exciting moment! Pro
 | 关键词 | 层级 | 出现位置 |
 | --- | --- | --- |
 | action camera 4k | L1 | 未覆盖 |
-| helmet camera | L2 | Title、Description |
+| helmet camera | L2 | 未覆盖 |
 | waterproof sports cam | L2 | 未覆盖 |
-| dual screen action cam | L2 | 未覆盖 |
+| dual screen action cam | L2 | Title、Description |
 | wifi sports camera | L2 | 未覆盖 |
 
 ## Module 3：合规红线检查
@@ -167,10 +167,10 @@ Experience the TOSBARRFT Action Camera now and record every exciting moment! Pro
 | STAG 场景 | 优先关键词 | 目标人群 | 投放建议 |
 | --- | --- | --- | --- |
 | 水下探索 | 水下探索 | 目标人群：潜水爱好者25-50岁，水上运动爱好者，海洋摄影师 | 建议：围绕水下探索场景组合 SB/SP 广告，融入高转化词。 |
-| 户外运动 | 户外运动 | 目标人群：户外运动爱好者20-40岁，登山、滑雪、徒步爱好者 | 建议：围绕户外运动场景组合 SB/SP 广告，融入高转化词。 |
 | 运动训练 | 运动训练 | 目标人群：健身爱好者18-35岁，运动员，体育教练，训练记录者 | 建议：围绕运动训练场景组合 SB/SP 广告，融入高转化词。 |
-| 家庭使用 | 户外运动、Actionkamera | 目标人群：家庭用户25-45岁，宠物主人，亲子家庭，生活记录者 | 建议：围绕家庭使用场景组合 SB/SP 广告，融入高转化词。 |
-| 骑行记录 | 户外运动、Actionkamera | 目标人群：骑行爱好者25-45岁，通勤族，户外运动达人 | 建议：围绕骑行记录场景组合 SB/SP 广告，融入高转化词。 |
+| 旅行记录 | 旅行记录 | 目标人群：旅行爱好者22-55岁，背包客，旅游博主，家庭出游 | 建议：围绕旅行记录场景组合 SB/SP 广告，融入高转化词。 |
+| 户外运动 | 运动训练、Videokamera | 目标人群：户外运动爱好者20-40岁，登山、滑雪、徒步爱好者 | 建议：围绕户外运动场景组合 SB/SP 广告，融入高转化词。 |
+| 骑行记录 | 运动训练、Videokamera | 目标人群：骑行爱好者25-45岁，通勤族，户外运动达人 | 建议：围绕骑行记录场景组合 SB/SP 广告，融入高转化词。 |
 
 ## Module 7：Rufus Q&A 种子列表
 | 序号 | 问题种子 | 答案要点 |
@@ -187,18 +187,18 @@ Experience the TOSBARRFT Action Camera now and record every exciting moment! Pro
 | --- | --- | --- | --- |
 | title_front_80 | 40 | 15 | 包含品牌 |
 | keyword_tiering | 30 | 10 | L1:0 L2:1 L3:0 |
-| conversion_signals | 30 | 14 | 含数字 Bullets 1/5，属性参数 3 |
+| conversion_signals | 30 | 30 | 含数字 Bullets 5/5，属性参数 3 |
 
-> 小计：39 分
+> 小计：55 分
 
 ### COSMO 维度
 | 指标 | 满分 | 得分 | 说明 |
 | --- | --- | --- | --- |
 | scene_coverage | 40 | 20 | 覆盖 3/6 个场景 |
-| capability_scene_binding | 40 | 13 | 满足 1/3 条绑定 |
+| capability_scene_binding | 40 | 30 | 满足 3/4 条绑定 |
 | audience_tags | 20 | 20 | 触达人群: 骑行, 旅行, 家庭, 户外 |
 
-> 小计：53 分
+> 小计：70 分
 
 ### Rufus 维度
 | 指标 | 满分 | 得分 | 说明 |
@@ -218,9 +218,9 @@ Experience the TOSBARRFT Action Camera now and record every exciting moment! Pro
 - 说明: 品类中位 199.00 vs 当前 189.00
 
 ### 规则附加检查
-- 边界声明: 已检测 → 支持WiFi连接，适用于运动训练(in specific modes)
+- 边界声明: 已检测 → 配备多种挂载配件，专为水下探索设计，提供双屏幕功能，支持30米（需使用防水壳）防水
 - A+ 字数: 517 词，满足下限: True
 
 ### 算法对齐摘要
-- 总分: 188/310
-- 综合评级: 待优化 (60.6%)
+- 总分: 221/310
+- 综合评级: 良好 (71.3%)

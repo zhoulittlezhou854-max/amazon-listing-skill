@@ -35,35 +35,35 @@
     "total": 9,
     "issues": [
       {
-        "claim": "TOSBARRFT helmet camera Unterwasser Erkundung Dual Screen Bildstabilisierung",
+        "claim": "TOSBARRFT dual screen action cam Unterwasser Erkundung Dual Screen Bildstabilisierung",
         "source": "title",
         "field": "screen_type",
         "description": "屏幕类型宣称: 属性表中缺少screen_type字段数据支持",
         "severity": "high"
       },
       {
-        "claim": "配备多种挂载配件，专为水下探索设计，提供双屏幕功能",
+        "claim": "配备多种挂载配件，专为水下探索设计，提供双屏幕功能，支持30米（需使用防水壳）防水",
         "source": "bullet_1",
         "field": "screen_type",
         "description": "屏幕类型宣称: 属性表中缺少screen_type字段数据支持",
         "severity": "high"
       },
       {
-        "claim": "提供双屏幕功能，性能出色可靠",
+        "claim": "提供双屏幕功能，性能出色可靠，重量仅150g",
         "source": "bullet_2",
         "field": "screen_type",
         "description": "屏幕类型宣称: 属性表中缺少screen_type字段数据支持",
         "severity": "high"
       },
       {
-        "claim": "The TOSBARRFT helmet camera Unterwasser Erkundung Dual Screen Bildstabilisierung is designed for 水下探索, delivering professional-grade 双屏幕 experience",
+        "claim": "The TOSBARRFT dual screen action cam Unterwasser Erkundung Dual Screen Bildstabilisierung is designed for 水下探索, delivering professional-grade 双屏幕 experience",
         "source": "description",
         "field": "screen_type",
         "description": "屏幕类型宣称: 属性表中缺少screen_type字段数据支持",
         "severity": "high"
       },
       {
-        "claim": "具备双屏幕, 防抖, WiFi连接等多项功能，\n\nKey Features:\n• 配备多种挂载配件，专为水下探索设计，提供双屏幕功能\n• 提供双屏幕功能，性能出色可靠\n• 相比竞品，在户外运动场景下防抖表现更优异\n\n立即购买，开启您的拍摄之旅",
+        "claim": "具备双屏幕, 防抖, WiFi连接等多项功能，\n\nKey Features:\n• 配备多种挂载配件，专为水下探索设计，提供双屏幕功能，支持30米（需使用防水壳）防水\n• 提供双屏幕功能，性能出色可靠，重量仅150g\n• 相比竞品，在运动训练场景下防抖表现更优异，电池续航150分钟\n\n立即购买，开启您的拍摄之旅",
         "source": "description",
         "field": "screen_type",
         "description": "屏幕类型宣称: 属性表中缺少screen_type字段数据支持",

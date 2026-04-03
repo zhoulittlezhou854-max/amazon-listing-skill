@@ -1,11 +1,11 @@
 {
   "scene_priority": [
     "水下探索",
-    "户外运动",
     "运动训练",
-    "家庭使用",
+    "旅行记录",
+    "户外运动",
     "骑行记录",
-    "旅行记录"
+    "家庭使用"
   ],
   "capability_scene_bindings": [
     {
@@ -36,14 +36,23 @@
       ],
       "forbidden_scenes": [],
       "usage_notes": "可在家庭使用等场景中使用"
+    },
+    {
+      "capability": "防水",
+      "binding_type": "environmental_feature",
+      "allowed_scenes": [
+        "水下探索"
+      ],
+      "forbidden_scenes": [],
+      "usage_notes": "可在水下探索场景中使用"
     }
   ],
   "faq_only_capabilities": [
-    "质保条款细节",
-    "电池更换说明",
-    "防水深度限制",
     "数字防抖限制说明",
-    "兼容性限制"
+    "质保条款细节",
+    "兼容性限制",
+    "防水深度限制",
+    "电池更换说明"
   ],
   "forbidden_pairs": [
     [
@@ -74,7 +83,7 @@
   "metadata": {
     "core_selling_points_count": 3,
     "scenes_count": 6,
-    "bindings_count": 3,
-    "generated_at": "2026-04-03T10:51:17.448182"
+    "bindings_count": 4,
+    "generated_at": "2026-04-03T11:08:58.710486"
   }
 }

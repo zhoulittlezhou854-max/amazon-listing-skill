@@ -197,7 +197,14 @@ def extract_l1_keywords(keyword_data: Any, language: str = "Chinese") -> List[st
     if target_keyword not in l1_keywords:
         l1_keywords.insert(0, target_keyword)
 
-    return list(set(l1_keywords))[:5]  # 最多5个
+    # 去重并保持顺序
+    seen = set()
+    unique_keywords = []
+    for kw in l1_keywords:
+        if kw not in seen:
+            seen.add(kw)
+            unique_keywords.append(kw)
+    return unique_keywords[:5]  # 最多5个
 
 
 def extract_high_conv_keywords(keyword_data: Any) -> List[str]:
