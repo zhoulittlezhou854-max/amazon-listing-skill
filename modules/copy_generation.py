@@ -1687,8 +1687,8 @@ def generate_multilingual_copy(preprocessed_data: PreprocessedData,
     # 读取关键词分配策略
     keyword_allocation_strategy = writing_policy.get("keyword_allocation_strategy", "balanced")
 
-    # 提取分层关键词
-    tiered_keywords = extract_tiered_keywords(preprocessed_data.keyword_data, "English")
+    # 提取分层关键词（Priority 1: 真实国家词表，Priority 2: keyword_data）
+    tiered_keywords = extract_tiered_keywords(preprocessed_data, "English")
     l1_keywords = tiered_keywords.get("l1", [])
 
     # ---- PRD v8.2 Node 4 Phase 0: 标准化中文能力词/配件名为英文 ----
