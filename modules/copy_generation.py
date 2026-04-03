@@ -372,12 +372,13 @@ def generate_bullet_points(preprocessed_data: PreprocessedData,
             content = f"提供{capability}功能，性能出色可靠，重量仅{weight}"
         bullets.append(template.format(content=content))
 
-    # B3: P1竞品痛点对比 + 场景词
+    # B3: P1竞品痛点对比 + 场景词 + 数字参数
     if len(scenes) > 1 and len(core_capabilities) > 1:
         scene = scenes[1] if len(scenes) > 1 else scenes[0]
         capability = core_capabilities[1] if len(core_capabilities) > 1 else core_capabilities[0]
         template = BULLET_TEMPLATES["B3"].get(language, BULLET_TEMPLATES["B3"]["English"])
-        content = f"相比竞品，在{scene}场景下{capability}表现更优异"
+        # 添加电池续航参数
+        content = f"相比竞品，在{scene}场景下{capability}表现更优异，电池续航{battery_life}"
         bullets.append(template.format(content=content))
 
     # B4: P1/P2能力 + 使用场景 + 边界声明句
