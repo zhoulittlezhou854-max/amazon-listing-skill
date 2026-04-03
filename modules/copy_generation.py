@@ -146,66 +146,119 @@ FAQ_TEMPLATES = {
 }
 
 
-def extract_l1_keywords(keyword_data: Any, language: str = "Chinese") -> List[str]:
+def extract_tiered_keywords(keyword_data: Any, language: str = "Chinese") -> Dict[str, List[str]]:
     """
-    提取L1关键词（月搜索量≥10,000）
+    提取分层关键词（L1/L2/L3），使用与keyword_arsenal一致的百分位阈值逻辑
     """
-    l1_keywords = []
+    result = {"l1": [], "l2": [], "l3": []}
 
     if not keyword_data or not hasattr(keyword_data, 'keywords'):
         # 返回默认关键词
         default_keywords = {
-            "Chinese": ["运动相机", "户外相机", "防水相机", "4K相机", "防抖相机"],
-            "English": ["action camera", "sports camera", "waterproof camera", "4K camera", "stabilization camera"],
-            "German": ["Actionkamera", "Sportkamera", "Wasserdichte Kamera", "4K Kamera"],
-            "French": ["caméra d'action", "caméra sport", "caméra étanche", "caméra 4K"],
-            "Spanish": ["cámara de acción", "cámara deportiva", "cámara impermeable", "cámara 4K"],
-            "Italian": ["videocamera sportiva", "fotocamera sportiva", "fotocamera impermeabile", "fotocamera 4K"],
-            "Japanese": ["アクションカメラ", "スポーツカメラ", "防水カメラ", "4Kカメラ"]
+            "Chinese": {"l1": ["运动相机", "4K相机"], "l2": ["防水相机", "防抖相机"], "l3": ["户外相机"]},
+            "English": {"l1": ["action camera 4k"], "l2": ["sports camera", "waterproof camera"], "l3": ["helmet camera"]},
+            "German": {"l1": ["Actionkamera 4K"], "l2": ["Sportkamera", "Wasserdichte Kamera"], "l3": ["Helmkamera"]},
+            "French": {"l1": ["caméra d'action 4K"], "l2": ["caméra sport", "caméra étanche"], "l3": ["caméra casco"]},
+            "Spanish": {"l1": ["cámara de acción 4K"], "l2": ["cámara deportiva", "cámara impermeable"], "l3": ["cámara casco"]},
+            "Italian": {"l1": ["videocamera sportiva 4K"], "l2": ["fotocamera sportiva", "fotocamera impermeabile"], "l3": ["fotocamera casco"]},
+            "Japanese": {"l1": ["アクションカメラ 4K"], "l2": ["スポーツカメラ", "防水カメラ"], "l3": ["ヘルメットカメラ"]}
         }
-        keywords = default_keywords.get(language, default_keywords["English"])
-        # 确保包含特定关键词
-        if language == "German":
-            if "Actionkamera 4K" not in keywords:
-                keywords.insert(0, "Actionkamera 4K")
-        elif language in ["English", "French", "Spanish", "Italian"]:
-            if "action camera 4k" not in keywords:
-                keywords.insert(0, "action camera 4k")
-        return keywords
+        return default_keywords.get(language, default_keywords["English"])
 
-    for keyword_item in keyword_data.keywords:
-        search_volume = keyword_item.get('search_volume', 0)
-        keyword = keyword_item.get('keyword', '')
+    # 计算百分位阈值（与keyword_arsenal一致）
+    keyword_rows = keyword_data.keywords
+    volumes = []
+    for row in keyword_rows:
+        volume = row.get('search_volume') or 0
+        try:
+            volume = float(volume)
+        except (TypeError, ValueError):
+            volume = 0
+        if volume > 0:
+            volumes.append(volume)
 
-        if search_volume >= 10000 and keyword:
-            l1_keywords.append(keyword)
+    volumes.sort(reverse=True)
 
-    # 如果L1关键词不足，返回所有关键词
-    if len(l1_keywords) < 3:
-        for keyword_item in keyword_data.keywords:
-            keyword = keyword_item.get('keyword', '')
-            if keyword:
-                l1_keywords.append(keyword)
-
-    # 确保包含特定关键词
-    if language == "German":
-        target_keyword = "Actionkamera 4K"
+    n = len(volumes)
+    l1_threshold = 0
+    l2_threshold = 0
+    if volumes:
+        l1_idx = min(int(0.2 * n), n - 1) if n > 0 else 0
+        l2_idx = min(int(0.6 * n), n - 1) if n > 0 else 0
+        l1_threshold = volumes[l1_idx] if l1_idx < n else volumes[-1]
+        l2_threshold = volumes[l2_idx] if l2_idx < n else volumes[-1]
     else:
-        target_keyword = "action camera 4k"
+        l1_threshold = 10000
+        l2_threshold = 1000
 
-    # 确保目标关键词在列表开头
-    if target_keyword in l1_keywords:
-        l1_keywords.remove(target_keyword)
-    l1_keywords.insert(0, target_keyword)
+    l1_set = set()
+    l2_set = set()
+    l3_set = set()
 
-    # 去重并保持顺序
-    seen = set()
-    unique_keywords = []
-    for kw in l1_keywords:
-        if kw not in seen:
-            seen.add(kw)
-            unique_keywords.append(kw)
-    return unique_keywords[:5]  # 最多5个
+    for row in keyword_rows:
+        keyword = row.get('keyword', '') or row.get('search_term', '')
+        if not keyword:
+            continue
+        volume = float(row.get('search_volume') or 0)
+
+        if volume >= l1_threshold:
+            l1_set.add(keyword.lower())
+        elif volume >= l2_threshold:
+            l2_set.add(keyword.lower())
+        else:
+            l3_set.add(keyword.lower())
+
+    # 语言相关的L1变体映射（英文原词 -> 本地化词）
+    l1_variants = {
+        "German": {
+            "action camera 4k": "Actionkamera 4K",
+            "helmet camera": "Helmkamera",
+            "waterproof sports cam": "Wasserdichte Sportkamera",
+            "dual screen action cam": "Dual Screen Actionkamera",
+            "wifi sports camera": "WiFi Sportkamera"
+        },
+        "English": {
+            "action camera 4k": "action camera 4k",
+            "helmet camera": "helmet camera",
+            "waterproof sports cam": "waterproof sports cam",
+            "dual screen action cam": "dual screen action cam",
+            "wifi sports camera": "wifi sports camera"
+        }
+    }
+
+    # 转换为首字母大写的原始形式
+    l1_original = list(l1_set)
+    l2_original = list(l2_set)
+    l3_original = list(l3_set)
+
+    variant_map = l1_variants.get(language, l1_variants.get("English", {}))
+
+    # 对于L1，优先使用本地化版本
+    l1_localized = []
+    for kw in l1_original:
+        l1_localized.append(variant_map.get(kw, kw))
+
+    # 如果L1不足5个，用L2补充
+    all_l1 = l1_localized[:5]
+    if len(all_l1) < 3 and l2_original:
+        for kw in l2_original[:3-len(all_l1)]:
+            variant = variant_map.get(kw, kw)
+            if variant not in all_l1:
+                all_l1.append(variant)
+
+    result["l1"] = all_l1
+    result["l2"] = [variant_map.get(kw, kw) for kw in l2_original[:5]]
+    result["l3"] = [variant_map.get(kw, kw) for kw in l3_original[:5]]
+
+    return result
+
+
+def extract_l1_keywords(keyword_data: Any, language: str = "Chinese") -> List[str]:
+    """
+    提取L1关键词（月搜索量≥10,000）- 保留兼容性接口
+    """
+    tiered = extract_tiered_keywords(keyword_data, language)
+    return tiered.get("l1", [])
 
 
 def extract_high_conv_keywords(keyword_data: Any) -> List[str]:

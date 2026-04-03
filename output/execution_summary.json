@@ -1,27 +1,96 @@
 {
   "output_dir": "output",
   "steps_executed": [
+    0,
+    3,
+    5,
     6,
     7,
     8,
     9
   ],
   "results": {
+    "step_0": {
+      "status": "success",
+      "quality_score": 75,
+      "selling_points_count": 3,
+      "language": "German"
+    },
+    "step_3": {
+      "status": "success",
+      "capability_results": {
+        "allowed": [
+          "4K宣称",
+          "防水宣称",
+          "EIS防抖",
+          "WiFi宣称",
+          "蓝牙连接",
+          "长续航"
+        ],
+        "restricted": [
+          "防抖宣称"
+        ],
+        "forbidden": [
+          "indestructible",
+          "military grade",
+          "100% waterproof without housing",
+          "fully shockproof",
+          "unbreakable",
+          "bulletproof"
+        ],
+        "details": [
+          "✓ 4K宣称: 视频分辨率达到4K标准",
+          "✓ 防水宣称: 防水深度≥10米（需说明深度）（需说明深度）",
+          "⚠ 防抖宣称: 图像防抖功能检查（仅限数字防抖，需降级说明）",
+          "✓ EIS防抖: 电子图像防抖(EIS)",
+          "✓ WiFi宣称: WiFi连接功能",
+          "✓ 蓝牙连接: 蓝牙连接功能",
+          "✗ 双屏幕: 不满足条件",
+          "✓ 长续航: 电池续航≥120分钟",
+          "✗ 语音控制: 不满足条件",
+          "✗ 直播功能: 不满足条件",
+          "❌ indestructible: 绝对禁止宣称",
+          "❌ military grade: 绝对禁止宣称",
+          "❌ 100% waterproof without housing: 绝对禁止宣称",
+          "❌ fully shockproof: 绝对禁止宣称",
+          "❌ unbreakable: 绝对禁止宣称",
+          "❌ bulletproof: 绝对禁止宣称"
+        ],
+        "summary": {
+          "allowed_count": 6,
+          "restricted_count": 1,
+          "forbidden_count": 6,
+          "total_checked": 16
+        }
+      }
+    },
+    "step_5": {
+      "status": "success",
+      "policy_path": "output/writing_policy.json",
+      "scene_count": 6
+    },
     "step_6": {
-      "status": "error",
-      "error": "需要先运行 Step 0"
+      "status": "success",
+      "copy_path": "output/generated_copy.json",
+      "title_length": 62,
+      "bullets_count": 5,
+      "faq_count": 5
     },
     "step_7": {
-      "status": "error",
-      "error": "需要先运行 Step 6"
+      "status": "success",
+      "risk_path": "output/risk_report.json",
+      "overall_passed": false
     },
     "step_8": {
-      "status": "error",
-      "error": "需要先运行 Step 6"
+      "status": "success",
+      "scores_path": "output/scoring_results.json",
+      "total_score": 217,
+      "grade": "良好"
     },
     "step_9": {
-      "status": "error",
-      "error": "需要先运行前面的所有步骤"
+      "status": "success",
+      "report_path": "output/listing_report.md",
+      "report_length": 7587
     }
   }
 }

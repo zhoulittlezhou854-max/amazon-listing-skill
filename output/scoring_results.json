@@ -7,15 +7,15 @@
     },
     "keyword_tiering": {
       "max": 30,
-      "score": 10,
-      "note": "L1:0 L2:1 L3:0"
+      "score": 0,
+      "note": "L1:0 L2:0 L3:0"
     },
     "conversion_signals": {
       "max": 30,
-      "score": 30,
-      "note": "含数字 Bullets 5/5，属性参数 3"
+      "score": 25,
+      "note": "B1符合P0 tier，B2-B3 P1 tier得分5，B4-B5 P2 tier得分10"
     },
-    "subtotal": 55
+    "subtotal": 40
   },
   "cosmo": {
     "scene_coverage": {
@@ -25,15 +25,15 @@
     },
     "capability_scene_binding": {
       "max": 40,
-      "score": 30,
-      "note": "满足 3/4 条绑定"
+      "score": 40,
+      "note": "满足 4/4 条绑定"
     },
     "audience_tags": {
       "max": 20,
       "score": 20,
       "note": "触达人群: 骑行, 旅行, 家庭, 户外"
     },
-    "subtotal": 70
+    "subtotal": 80
   },
   "rufus": {
     "fact_completeness": {
@@ -57,18 +57,18 @@
     "price_median": 199.0,
     "current_price": 189.0,
     "max": 10,
-    "score": 9,
+    "score": 10,
     "range": "定价贴近中位",
     "data_available": true,
     "note": "品类中位 199.00 vs 当前 189.00"
   },
-  "total_score": 221,
+  "total_score": 217,
   "max_total": 310,
-  "grade_percent": 71.3,
+  "grade_percent": 70.0,
   "rating": "良好",
   "boundary_declaration_check": {
     "exists": true,
-    "sentence": "配备多种挂载配件，专为水下探索设计，提供双屏幕功能，支持30米（需使用防水壳）防水",
+    "sentence": "配备多种挂载配件，专为骑行记录设计，提供双屏幕功能，支持30米（需使用防水壳）防水",
     "score_impact": "+10"
   },
   "aplus_word_count_check": {
@@ -77,9 +77,9 @@
     "score_impact": "+15"
   },
   "scoring_detail_version": "v8.4.0",
-  "a10_score": 55,
-  "cosmo_score": 70,
+  "a10_score": 40,
+  "cosmo_score": 80,
   "rufus_score": 87,
-  "price_competitiveness_score": 9,
+  "price_competitiveness_score": 10,
   "grade": "良好"
 }
