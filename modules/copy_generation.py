@@ -1483,16 +1483,33 @@ CATEGORY_TRANSLATIONS = {
 }
 
 
-def _translate_capability(capability: str, target_language: str) -> str:
-    """将能力词翻译为目标语言，若无映射则原样返回并标记 [SYNTH]"""
+def _translate_capability(capability: str, target_language: str, real_vocab: Optional[Any] = None, data_mode: str = "SYNTHETIC_COLD_START") -> str:
+    """将能力词翻译为目标语言，优先检查真实国家词表，若无则用映射表，若仍缺且data_mode=SYNTHETIC_COLD_START则加[SYNTH]"""
     if target_language == "English":
         return capability
 
+    # 优先检查真实国家词表中是否有该能力词的本地关键词
+    if real_vocab and hasattr(real_vocab, 'is_available') and real_vocab.is_available:
+        top_keywords = getattr(real_vocab, 'top_keywords', []) or []
+        # 先通过映射表得到可能的翻译
+        translations = CAPABILITY_TRANSLATIONS.get(target_language, {})
+        possible_translation = translations.get(capability, capability)
+
+        # 检查真实国家词表的关键词中是否包含这个翻译（不区分大小写）
+        for kw_entry in top_keywords:
+            kw = kw_entry.get('keyword', '').lower()
+            if possible_translation.lower() in kw or kw in possible_translation.lower():
+                # 使用真实国家词表中的完整关键词（可能更长尾）
+                return kw_entry.get('keyword', possible_translation)
+
+    # 如果真实国家词表没有，使用映射表
     translations = CAPABILITY_TRANSLATIONS.get(target_language, {})
     translated = translations.get(capability, capability)
 
-    if translated == capability and target_language != "English":
+    # 如果映射表中也没有，且是SYNTHETIC_COLD_START模式，加[SYNTH]标记
+    if translated == capability and target_language != "English" and data_mode == "SYNTHETIC_COLD_START":
         return f"[SYNTH]_{capability}"
+
     return translated
 
 
