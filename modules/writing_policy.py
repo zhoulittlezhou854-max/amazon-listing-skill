@@ -565,7 +565,7 @@ def generate_default_4scene_policy(core_selling_points: List[str], language: str
                     "binding_type": binding_type,
                     "allowed_scenes": [scene],
                     "forbidden_scenes": [],
-                    "usage_notes": f"可在{scene}场景中使用"
+                    "usage_notes": f"Used in {scene} scenarios"
                 })
 
     # PRD v8.2 Node 0: 产品战略侧写 (强制英文)
