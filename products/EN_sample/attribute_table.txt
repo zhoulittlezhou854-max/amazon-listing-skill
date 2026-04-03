@@ -1,0 +1,12 @@
+brand: TestBrand
+model: X12 Action Camera
+video_resolution: 4K 60fps
+waterproof_depth: 30m (with case)
+battery_life: 150 minutes
+image_stabilization: EIS digital stabilization
+connectivity: WiFi, Bluetooth
+weight: 150g
+max_storage: 256GB
+included_components: camera, waterproof case, mount, strap
+warranty_period: 12 months
+price: 189

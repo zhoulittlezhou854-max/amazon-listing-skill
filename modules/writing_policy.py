@@ -26,11 +26,11 @@ class PreprocessedData:
     processed_at: str
 
 
-# 运动相机常见场景
+# 运动相机常见场景 (English internal labels)
 ACTION_CAMERA_SCENES = [
-    "户外运动", "骑行记录", "水下探索", "旅行记录", "家庭使用",
-    "滑雪运动", "登山徒步", "自驾游", "宠物拍摄", "vlog制作",
-    "运动训练", "赛事记录", "野外探险", "极限运动", "日常记录"
+    "outdoor_sports", "cycling_recording", "underwater_exploration", "travel_documentation", "family_use",
+    "skiing", "hiking_trekking", "road_trip", "pet_photography", "vlog_content_creation",
+    "sports_training", "sports_event_recording", "wilderness_exploration", "extreme_sports", "daily_lifelogging"
 ]
 
 # 能力与场景的默认绑定关系

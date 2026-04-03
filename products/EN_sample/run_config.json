@@ -1,0 +1,12 @@
+{
+  "target_country": "US",
+  "brand_name": "TestBrand",
+  "core_selling_points_raw": "4K video, stabilization, WiFi",
+  "accessory_params_raw": "waterproof case, mount, strap",
+  "input_files": {
+    "attribute_table": "attribute_table.txt",
+    "keyword_table": "keyword_table.csv",
+    "review_table": "review_table.csv",
+    "aba_merged": "aba_merged.csv"
+  }
+}
