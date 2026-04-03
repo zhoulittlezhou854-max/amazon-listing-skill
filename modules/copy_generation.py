@@ -245,7 +245,38 @@ def _get_real_vocab_keywords(preprocessed_data: Any) -> List[Dict[str, Any]]:
     return getattr(rv, "top_keywords", []) or []
 
 
-def extract_tiered_keywords(keyword_data: Any, language: str = "Chinese") -> Dict[str, List[str]]:
+def extract_tiered_keywords(preprocessed_data: Any, language: str = "Chinese") -> Dict[str, List[str]]:
+    """
+    提取分层关键词（L1/L2/L3），使用与scoring.py一致的阈值逻辑（>=10000是L1）
+
+    优先级:
+    - Priority 1: 真实国家词表（preprocessed_data.real_vocab）→ 本地语言关键词
+    - Priority 2: keyword_data 中的关键词
+    """
+    # ─── Priority 1: 真实国家词表（DE/FR 本地词） ───
+    if _has_real_vocab(preprocessed_data):
+        real_kw = _get_real_vocab_keywords(preprocessed_data)
+        if real_kw:
+            l1_set, l2_set, l3_set = set(), set(), set()
+            for row in real_kw:
+                kw = row.get("keyword", "")
+                if not kw:
+                    continue
+                vol = float(row.get("search_volume") or 0)
+                if vol >= 10000:
+                    l1_set.add(kw.lower())
+                elif vol >= 1000:
+                    l2_set.add(kw.lower())
+                else:
+                    l3_set.add(kw.lower())
+            return {
+                "l1": list(l1_set)[:10],
+                "l2": list(l2_set)[:10],
+                "l3": list(l3_set)[:10],
+            }
+
+    # ─── Priority 2: keyword_data（兼容旧逻辑）───
+    keyword_data = getattr(preprocessed_data, "keyword_data", None)
     """
     提取分层关键词（L1/L2/L3），使用与scoring.py一致的阈值逻辑（>=10000是L1）
     """
