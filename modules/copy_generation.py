@@ -928,15 +928,18 @@ def generate_listing_copy(preprocessed_data: PreprocessedData,
     Returns:
         包含所有文案组件的字典
     """
+    # 读取关键词分配策略（默认为balanced）
+    keyword_allocation_strategy = writing_policy.get("keyword_allocation_strategy", "balanced")
+
     # 提取分层关键词（L1/L2/L3）
     tiered_keywords = extract_tiered_keywords(preprocessed_data.keyword_data, language)
     l1_keywords = tiered_keywords.get("l1", [])
 
     # 生成标题（确保L1在首80字符内，多场景）
-    title = generate_title(preprocessed_data, writing_policy, l1_keywords, tiered_keywords)
+    title = generate_title(preprocessed_data, writing_policy, l1_keywords, tiered_keywords, keyword_allocation_strategy)
 
     # 生成bullet points（多场景覆盖，使用L2/L3关键词）
-    bullets = generate_bullet_points(preprocessed_data, writing_policy, language, tiered_keywords)
+    bullets = generate_bullet_points(preprocessed_data, writing_policy, language, tiered_keywords, keyword_allocation_strategy)
 
     # 生成描述
     description = generate_description(preprocessed_data, writing_policy, title, bullets, language)
