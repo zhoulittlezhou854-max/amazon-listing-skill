@@ -1772,7 +1772,7 @@ def generate_multilingual_copy(preprocessed_data: PreprocessedData,
     # 翻译 bullets 到目标语言 (短语优先替换)
     bullets = []
     for bullet in bullets_en:
-        bullet_translated = _translate_text_to_language(bullet, target_language)
+        bullet_translated = _translate_text_to_language(bullet, target_language, preprocessed_data.real_vocab, data_mode)
 
         # 如果是 SYNTHETIC_COLD_START 且有未被翻译的英文词，添加 [SYNTH]
         if data_mode == "SYNTHETIC_COLD_START" and bullet_translated == bullet:
