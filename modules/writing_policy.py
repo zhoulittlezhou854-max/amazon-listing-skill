@@ -54,9 +54,9 @@ FAQ_ONLY_CAPABILITIES = [
     "质保条款细节"
 ]
 
-# 4场景默认策略模板 (推荐默认)
+# 4场景默认策略模板 (English internal labels)
 DEFAULT_4SCENE_POLICY = {
-    "scene_priority": ["骑行记录", "水下探索", "旅行记录", "家庭使用"],
+    "scene_priority": ["cycling_recording", "underwater_exploration", "travel_documentation", "family_use"],
     "keyword_allocation_strategy": "balanced",
     "title_keyword_slots": {
         "slot_1_brand": True,
