@@ -146,7 +146,6 @@ def build_arsenal(preprocessed_data: Any) -> Dict[str, Any]:
             l2_threshold = 1000
 
         reserve_keywords = []
-        prices = []
         for row in keyword_rows:
             keyword = row.get("keyword") or row.get("search_term")
             if not keyword:
