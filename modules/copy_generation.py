@@ -277,9 +277,6 @@ def extract_tiered_keywords(preprocessed_data: Any, language: str = "Chinese") -
 
     # ─── Priority 2: keyword_data（兼容旧逻辑）───
     keyword_data = getattr(preprocessed_data, "keyword_data", None)
-    """
-    提取分层关键词（L1/L2/L3），使用与scoring.py一致的阈值逻辑（>=10000是L1）
-    """
     result = {"l1": [], "l2": [], "l3": []}
 
     if not keyword_data or not hasattr(keyword_data, 'keywords'):
