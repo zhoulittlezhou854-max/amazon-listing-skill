@@ -148,7 +148,7 @@ FAQ_TEMPLATES = {
 
 def extract_tiered_keywords(keyword_data: Any, language: str = "Chinese") -> Dict[str, List[str]]:
     """
-    提取分层关键词（L1/L2/L3），使用与keyword_arsenal一致的百分位阈值逻辑
+    提取分层关键词（L1/L2/L3），使用与scoring.py一致的阈值逻辑（>=10000是L1）
     """
     result = {"l1": [], "l2": [], "l3": []}
 
@@ -157,7 +157,7 @@ def extract_tiered_keywords(keyword_data: Any, language: str = "Chinese") -> Dic
         default_keywords = {
             "Chinese": {"l1": ["运动相机", "4K相机"], "l2": ["防水相机", "防抖相机"], "l3": ["户外相机"]},
             "English": {"l1": ["action camera 4k"], "l2": ["sports camera", "waterproof camera"], "l3": ["helmet camera"]},
-            "German": {"l1": ["Actionkamera 4K"], "l2": ["Sportkamera", "Wasserdichte Kamera"], "l3": ["Helmkamera"]},
+            "German": {"l1": ["action camera 4k"], "l2": ["sports camera", "waterproof camera"], "l3": ["helmet camera"]},
             "French": {"l1": ["caméra d'action 4K"], "l2": ["caméra sport", "caméra étanche"], "l3": ["caméra casco"]},
             "Spanish": {"l1": ["cámara de acción 4K"], "l2": ["cámara deportiva", "cámara impermeable"], "l3": ["cámara casco"]},
             "Italian": {"l1": ["videocamera sportiva 4K"], "l2": ["fotocamera sportiva", "fotocamera impermeabile"], "l3": ["fotocamera casco"]},
@@ -165,90 +165,28 @@ def extract_tiered_keywords(keyword_data: Any, language: str = "Chinese") -> Dic
         }
         return default_keywords.get(language, default_keywords["English"])
 
-    # 计算百分位阈值（与keyword_arsenal一致）
-    keyword_rows = keyword_data.keywords
-    volumes = []
-    for row in keyword_rows:
-        volume = row.get('search_volume') or 0
-        try:
-            volume = float(volume)
-        except (TypeError, ValueError):
-            volume = 0
-        if volume > 0:
-            volumes.append(volume)
-
-    volumes.sort(reverse=True)
-
-    n = len(volumes)
-    l1_threshold = 0
-    l2_threshold = 0
-    if volumes:
-        l1_idx = min(int(0.2 * n), n - 1) if n > 0 else 0
-        l2_idx = min(int(0.6 * n), n - 1) if n > 0 else 0
-        l1_threshold = volumes[l1_idx] if l1_idx < n else volumes[-1]
-        l2_threshold = volumes[l2_idx] if l2_idx < n else volumes[-1]
-    else:
-        l1_threshold = 10000
-        l2_threshold = 1000
-
+    # 使用与scoring.py一致的阈值：L1 >= 10000, L2 >= 1000, L3 < 1000
     l1_set = set()
     l2_set = set()
     l3_set = set()
 
-    for row in keyword_rows:
+    for row in keyword_data.keywords:
         keyword = row.get('keyword', '') or row.get('search_term', '')
         if not keyword:
             continue
         volume = float(row.get('search_volume') or 0)
 
-        if volume >= l1_threshold:
+        if volume >= 10000:
             l1_set.add(keyword.lower())
-        elif volume >= l2_threshold:
+        elif volume >= 1000:
             l2_set.add(keyword.lower())
         else:
             l3_set.add(keyword.lower())
 
-    # 语言相关的L1变体映射（英文原词 -> 本地化词）
-    l1_variants = {
-        "German": {
-            "action camera 4k": "Actionkamera 4K",
-            "helmet camera": "Helmkamera",
-            "waterproof sports cam": "Wasserdichte Sportkamera",
-            "dual screen action cam": "Dual Screen Actionkamera",
-            "wifi sports camera": "WiFi Sportkamera"
-        },
-        "English": {
-            "action camera 4k": "action camera 4k",
-            "helmet camera": "helmet camera",
-            "waterproof sports cam": "waterproof sports cam",
-            "dual screen action cam": "dual screen action cam",
-            "wifi sports camera": "wifi sports camera"
-        }
-    }
-
-    # 转换为首字母大写的原始形式
-    l1_original = list(l1_set)
-    l2_original = list(l2_set)
-    l3_original = list(l3_set)
-
-    variant_map = l1_variants.get(language, l1_variants.get("English", {}))
-
-    # 对于L1，优先使用本地化版本
-    l1_localized = []
-    for kw in l1_original:
-        l1_localized.append(variant_map.get(kw, kw))
-
-    # 如果L1不足5个，用L2补充
-    all_l1 = l1_localized[:5]
-    if len(all_l1) < 3 and l2_original:
-        for kw in l2_original[:3-len(all_l1)]:
-            variant = variant_map.get(kw, kw)
-            if variant not in all_l1:
-                all_l1.append(variant)
-
-    result["l1"] = all_l1
-    result["l2"] = [variant_map.get(kw, kw) for kw in l2_original[:5]]
-    result["l3"] = [variant_map.get(kw, kw) for kw in l3_original[:5]]
+    # 转换为列表
+    result["l1"] = list(l1_set)[:5]
+    result["l2"] = list(l2_set)[:5]
+    result["l3"] = list(l3_set)[:5]
 
     return result
 

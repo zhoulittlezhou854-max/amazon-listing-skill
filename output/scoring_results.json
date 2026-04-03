@@ -12,10 +12,10 @@
     },
     "conversion_signals": {
       "max": 30,
-      "score": 25,
-      "note": "B1符合P0 tier，B2-B3 P1 tier得分5，B4-B5 P2 tier得分10"
+      "score": 15,
+      "note": "B2-B3 P1 tier得分5，B4-B5 P2 tier得分10"
     },
-    "subtotal": 40
+    "subtotal": 30
   },
   "cosmo": {
     "scene_coverage": {
@@ -25,15 +25,15 @@
     },
     "capability_scene_binding": {
       "max": 40,
-      "score": 40,
-      "note": "满足 4/4 条绑定"
+      "score": 20,
+      "note": "满足 2/4 条绑定"
     },
     "audience_tags": {
       "max": 20,
       "score": 20,
       "note": "触达人群: 骑行, 旅行, 家庭, 户外"
     },
-    "subtotal": 80
+    "subtotal": 60
   },
   "rufus": {
     "fact_completeness": {
@@ -62,13 +62,13 @@
     "data_available": true,
     "note": "品类中位 199.00 vs 当前 189.00"
   },
-  "total_score": 217,
+  "total_score": 187,
   "max_total": 310,
-  "grade_percent": 70.0,
-  "rating": "良好",
+  "grade_percent": 60.3,
+  "rating": "待优化",
   "boundary_declaration_check": {
     "exists": true,
-    "sentence": "配备多种挂载配件，专为骑行记录设计，提供双屏幕功能，支持30米（需使用防水壳）防水",
+    "sentence": "配备多种挂载配件，专为Radfahren设计，提供双屏幕功能，支持30米（需使用防水壳）防水",
     "score_impact": "+10"
   },
   "aplus_word_count_check": {
@@ -77,9 +77,9 @@
     "score_impact": "+15"
   },
   "scoring_detail_version": "v8.4.0",
-  "a10_score": 40,
-  "cosmo_score": 80,
+  "a10_score": 30,
+  "cosmo_score": 60,
   "rufus_score": 87,
   "price_competitiveness_score": 10,
-  "grade": "良好"
+  "grade": "待优化"
 }
