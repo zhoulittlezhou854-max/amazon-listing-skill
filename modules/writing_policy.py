@@ -431,7 +431,23 @@ def generate_policy(preprocessed_data: PreprocessedData,
             "B5": "P2 warranty/after-sale/compatibility"
         }
 
-    # 6. 构建完整policy
+    # 6. 构建完整policy (含 PRD v8.2 Node 0 英文Profile)
+    product_profile = {
+        "profile_version": "v8.2",
+        "reasoning_language": "EN",  # PRD v8.2: 固定为EN
+        "target_language": language,  # 供 Node 4 生成目标语文案时参考
+        "category_type": "action_camera",
+        "physical_form": "compact_wearable_camera",
+        "hero_spec": core_selling_points[0] if core_selling_points else "4K_recording",
+        "value_proposition": f"High-performance {core_selling_points[0] if core_selling_points else 'action camera'} designed for outdoor and sports use",
+        "primary_use_cases": prioritized_scenes[:4],
+        "target_audience_role": "Outdoor Enthusiast / Sports User / Content Creator",
+        "pain_points": ["unstable footage", "limited waterproofing", "short battery life"],
+        "competitive_edge": "Multi-scenario coverage with key capabilities",
+        "taboo_concepts": ["military_use", "tactical_equipment", "weapon_context"],
+        "tone_hint": _get_tone_hint(language),
+    }
+
     policy = {
         "scene_priority": prioritized_scenes,
         "keyword_allocation_strategy": "balanced",  # 默认使用balanced策略
@@ -440,6 +456,9 @@ def generate_policy(preprocessed_data: PreprocessedData,
         "forbidden_pairs": forbidden_pairs,
         "bullet_slot_rules": bullet_slot_rules,
         "language": language,
+        "target_language": language,
+        "reasoning_language": "EN",
+        "product_profile": product_profile,  # PRD v8.2 Node 0 英文侧写
         "metadata": {
             "core_selling_points_count": len(core_selling_points),
             "scenes_count": len(prioritized_scenes),
