@@ -301,8 +301,31 @@ def generate_title(preprocessed_data: PreprocessedData,
         # 德语标题模板
         title_parts = [brand]
 
-        # L1关键词必须在前80字符内
-        l1_part = l1_keywords[0] if l1_keywords else "Actionkamera 4K"
+        # 根据策略确定L1关键词
+        if keyword_allocation_strategy == "aggressive_l1":
+            # 激进L1策略：放2个L1
+            l1_parts = []
+            if l1_keywords:
+                l1_parts.append(l1_keywords[0])
+            if len(l1_keywords) > 1:
+                l1_parts.append(l1_keywords[1])
+            else:
+                l1_parts.append("Actionkamera")
+            l1_part = " ".join(l1_parts)
+        elif keyword_allocation_strategy == "l2_focus":
+            # L2聚焦策略：L1 + L2组合
+            l1_part = l1_keywords[0] if l1_keywords else "Actionkamera"
+            l2_part = l2_keywords[0] if l2_keywords else "Sportkamera"
+            l1_part = f"{l1_part} {l2_part}"
+        elif keyword_allocation_strategy == "conservative":
+            # 保守策略：仅1个L1
+            l1_part = l1_keywords[0] if l1_keywords else "Actionkamera 4K"
+        else:
+            # balanced默认：1个L1 + 可能1个L2
+            l1_part = l1_keywords[0] if l1_keywords else "Actionkamera 4K"
+            if l2_keywords and len(title_parts) + len(l1_part) < 50:
+                l1_part = f"{l1_part} {l2_keywords[0]}"
+
         title_parts.append(l1_part)
 
         # 添加第一个场景
@@ -320,7 +343,28 @@ def generate_title(preprocessed_data: PreprocessedData,
         title = " ".join(title_parts)
     else:
         # 英文/其他语言模板
-        title_parts = [brand, l1_keywords[0] if l1_keywords else "Action Camera"]
+        title_parts = [brand]
+
+        # 根据策略确定L1关键词
+        if keyword_allocation_strategy == "aggressive_l1":
+            l1_parts = []
+            if l1_keywords:
+                l1_parts.append(l1_keywords[0])
+            if len(l1_keywords) > 1:
+                l1_parts.append(l1_keywords[1])
+            else:
+                l1_parts.append("action camera")
+            l1_part = " ".join(l1_parts)
+        elif keyword_allocation_strategy == "l2_focus":
+            l1_part = l1_keywords[0] if l1_keywords else "Action Camera"
+            l2_part = l2_keywords[0] if l2_keywords else "sports camera"
+            l1_part = f"{l1_part} {l2_part}"
+        elif keyword_allocation_strategy == "conservative":
+            l1_part = l1_keywords[0] if l1_keywords else "Action Camera 4K"
+        else:
+            l1_part = l1_keywords[0] if l1_keywords else "Action Camera"
+
+        title_parts.append(l1_part)
         if translated_scenes:
             title_parts.append(translated_scenes[0])
         if core_capabilities:
