@@ -1,0 +1,12 @@
+{
+  "target_country": "FR",
+  "brand_name": "YourBrand",
+  "core_selling_points_raw": "4K录像，电子防抖，WiFi连接，双屏幕",
+  "accessory_params_raw": "防水壳30米，磁吸挂绳，车把支架，头盔底座",
+  "input_files": {
+    "attribute_table": "attribute_table.txt",
+    "keyword_table": "keyword_table.csv",
+    "review_table": "review_table.csv",
+    "aba_merged": "aba_merged.csv"
+  }
+}
