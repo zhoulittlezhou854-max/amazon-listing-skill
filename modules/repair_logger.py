@@ -12,7 +12,7 @@ from typing import Any, Dict, List
 
 from modules.fluency_check import check_fluency
 
-LEARNINGS_DIR = Path('.learnings')
+LEARNINGS_DIR = Path(__file__).resolve().parent.parent / '.learnings'
 _FIELD_WEIGHTS = {
     'title': 10,
     'bullet_b1': 4,
