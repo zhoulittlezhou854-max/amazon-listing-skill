@@ -1,81 +1,113 @@
 # Amazon Listing Skill
 
-项目为 Amazon Listing 生成和优化工具，提供评分、文案生成、风险检查等功能。
+Amazon listing generation and review pipeline for real-product launch workflows.
 
-## 功能特性
+This repository contains the launch-ready snapshot of the `amazon-listing-skill` system used to:
+- generate listing copy with live LLM providers
+- score output across four independent dimensions
+- detect compliance, fluency, and coherence risks
+- produce reviewer-friendly readiness reports before listing goes live
 
-- **智能评分**: 对 Amazon Listing 进行多维度评分
-- **文案生成**: 基于关键词库生成优化文案
-- **风险检查**: 识别潜在风险和违规内容
-- **策略优化**: 多种写作策略和变体支持
-- **压力测试**: 策略性能测试和比较
+## What this snapshot is
 
-## 项目结构
+This GitHub repo is a clean review snapshot prepared for external code review.
 
-```
-amazon-listing-skill/
-├── modules/          # 核心业务模块
-├── tools/           # 工具函数
-├── config/          # 配置文件
-├── data/            # 数据文件
-├── output/          # 输出文件
-├── docs/            # 文档
-├── tests/           # 测试文件
-├── archive/         # 归档文件
-└── utils/           # 工具目录
-```
+It intentionally includes:
+- core pipeline code
+- configs, docs, scripts, and tests
+- the current launch-ready logic used for real SKU validation
 
-详细结构请参考 [INDEX.md](INDEX.md) 和 [REPO_RULES.md](REPO_RULES.md)。
+It intentionally excludes:
+- local output artifacts
+- private environment files and API keys
+- unrelated dirty worktree changes from the original local repo
 
-## 快速开始
+## Current system status
 
-1. **安装依赖**
-   ```bash
-   pip install -r requirements.txt
-   ```
+The current launch baseline has already reached:
+- live generation on the primary LLM path
+- four-dimension scoring output
+- readiness summary generation for operations review
+- repair logging and post-run risk reporting
+- stable test baseline in this snapshot: `208 passed`
 
-2. **配置环境**
-   - 复制 `config/samples/` 中的配置文件
-   - 根据产品和国家修改配置
+## Core workflow
 
-3. **运行主程序**
-   ```bash
-   python main.py --config config/de-t70m-run.json
-   ```
+The production pipeline follows this shape:
 
-4. **启动本地控制台**
-   ```bash
-   streamlit run app/streamlit_app.py
-   ```
-   - Tab 1：新品上架，上传 4 张核心表并直接生成报告
-   - Tab 2：老品数据反补，导入 SellerSprite/PPC 词表后做人机共审并重构 Listing
+1. validate input tables
+2. preprocess evidence and keyword sources
+3. build writing policy and benchmark references
+4. generate title / bullets / description / A+ / search terms
+5. run fluency, coherence, and risk checks
+6. score the listing across traffic, content, conversion, and readability
+7. produce readiness outputs for human review or launch decision
 
-## 核心模块
+## Scoring model
 
-| 模块 | 功能 |
-|------|------|
-| `scoring.py` | 评分算法 |
-| `copy_generation.py` | 文案生成 |
-| `writing_policy.py` | 写作策略 |
-| `keyword_arsenal.py` | 关键词库 |
-| `risk_check.py` | 风险检查 |
-| `report_generator.py` | 报告生成 |
+The system reports four dimensions instead of a single opaque score:
 
-完整模块列表见 [modules/INDEX.md](modules/INDEX.md)。
+- `traffic` (`A10`): keyword and discoverability quality
+- `content` (`COSMO`): content richness and policy fit
+- `conversion` (`Rufus`): spec signal and selling effectiveness
+- `readability` (`Fluency`): human readability and repair quality
 
-## 测试
+The final `listing_status` is determined from per-dimension thresholds rather than a single blended total.
 
-运行测试：
+## Main entry points
+
+- `main.py` — runs the end-to-end generator workflow from a config file
+- `run_pipeline.py` — convenience wrapper for real-product runs
+- `app/streamlit_app.py` — local review UI
+
+Common commands:
+
 ```bash
-python -m pytest tests/ -v
+python -m pip install -r requirements.txt
+/.venv/bin/pytest tests/ -q
+python run_pipeline.py --product H91lite --market US --run-id r14 --fresh
 ```
 
-## 文档
+## Repository map
 
-- [REPO_RULES.md](REPO_RULES.md): 仓库结构和命名规则
-- [CLAUDE.md](CLAUDE.md): Claude代理规则
-- [docs/](docs/): 详细文档目录
+- `modules/` — generation, scoring, risk, fluency, coherence, repair logging
+- `config/` — run configs and product data references
+- `docs/` — PRDs, audits, operational specs, input table spec
+- `scripts/` — diagnostics and utility scripts
+- `tests/` — regression and integration coverage
+- `tools/` — shared loaders and preprocessing helpers
 
-## 许可证
+## Recommended review path
 
-版权所有 (c) 2026 Amazon Listing Skill 项目团队。
+If you are reviewing this codebase for launch readiness, start here:
+
+1. `PROJECT_STATUS.md`
+2. `run_pipeline.py`
+3. `main.py`
+4. `modules/llm_client.py`
+5. `modules/copy_generation.py`
+6. `modules/scoring.py`
+7. `modules/risk_check.py`
+8. `modules/fluency_check.py`
+9. `modules/coherence_check.py`
+10. `tests/`
+
+## Key docs
+
+- `PROJECT_STATUS.md` — current launch status, review focus, known limits
+- `docs/input_tables_spec.md` — required input table format and fallback behavior
+- `CLAUDE.md` — repo conventions and agent instructions carried from the local project
+
+## Review focus areas
+
+The most important things to challenge in code review are:
+- provider routing and LLM failure handling
+- fallback quality protections
+- fluency and coherence rule precision
+- listing status blocking logic
+- score interpretability and operational usefulness
+- input-table validation and graceful degradation
+
+## Notes
+
+This repo is meant for review and collaboration. It is not a packaged library and does not yet include full deployment automation.

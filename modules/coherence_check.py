@@ -18,7 +18,7 @@ class CoherenceIssue:
 
 _DIMENSION_PATTERNS: Dict[str, List[str]] = {
     'weight_portability': ['35g', '0.1 kilograms', 'lightweight', 'portable', 'thumb-sized', 'compact'],
-    'battery_runtime': ['battery', 'minutes', 'minute', 'hours', 'runtime', 'recording time'],
+    'battery_runtime': ['battery', 'runtime', 'recording time', 'charge', 'endurance'],
     'video_quality': ['4k', '1080p', 'hd', 'resolution', 'uhd'],
     'waterproof': ['waterproof', 'ipx', 'diving', 'water resistant', 'underwater'],
     'audio': ['audio', 'mic', 'microphone', 'sound'],
@@ -96,7 +96,7 @@ def _check_title_claims_expanded(title: str, bullets: Sequence[str]) -> List[Coh
         CoherenceIssue(
             issue_type='title_claim_not_expanded',
             severity='medium',
-            fields=['title'] + [f'bullet_b{idx}' for idx, _ in enumerate(bullets or [], start=1)],
+            fields=['title'],
             message=f'Title spec claims are not expanded in bullets: {", ".join(missing_specs)}',
         )
     ]

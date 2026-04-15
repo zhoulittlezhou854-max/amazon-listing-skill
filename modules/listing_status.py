@@ -30,6 +30,16 @@ REVIEW_PRIORITY = {
 }
 _PRIORITY_ORDER = {"P0": 0, "P1": 1, "P2": 2, "P3": 3}
 
+# This module exposes two status layers on purpose:
+# - `derive_listing_status()` is the runtime readiness gate used by risk/report
+#   generation. It combines live generation state, fallback volume, and blocking
+#   risk signals into the operational listing decision.
+# - `determine_listing_status()` is the scoring-layer gate used by the four
+#   dimension score report. It only evaluates whether dimension thresholds pass.
+# Pipeline consumers should treat the runtime gate as the authoritative
+# listing-status source for publish decisions, while the scoring gate explains
+# which score dimensions still need work.
+
 
 def _count_bullet_fallbacks(visible_fallback_fields: Sequence[Any]) -> int:
     count = 0
@@ -109,6 +119,9 @@ def derive_listing_status(
         status = NOT_READY_FOR_LISTING
     elif normalized_generation == "live_success":
         status = READY_FOR_LISTING
+    # `live_with_fallback` only reaches this branch if `too_many_bullet_fallbacks`
+    # did not fire above, meaning fallback usage stayed inside the manual-review
+    # tolerance window.
     elif normalized_generation == "live_with_fallback":
         status = READY_FOR_HUMAN_REVIEW
     else:

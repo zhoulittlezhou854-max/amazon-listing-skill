@@ -37,6 +37,8 @@ def test_title_claim_not_expanded_detected_when_4k_missing_from_all_bullets():
     issues = cc.check_coherence(title, bullets, "")
 
     assert any(issue.issue_type == "title_claim_not_expanded" for issue in issues)
+    expanded_issue = next(issue for issue in issues if issue.issue_type == "title_claim_not_expanded")
+    assert expanded_issue.fields == ["title"]
 
 
 def test_title_claim_expanded_passes_when_at_least_one_bullet_covers_spec():
@@ -114,3 +116,15 @@ def test_duplicate_header_dimension_still_detected():
     issues = cc.check_coherence("title", bullets, "")
 
     assert any(issue.issue_type == "duplicate_dimension" for issue in issues)
+
+
+def test_time_words_alone_do_not_trigger_battery_dimension_overlap():
+    bullets = [
+        "150-MINUTE RECORDING — Covers your full shift without a second take.",
+        "2-HOUR COVERAGE — Keeps roadside footage rolling through the return trip.",
+        "CRISP VIDEO — 1080P footage stays easy to review.",
+    ]
+
+    issues = cc.check_coherence("title", bullets, "")
+
+    assert not any(issue.issue_type == "duplicate_dimension" for issue in issues)
