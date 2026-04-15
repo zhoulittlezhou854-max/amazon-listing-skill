@@ -1,0 +1,37 @@
+{
+  "locale": "UK",
+  "lexical_preferences": [
+    "action camera",
+    "helmet camera"
+  ],
+  "faq_templates": [
+    "cold_weather",
+    "mount_compatibility"
+  ],
+  "compliance_reminders": [
+    "avoid absolute safety wording for battery and waterproof claims"
+  ],
+  "compound_word_rules": [],
+  "title_style_guidelines": [
+    "prefer concise product-led phrasing"
+  ],
+  "bullet_style_guidelines": [
+    "keep claims direct and evidence-led"
+  ],
+  "after_sales_promises": [
+    "UK customer support handled through Amazon messaging within 24h",
+    "Accessory-fit support before replacement approval"
+  ],
+  "support_sop": [
+    "Confirm accessory compatibility before authorising replacement",
+    "Check recording mode and temperature conditions before battery escalation"
+  ],
+  "regulatory_watchouts": [
+    "Avoid absolute safety wording for battery and waterproof claims",
+    "Keep refund or guarantee language out of visible bullets"
+  ],
+  "launch_gate_checks": [
+    "Confirm B5 closes with support reassurance, not legal guarantee wording",
+    "Confirm waterproof boundary wording appears in bullets or FAQ"
+  ]
+}

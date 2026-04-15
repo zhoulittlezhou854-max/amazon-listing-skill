@@ -1,0 +1,38 @@
+Amazon Spec Reconciliation Table (Final Audit)
+--------------------------------------------------------------------------------------------------
+Amazon Field Name           | Final Value                                | Source/Note
+--------------------------------------------------------------------------------------------------
+Photo sensor technology     | CMOS                                       | Market Consensus
+Video capture resolution    | 1080p                                      | Factory Data
+Maximum focal length        | 30 Millimeters                             | Market Consensus
+Video capture format        | MP4                                        | Market Consensus
+Screen size                 | 1.47 Inches                                | Market Consensus
+Included components         | Body Camera, USB Cable (Type-C)            | Factory Inference
+Minimum focal length        | 28 Millimeters                             | Market Consensus
+Sensor Type                 | CMOS                                       | Market Consensus
+Number of Batteries         | 1 Lithium Ion batteries (included)         | Logic/Market
+Maximum aperture            | 2.8 f                                      | Market Consensus
+Product Features            | WiFi 2.4GHz, Loop video, Time-lapse        | Factory Data
+Flash Memory Type           | Micro SD (Supports max 256GB)              | Factory Data
+Are Batteries               | Yes                                        | Factory Logic
+Has Image Stabilization     | No                                         | Market Consensus
+Item Weight                 | 0.1 Kilograms                              | Market Consensus
+Battery Average Life        | 90 minutes                                 | Market Consensus
+Effective Video Reso        | 1920 Pixels                                | Factory Data
+Camcorder type              | Action Camera                              | Market Consensus
+Supported audio forma       | AAC                                        | Market Consensus
+Connectivity technolog      | USB (Type-C), WiFi (2.4GHz)                | Factory Data
+Water Resistance Leve       | Not Water Resistant                        | Market Consensus
+Form Factor                 | Compact                                    | Market Consensus
+Lens Type                   | Wide Angle                                 | Market Consensus
+Focus Type                  | Fixed Focus                                | Market Consensus
+Shooting Modes              | Time-lapse, Loop video                     | Factory Data
+Image Aspect Ratio          | 16:9                                       | Logic (1920x1080)
+Supported Image             | JPEG                                       | Market Consensus
+File Format                 | MP4                                        | Market Consensus
+Compatible Devices          | Laptop, Personal Computer                  | Factory OS Data
+Manufacturer                | TOSBARRFT                                  | Brand Specific
+Flash Memory Speed Class    | C10                                        | Market Consensus
+Special feature             | Time-lapse, Loop video, WiFi               | Factory Data
+Operating System            | Win7/Win10/WinMe/WinX                      | Factory Data
+--------------------------------------------------------------------------------------------------

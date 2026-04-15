@@ -1,0 +1,37 @@
+{
+  "locale": "FR",
+  "lexical_preferences": [
+    "camera sport",
+    "camera d'action"
+  ],
+  "faq_templates": [
+    "cold_weather",
+    "waterproof_limit"
+  ],
+  "compliance_reminders": [
+    "clarify waterproof limits when the case is required"
+  ],
+  "compound_word_rules": [],
+  "title_style_guidelines": [
+    "favor readable category phrasing over literal translation"
+  ],
+  "bullet_style_guidelines": [
+    "blend technical proof with polished lifestyle cues"
+  ],
+  "after_sales_promises": [
+    "Support client FR via seller messaging within 24h",
+    "Guide de compatibilite accessoires avant remplacement"
+  ],
+  "support_sop": [
+    "Confirmer la compatibilite des accessoires avant remplacement",
+    "Verifier batterie, mode video et temperature avant escalade SAV"
+  ],
+  "regulatory_watchouts": [
+    "Clarify waterproof limits when the case is required",
+    "Avoid explicit refund guarantees in visible copy"
+  ],
+  "launch_gate_checks": [
+    "Verifier la phrase de limite d etancheite dans B4 ou FAQ",
+    "Verifier que B5 rassure sans promesse juridique excessive"
+  ]
+}

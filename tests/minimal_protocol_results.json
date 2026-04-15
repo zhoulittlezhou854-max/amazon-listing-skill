@@ -1,0 +1,54 @@
+{
+  "keyword_cases": {
+    "K1": {
+      "keyword_tiering": {
+        "max": 30,
+        "score": 30,
+        "note": "L1:2 L2:1 L3:1"
+      },
+      "note": "L1:2 L2:1 L3:1"
+    },
+    "K2": {
+      "keyword_tiering": {
+        "max": 30,
+        "score": 10,
+        "note": "L1:0 L2:0 L3:1"
+      },
+      "note": "L1:0 L2:0 L3:1"
+    },
+    "K3": {
+      "keyword_tiering": {
+        "max": 30,
+        "score": 10,
+        "note": "L1:0 L2:0 L3:1"
+      },
+      "note": "L1:0 L2:0 L3:1"
+    }
+  },
+  "capability_cases": {
+    "C1": {
+      "capability_scene_binding": {
+        "max": 40,
+        "score": 40,
+        "note": "\u6ee1\u8db3 2/2 \u6761\u7ed1\u5b9a"
+      },
+      "note": "\u6ee1\u8db3 2/2 \u6761\u7ed1\u5b9a"
+    },
+    "C2": {
+      "capability_scene_binding": {
+        "max": 40,
+        "score": 0,
+        "note": "\u6ee1\u8db3 0/1 \u6761\u7ed1\u5b9a"
+      },
+      "note": "\u6ee1\u8db3 0/1 \u6761\u7ed1\u5b9a"
+    },
+    "C3": {
+      "capability_scene_binding": {
+        "max": 40,
+        "score": 0,
+        "note": "\u6ee1\u8db3 0/1 \u6761\u7ed1\u5b9a"
+      },
+      "note": "\u6ee1\u8db3 0/1 \u6761\u7ed1\u5b9a"
+    }
+  }
+}

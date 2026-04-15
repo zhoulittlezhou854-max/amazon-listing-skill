@@ -1,0 +1,42 @@
+Amazon Spec Reconciliation - T70 Action Camera (Final)
+--------------------------------------------------
+Amazon Field Name           | Final Value
+--------------------------------------------------
+Brand                       | 
+Photo Sensor Technology     | CMOS
+Connectivity technology     | Wi-Fi
+Video Capture Resolution    | 4K
+Maximum Focal Length        | 18 Millimeters
+Maximum Aperture            | 2.8 f
+Flash Memory Type           | Micro SD
+Video Capture Format        | MP4
+Supported Audio Format      | MP4
+Features                    | Dual Screen, Waterproof, EIS
+Photo Sensor Size           | 
+Water Resistance Level      | Waterproof
+Has Image Stabilization     | Yes
+Image stabilization         | Electronic
+Form Factor                 | Compact
+Item Weight                 | 66 Grams
+Style Name                  | Action Camera
+Number of Batteries         | 1 Lithium Ion Battery
+Maximum Aperture            | 2.8 f
+Minimum Focal Length        | 
+Lens Type                   | 
+Focus Type                  | 
+Supported Audio Format      | 
+Compatible Devices          | Personal Computer
+Camcorder Type              | Action Camera
+Antenna Location            | 
+Are Batteries Included      | Yes
+Effective Still Resolution  | 64 MP
+Shooting Modes              | Recording, Photo
+Image Aspect Ratio          | 16:9
+Supported Image Format      | JPG
+Zoom                        | 
+Sensor Type                 | CMOS
+Product Features            | Dual Screen, Waterproof, EIS
+Maximum Display Resolution   | HD
+Flash Memory Speed Class    | C10
+Flash Memory Video          | 
+--------------------------------------------------

@@ -1,0 +1,32 @@
+# Amazon Listing Skill 项目依赖
+# 基础依赖
+python>=3.8
+
+# 数据处理
+pandas>=1.5.0
+numpy>=1.23.0
+openpyxl>=3.1.0  # XLSX loader for real vocab spreadsheets
+python-docx>=0.8.11  # historical docx parsing (structure only)
+deep-translator>=1.11.4  # locale-aware listing localization
+
+# 配置管理
+python-dotenv>=0.19.0
+
+# HTTP请求
+requests>=2.28.0
+streamlit>=1.44.0
+
+# 日志和调试
+colorama>=0.4.6
+
+# 测试框架
+pytest>=7.0.0
+pytest-cov>=4.0.0
+
+# 代码质量
+black>=22.0.0
+flake8>=5.0.0
+mypy>=0.990
+
+# 类型注解支持
+typing-extensions>=4.5.0

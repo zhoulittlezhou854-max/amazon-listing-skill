@@ -1,0 +1,202 @@
+<knowledge_base>
+
+    <doc name="Compliance_Red_Lines">
+Purpose: Hard interception for Title, Bullets, Description, Images, and Backend Keywords.
+[cite_start]Source Reference: [cite: 1]
+
+1. HARD BANS (Content Types)
+--------------------------------------------------
+1.1 Contact Info & Traffic Diversion
+[RULE] Strictly PROHIBITED: Phone numbers, emails, URLs, QR codes, or social media handles.
+[REGEX_TRIGGERS]
+- URL: (http|https)://|www\.|\.com\b|\.net\b|\.io\b|\.cn\b
+- Email: [A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}
+- [cite_start]Social Keywords: whatsapp|wechat|line|telegram|instagram|tiktok|facebook|dm me [cite: 2]
+
+1.2 Price & Availability Claims
+[RULE] Do not hardcode price/stock status in text or images.
+[cite_start][FORBIDDEN_WORDS] price, cheapest, discount, sale, deal, coupon, free shipping, fast delivery, in stock, available now, limited time. [cite: 2]
+
+1.3 Competitor Bashing
+[RULE] No comparisons. Describe your product facts only.
+[cite_start][FORBIDDEN_PATTERNS] better than [Brand], compare to [Brand], beats [Brand], cheaper than [Brand]. [cite: 2]
+
+2. TITLE SPECIFIC RULES
+--------------------------------------------------
+[HARD_RULES]
+- [cite_start]Max Length: 200 characters. [cite: 3]
+- No Special Chars: ! $ ? [cite_start]_ { } ^ ¬ ¦ [cite: 3]
+- [cite_start]No Repetition: Do not repeat the same word >2 times. [cite: 3]
+- [cite_start]No Promo Words: best, #1, top rated, hot, amazing. [cite: 3]
+
+3. BACKEND SEARCH TERMS (STRICT)
+--------------------------------------------------
+[HARD_BAN]
+- [cite_start]NO Competitor Brands (e.g., Nike, Lego). [cite: 4]
+- [cite_start]NO ASINs or Product IDs. [cite: 4]
+- [cite_start]NO Temporary words: new, on sale, available now. [cite: 4]
+- [cite_start]NO Subjective claims: best, amazing, cheapest. [cite: 4]
+
+4. PROMOTIONAL & SUBJECTIVE BANS
+--------------------------------------------------
+[BLOCKLIST]
+buy now, order now, add to cart, click here, hurry, limited time, today only,
+#1, number one, best seller, top rated, most popular, trending, viral,
+[cite_start]guaranteed, 100% guaranteed, money back, risk-free, lifetime warranty. [cite: 5]
+
+    </doc>
+
+    <doc name="Style_Guide">
+Amazon_Style_Guide.txt
+
+【AMAZON LISTING STYLE GUIDE 2025】
+Purpose: Formatting standards for Title, Bullets, Description, and Images.
+[cite_start]Source Reference: [cite: 25]
+
+1. TITLE STRUCTURE
+--------------------------------------------------
+[FORMULA]
+[Brand] + [Core Product] + [Key Differentiator] + [Size/Color/Pack] + [Use Case]
+[REQUIREMENTS]
+- [cite_start]Start with Brand Name. [cite: 30]
+- [cite_start]Max 200 characters. [cite: 30]
+- [cite_start]Capitalize first letter of each word (Title Case). [cite: 33]
+- [cite_start]Use numerals (e.g., "2" instead of "two"). [cite: 34]
+
+2. BULLET POINTS (5 POINTS)
+--------------------------------------------------
+[STRUCTURE]
+1. WHAT IT IS: Core benefit + main use case.
+2. WHAT'S INCLUDED: Pack count + specific components.
+3. SPECIFICATIONS: Size, dimensions, compatibility.
+4. HOW TO USE: Installation or usage steps.
+5. [cite_start]CARE/SAFETY: Maintenance notes + limitations. [cite: 33]
+[STYLE]
+- [cite_start]Start with a capitalized header (e.g., "EASY TO INSTALL —"). [cite: 34]
+- [cite_start]Focus on FACTS (dimensions, materials) over fluff (amazing, perfect). [cite: 26]
+
+3. IMAGES & VIDEO
+--------------------------------------------------
+[MAIN_IMAGE] Pure white background, product only. [cite_start]No text, badges, or watermarks. [cite: 35]
+[TEXT_ON_IMAGES]
+- OK: Sizes, material names, "What's in the box".
+- [cite_start]BAN: "Best Seller", "Amazon's Choice", Price, Promotion. [cite: 36]
+
+4. BACKEND SEARCH TERMS
+--------------------------------------------------
+- [cite_start]Length: Under 249 bytes. [cite: 37]
+- Syntax: Single spaces between words. [cite_start]NO commas. [cite: 37]
+- Content: Synonyms, spelling variations, abbreviations. [cite_start]NO competitor brands. [cite: 37]
+
+    </doc>
+
+    <doc name="IP_Library">
+【AMAZON IP INFRINGEMENT & BRAND SAFETY LIBRARY】
+Purpose: Identify high-risk brands and provide safe "compatibility" templates.
+[cite_start]Source Reference: [cite: 15]
+
+1. GLOBAL IP RULES
+--------------------------------------------------
+[HARD_BAN]
+- Do NOT use competitor brand names in Title/Bullets/Description unless using the "Compatibility" format.
+- [cite_start]Do NOT use competitor brand names in Backend Search Terms (This is trademark abuse). [cite: 16]
+- [cite_start]Do NOT use "Official", "Genuine", "Authorized", or "OEM" unless you have explicit authorization. [cite: 16]
+
+2. SAFE COMPATIBILITY TEMPLATES
+--------------------------------------------------
+[RULE] You may use a brand name ONLY to indicate compatibility.
+[SAFE_FORMAT]
+- "Compatible with [Brand] [Model]"
+- "Replacement for [Brand] [Model]"
+- "Fits [Brand] [Model]"
+[UNSAFE_FORMAT]
+- "[Brand] Case" (e.g., "iPhone Case" is risky; use "Case for iPhone")
+- [cite_start]"[Brand] Filter" (e.g., "Dyson Filter" is risky; use "Filter for Dyson") [cite: 17]
+
+3. TRADEMARKED "COMMON" WORDS (DO NOT USE)
+--------------------------------------------------
+[cite_start]Velcro, Onesie, ChapStick, Kleenex, Band-Aid, Q-Tips, Teflon, Gore-Tex, Post-it, Plexiglas, Popsicle, Thermos, Super Glue, Ping-Pong. [cite: 15]
+
+4. HIGH-RISK BRAND WATCHLIST
+--------------------------------------------------
+[cite_start][TECH] Apple, iPhone, iPad, AirPods, Samsung, Galaxy, Google, Android, Microsoft, Xbox, Sony, PlayStation, Nintendo, Switch, GoPro, DJI. micro[cite: 15]
+[cite_start][LUXURY] Louis Vuitton, Gucci, Chanel, Prada, Hermes, Dior, Rolex, Omega. [cite: 18]
+[cite_start][SPORTS] Nike, Adidas, Under Armour, Lululemon, NFL, NBA, FIFA, Olympics, Super Bowl. [cite: 15]
+[cite_start][ENTERTAINMENT] Disney, Marvel, Star Wars, Frozen, Mickey Mouse, Harry Potter, LEGO, Pokémon, Fortnite, Minecraft, Bluey, Paw Patrol. [cite: 15]
+[cite_start][HOME] Dyson, KitchenAid, Keurig, Ninja, Stanley, YETI. [cite: 15]
+
+    </doc>
+
+    <doc name="Evidence_Claims_Matrix">
+【AMAZON EVIDENCE & CLAIMS MATRIX】
+Purpose: Validate claims regarding Environment, Health, Safety, and Performance.
+[cite_start]Source Reference: [cite: 20]
+
+1. ENVIRONMENTAL & GREEN CLAIMS
+--------------------------------------------------
+[HARD_BAN - VAGUE TERMS]
+[cite_start]eco-friendly, environmentally friendly, green, sustainable, earth-friendly, biodegradable (without specs). [cite: 20]
+[ALLOWED WITH EVIDENCE]
+- "Made with X% recycled material" (Must have supply chain proof).
+- [cite_start]"Recyclable packaging where facilities exist". [cite: 20]
+
+2. MEDICAL & DISEASE CLAIMS (STRICT)
+--------------------------------------------------
+[HARD_BAN - ACTION WORDS]
+[cite_start]diagnose, cure, treat, mitigate, prevent, heal, therapy, remedy. [cite: 22]
+[HARD_BAN - CONDITIONS]
+[cite_start]cancer, diabetes, arthritis, inflammation, depression, anxiety, insomnia, flu, pain relief. [cite: 22]
+[SAFE_ALTERNATIVE]
+[cite_start]Use non-medical terms: "comfort", "support", "soothing feel". [cite: 22]
+
+3. PESTICIDES & BACTERIA (TRIGGER WARNING)
+--------------------------------------------------
+[HARD_BAN]
+antimicrobial, antibacterial, antiviral, disinfectant, sanitizer, kills 99.9%, germ-free, anti-mold.
+[RISK]
+Using these words triggers "Pesticide" classification requiring EPA registration. [cite_start]Avoid unless registered. [cite: 22]
+
+4. SAFETY & MATERIAL CLAIMS
+--------------------------------------------------
+[HIGH_RISK - REQUIRES PROOF]
+- [cite_start]"BPA-free", "Non-toxic", "Hypoallergenic", "Food Grade". [cite: 23]
+[SAFE_ALTERNATIVE]
+State the material fact: "Made of Silicone", "Stainless Steel". [cite_start]Only use "Free-from" claims if you have lab reports. [cite: 23]
+
+5. ABSOLUTE PERFORMANCE CLAIMS
+--------------------------------------------------
+[AVOID] 100% waterproof, unbreakable, lasts forever, permanent.
+[cite_start][USE] Water-resistant, durable, long-lasting. [cite: 23]
+
+    </doc>
+
+    <doc name="Supplementary_Rules">
+【AMAZON SUPPLEMENTARY RULES: REVIEWS & SAFETY】
+Purpose: Rules for Reviews, Child Safety, and Restricted Items.
+[cite_start]Source Reference: [cite: 40]
+
+1. REVIEW MANIPULATION (ZERO TOLERANCE)
+--------------------------------------------------
+[HARD_BAN]
+- Asking for a "5-star review".
+- Offering "Free gift for review".
+- "Contact us before leaving a review" (Interfering with negative reviews).
+- [cite_start]Inserts/Cards in packaging asking for positive feedback. [cite: 40]
+
+2. CHILD SAFETY & WARNINGS
+--------------------------------------------------
+[BALLOONS]
+[cite_start]Mandatory Warning: "WARNING: CHOKING HAZARD – Children under 8 yrs. can choke or suffocate on uninflated or broken balloons. Adult supervision required." [cite: 41]
+[SMALL PARTS]
+[cite_start]Mandatory Warning (for toys/small items): "WARNING: CHOKING HAZARD – Small parts. Not for children under 3 yrs." [cite: 42]
+
+3. RESTRICTED ITEM CLAIMS
+--------------------------------------------------
+[cite_start][LASERS] No "High power", "Military grade", or "Burn" claims. [cite: 43]
+[BATTERIES] Must accurately state chemistry (Lithium ion, Alkaline). [cite_start]No false longevity claims. [cite: 43]
+[PLANTS/SEEDS] Strictly regulated. [cite_start]Do not use "seeds" to describe non-agricultural items. [cite: 43]
+
+
+    </doc>
+
+</knowledge_base>
