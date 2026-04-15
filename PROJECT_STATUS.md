@@ -15,6 +15,14 @@ It is not a full mirror of the original local git history.
 
 ## Current launch baseline
 
+- Run: `H91lite_US_r15`
+- Date: `2026-04-15`
+- generation_status: `live_success`
+- listing_status: `READY_FOR_LISTING`
+- Four-dimension score: `A10 100 / COSMO 100 / Rufus 90 / Fluency 30`
+- Full test suite: `209 passed`
+- Conclusion: Ready for launch after human final review
+
 The snapshot reflects a system that already supports:
 - live LLM generation via the current primary provider path
 - four-dimension scoring (`A10`, `COSMO`, `Rufus`, `Fluency`)
@@ -57,12 +65,13 @@ Current scope is strong for launch review, but still has boundaries:
 
 ## Recent verification
 
-The clean snapshot was verified locally before publishing.
+The clean snapshot was verified locally before publishing and refreshed after the r15 launch baseline run.
 
-Baseline used for this review snapshot:
-- tests: `208 passed`
+Latest published verification:
+- tests: `209 passed`
 - repo published to GitHub on branch `main`
-- commit family rooted at launch snapshot `e183662`
+- current review snapshot head: `c8e41e0`
+- accepted launch baseline: `H91lite_US_r15`
 
 ## Suggested review questions
 
