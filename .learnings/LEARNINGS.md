@@ -147,3 +147,6 @@ If a scoring model tracks one tier per keyword record, prefer adding new distinc
 - `DIMENSION_CLUSTERS` 中 `mobility_commute` 过宽会把 guidance/travel 文案误归为通勤维度。本次将其收窄为更强场景词：`commut`, `cycling`, `bike`, `ride`, `on-the-go`, `pov`，移除了过泛的 `travel` 和 `daily`，避免 B4 guidance 类 bullet 被错误吞入 commute 维度。
 - 验收对比：`r16_v2a` 为 `live_success` 但最终 `NOT_READY_FOR_LISTING`，分数 `A10 100 / COSMO 92 / Rufus 90 / Fluency 30`；`r16_v2a_fix` 为 `live_success` 且三份状态一致 `READY_FOR_LISTING`，分数提升到 `A10 100 / COSMO 100 / Rufus 100 / Fluency 30`。相对 `r15` 基线，本轮修复没有回退主链路，并恢复到 330/330。
 - V2.0-A 最终验收结论：长度规则统一、Title 自然化、Blueprint 受众分配、Bullet 维度去重，以及 fix pack 的状态源一致性/受众传递修复均已完成；当前全量测试 `232 passed`，`r16_v2a_fix` 可作为新的 V2.0-A 验收基线。
+
+## 2026-04-16 GitHub Release Publish Note
+- Publishing `v2.0.0` to GitHub hit two reusable issues: sandboxed git writes could not create `.git/index.lock`, and the remote `main` branch had unrelated history from an earlier snapshot. The safe release pattern was: escalate git write operations, `git fetch` remote `main`, merge with `--allow-unrelated-histories`, resolve add/add conflicts by keeping the validated local V2.0 tree, then push `main` plus the annotated `v2.0.0` tag.
