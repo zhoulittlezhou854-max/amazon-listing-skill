@@ -8,6 +8,31 @@ from __future__ import annotations
 from statistics import median
 from typing import Any, Dict, List, Tuple
 
+from modules.keyword_utils import GLOBAL_BRAND_BLOCKLIST, is_blocklisted_brand
+
+
+def _build_keyword_entry(
+    keyword: str,
+    tier: str,
+    search_volume: float,
+    conversion_rate: float,
+    source_type: str,
+    source_file: str = "",
+) -> Dict[str, Any]:
+    """统一的关键词结构，方便写作策略消费元数据。"""
+    return {
+        "keyword": keyword,
+        "level": tier,
+        "tier": tier,
+        "search_volume": search_volume,
+        "conversion_rate": conversion_rate,
+        "high_conv": conversion_rate >= 1.5,
+        "source_type": source_type or "unknown",
+        "source_file": source_file,
+        "visibility": "visible",
+        "downgrade_reason": "",
+    }
+
 
 def _tier_keyword(row: Dict[str, Any], l1_threshold: float, l2_threshold: float) -> Tuple[str, float]:
     volume = row.get("search_volume") or row.get("月搜索量") or 0
@@ -70,15 +95,16 @@ def _build_from_real_vocab(real_vocab: Any) -> Tuple[List[Dict[str, Any]], str]:
         vol = float(row.get("search_volume") or 0)
         rate = float(row.get("conversion_rate") or 0)
         level, _ = _tier_keyword({"search_volume": vol}, l1_threshold, l2_threshold)
-        reserve.append({
-            "keyword": kw,
-            "level": level,
-            "search_volume": vol,
-            "conversion_rate": rate,
-            "high_conv": rate >= 1.5,
-            "_source_type": row.get("source_type", "unknown"),
-            "_source_file": row.get("source_file", ""),
-        })
+        reserve.append(
+            _build_keyword_entry(
+                keyword=kw,
+                tier=level,
+                search_volume=vol,
+                conversion_rate=rate,
+                source_type=row.get("source_type", "real_vocab"),
+                source_file=row.get("source_file", ""),
+            )
+        )
 
     reserve.sort(key=lambda x: x["search_volume"], reverse=True)
     return reserve, "real_vocab"
@@ -161,18 +187,21 @@ def build_arsenal(preprocessed_data: Any) -> Dict[str, Any]:
                     prices.append(float(row["avg_price"]))
                 except (TypeError, ValueError):
                     pass
-            reserve_keywords.append({
-                "keyword": keyword,
-                "level": level,
-                "search_volume": volume,
-                "conversion_rate": conversion_rate,
-                "high_conv": _is_high_conv(row)
-            })
+            reserve_keywords.append(
+                _build_keyword_entry(
+                    keyword=keyword,
+                    tier=level,
+                    search_volume=volume,
+                    conversion_rate=conversion_rate,
+                    source_type=row.get("source_type", kw_source),
+                )
+            )
 
         reserve_keywords = sorted(reserve_keywords, key=lambda x: x["search_volume"], reverse=True)
         kw_source = "keyword_table"
 
     review_insights = getattr(getattr(preprocessed_data, "review_data", None), "insights", []) or []
+    feedback_context = getattr(preprocessed_data, "feedback_context", {}) or {}
 
     if prices:
         price_median = median(prices)
@@ -194,6 +223,55 @@ def build_arsenal(preprocessed_data: Any) -> Dict[str, Any]:
         if insight.get("field_name", "").lower() in {"rufus_faq", "high_freq_question"}
     ][:5]
 
+    traffic_priority_keywords = [
+        entry for entry in reserve_keywords
+        if not is_blocklisted_brand(entry.get("keyword", ""))
+    ]
+    traffic_priority_keywords = sorted(
+        traffic_priority_keywords,
+        key=lambda item: (
+            1 if item.get("source_type") == "feedback_organic_core" else 0,
+            float(item.get("search_volume") or 0),
+        ),
+        reverse=True,
+    )[:12]
+    conversion_priority_keywords = sorted(
+        [
+            entry for entry in reserve_keywords
+            if not is_blocklisted_brand(entry.get("keyword", ""))
+        ],
+        key=lambda item: (
+            1 if item.get("source_type") == "feedback_sp_intent" else 0,
+            1 if item.get("high_conv") else 0,
+            float(item.get("conversion_rate") or 0),
+            float(item.get("search_volume") or 0),
+        ),
+        reverse=True,
+    )[:12]
+    backend_only_terms = sorted(
+        {
+            entry.get("keyword", "")
+            for entry in reserve_keywords
+            if is_blocklisted_brand(entry.get("keyword", ""))
+        }
+    )
+    backend_only_terms = sorted(
+        set(
+            backend_only_terms
+            + [
+                str((row or {}).get("keyword") or "").strip()
+                for row in feedback_context.get("backend_only", []) or []
+                if str((row or {}).get("keyword") or "").strip()
+            ]
+        )
+    )
+    taboo_terms = sorted(GLOBAL_BRAND_BLOCKLIST)[:30]
+    keyword_metadata = reserve_keywords[:]
+    if hasattr(preprocessed_data, "keyword_metadata"):
+        preprocessed_data.keyword_metadata = keyword_metadata
+    else:
+        setattr(preprocessed_data, "keyword_metadata", keyword_metadata)
+
     arsenal = {
         "site": getattr(preprocessed_data.run_config, "target_country", "US"),
         "language": preprocessed_data.language,
@@ -203,6 +281,10 @@ def build_arsenal(preprocessed_data: Any) -> Dict[str, Any]:
             {"constraint": "30 米防水需使用防水壳", "action": "boundary_declaration"}
         ],
         "reserve_keywords": reserve_keywords[:50],
+        "traffic_priority_keywords": traffic_priority_keywords,
+        "conversion_priority_keywords": conversion_priority_keywords,
+        "backend_only_terms": backend_only_terms,
+        "taboo_terms": taboo_terms,
         "competitor_brands": ["GoPro", "Insta360", "DJI"],
         "price_context": {
             "price_median": price_median,
@@ -214,6 +296,7 @@ def build_arsenal(preprocessed_data: Any) -> Dict[str, Any]:
         # 关键词来源追踪（用于判断是否使用真实本地词）
         "_keyword_source": kw_source,
         "_real_vocab_available": getattr(real_vocab, "is_available", False) if real_vocab else False,
+        "keyword_metadata": keyword_metadata[:50],
     }
 
     return arsenal

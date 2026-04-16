@@ -1,0 +1,37 @@
+{
+  "locale": "IT",
+  "lexical_preferences": [
+    "action cam",
+    "telecamera sportiva"
+  ],
+  "faq_templates": [
+    "value_setup",
+    "waterproof_limit"
+  ],
+  "compliance_reminders": [
+    "avoid unsupported battery duration guarantees outside stated conditions"
+  ],
+  "compound_word_rules": [],
+  "title_style_guidelines": [
+    "use clear value-forward category wording"
+  ],
+  "bullet_style_guidelines": [
+    "highlight ease of use and bundle value where supported"
+  ],
+  "after_sales_promises": [
+    "Supporto clienti IT via messaggistica Amazon entro 24 ore",
+    "Aiuto compatibilita accessori prima della sostituzione"
+  ],
+  "support_sop": [
+    "Confermare accessori e montaggi compatibili prima della sostituzione",
+    "Controllare modalita video e temperatura prima di aprire ticket batteria"
+  ],
+  "regulatory_watchouts": [
+    "Avoid unsupported battery duration guarantees outside stated conditions",
+    "State housing requirement for waterproof use"
+  ],
+  "launch_gate_checks": [
+    "Verificare che il supporto post vendita compaia in B5",
+    "Verificare limiti waterproof e batteria nelle FAQ"
+  ]
+}

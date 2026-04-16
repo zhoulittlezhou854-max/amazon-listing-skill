@@ -1,0 +1,37 @@
+{
+  "locale": "ES",
+  "lexical_preferences": [
+    "camara deportiva",
+    "action cam"
+  ],
+  "faq_templates": [
+    "value_setup",
+    "mount_compatibility"
+  ],
+  "compliance_reminders": [
+    "state waterproof boundaries when housing is required"
+  ],
+  "compound_word_rules": [],
+  "title_style_guidelines": [
+    "use familiar consumer-facing category words first"
+  ],
+  "bullet_style_guidelines": [
+    "balance performance proof with affordability cues"
+  ],
+  "after_sales_promises": [
+    "Soporte ES por mensajeria Amazon en 24 h laborables",
+    "Ayuda de compatibilidad antes de aprobar reemplazo"
+  ],
+  "support_sop": [
+    "Confirmar compatibilidad de monturas antes de reemplazo",
+    "Revisar modo de grabacion y temperatura antes de escalar bateria"
+  ],
+  "regulatory_watchouts": [
+    "State waterproof boundaries when housing is required",
+    "Avoid refund-like guarantees in visible copy"
+  ],
+  "launch_gate_checks": [
+    "Comprobar mensaje de soporte postventa en B5",
+    "Comprobar limites waterproof y accesorios en FAQ"
+  ]
+}

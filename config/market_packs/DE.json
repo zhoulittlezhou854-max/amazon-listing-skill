@@ -1,0 +1,40 @@
+{
+  "locale": "DE",
+  "lexical_preferences": [
+    "action kamera",
+    "fahrradhelm kamera"
+  ],
+  "faq_templates": [
+    "cold_weather",
+    "waterproof_limit",
+    "mount_compatibility"
+  ],
+  "compliance_reminders": [
+    "avoid unsupported battery safety guarantees"
+  ],
+  "compound_word_rules": [
+    "prefer_compound_noun_forms_for_mounting_terms"
+  ],
+  "title_style_guidelines": [
+    "lead with high-intent product noun phrases"
+  ],
+  "bullet_style_guidelines": [
+    "prefer direct technical phrasing over emotional copy"
+  ],
+  "after_sales_promises": [
+    "DE seller support via Amazon messaging within 24h",
+    "Accessory-fit questions handled before replacement approval"
+  ],
+  "support_sop": [
+    "Confirm mount or accessory compatibility before replacement approval",
+    "Route battery-runtime complaints through temperature and mode checklist first"
+  ],
+  "regulatory_watchouts": [
+    "Avoid absolute battery safety promises",
+    "State waterproof boundaries when housing is required"
+  ],
+  "launch_gate_checks": [
+    "Confirm compound-noun title phrasing reads naturally in German",
+    "Verify B5 includes support handoff without refund-language claims"
+  ]
+}

@@ -8,6 +8,8 @@
 import re
 from typing import Dict, List, Any, Tuple
 
+from tools.preprocess import standardize_attribute_data
+
 
 # 运动相机专项能力熔断规则
 ACTION_CAMERA_RULES = [
@@ -192,12 +194,12 @@ def _check_dual_screen(attr: Dict[str, Any]) -> bool:
     if not attr:
         return False
 
-    screen_fields = ["screen_type", "display", "屏幕", "屏幕类型"]
+    screen_fields = ["screen_type", "display", "屏幕", "屏幕类型", "dual_screen", "型号", "model", "form_factor"]
 
     for field in screen_fields:
         if field in attr:
             screen = str(attr[field]).lower()
-            if any(keyword in screen for keyword in ["dual", "双屏", "前后屏", "two", "前后"]):
+            if any(keyword in screen for keyword in ["dual", "双屏", "前后屏", "double screen", "two", "前后"]):
                 return True
 
     return False
@@ -262,7 +264,11 @@ def _check_live_streaming(attr: Dict[str, Any]) -> bool:
     return False
 
 
-def check_capabilities(attribute_data: Dict[str, Any], language: str = "English") -> Dict[str, List[str]]:
+def check_capabilities(
+    attribute_data: Dict[str, Any],
+    language: str = "English",
+    capability_constraints: Dict[str, Any] | None = None,
+) -> Dict[str, List[str]]:
     """
     检查可宣称的能力
 
@@ -285,92 +291,144 @@ def check_capabilities(attribute_data: Dict[str, Any], language: str = "English"
             "details": [],
             "warning": "属性数据为空"
         }
+    capability_constraints = capability_constraints or {}
+    normalized = standardize_attribute_data(attribute_data)
+    constraints = dict(capability_constraints)
+    if not constraints:
+        constraints = {
+            "max_resolution": normalized.get("video_resolution", ""),
+            "waterproof_supported": "waterproof" in normalized.get("water_resistance_level", "").lower(),
+            "waterproof_requires_case": False,
+            "waterproof_depth_m": None,
+            "stabilization_supported": normalized.get("has_image_stabilization", "").lower() in {"yes", "true", "1"},
+            "stabilization_modes": [],
+            "stabilization_note": "",
+            "runtime_minutes": None,
+            "wifi_supported": any(
+                token in normalized.get("connectivity", "").lower() for token in ["wifi", "wi-fi"]
+            ),
+            "dual_screen_supported": "dual" in " ".join(
+                [normalized.get("features", ""), normalized.get("product features", "")]
+            ).lower(),
+            "live_streaming_supported": normalized.get("live_streaming", "").lower() in {"yes", "true", "1"},
+            "voice_control_supported": normalized.get("voice_control", "").lower() in {"yes", "true", "1"},
+            "faq_only_claims": [],
+            "discouraged_claims": [],
+            "forbidden_claims": [],
+        }
 
-    allowed = []
-    restricted = []
-    forbidden = []
-    details = []
+    allowed_visible: List[str] = []
+    allowed_with_condition: List[str] = []
+    faq_only: List[str] = []
+    forbidden: List[str] = list(FORBIDDEN_CAPABILITIES)
+    details: List[str] = []
 
-    # 检查专项规则
-    for rule in ACTION_CAMERA_RULES:
-        capability = rule["capability"]
-        condition = rule["condition"]
-        action = rule["action"]
-        description = rule["description"]
+    max_resolution = str(constraints.get("max_resolution") or normalized.get("video_resolution", "")).lower()
+    runtime_minutes = constraints.get("runtime_minutes") or 0
+    stabilization_modes = constraints.get("stabilization_modes") or []
+    discouraged_claims = constraints.get("discouraged_claims") or []
 
-        try:
-            if condition(attribute_data):
-                if action == "ALLOW":
-                    allowed.append(capability)
-                    details.append(f"✓ {capability}: {description}")
-                elif action == "ALLOW_WITH_DEPTH":
-                    allowed.append(capability)
-                    details.append(f"✓ {capability}: {description}（需说明深度）")
-                elif action == "ALLOW_IF_NOT_DIGITAL":
-                    # 检查是否为数字防抖
-                    stabilization = str(attribute_data.get("image_stabilization", "")).lower()
-                    if "digital" in stabilization or "数字" in stabilization:
-                        restricted.append(capability)
-                        details.append(f"⚠ {capability}: {description}（仅限数字防抖，需降级说明）")
-                    else:
-                        allowed.append(capability)
-                        details.append(f"✓ {capability}: {description}")
-                else:
-                    allowed.append(capability)
-                    details.append(f"✓ {capability}: {description}")
-            else:
-                details.append(f"✗ {capability}: 不满足条件")
-        except Exception as e:
-            details.append(f"✗ {capability}: 检查失败 ({e})")
+    if any(token in max_resolution for token in ["4k", "2160", "3840"]):
+        allowed_visible.append("4K宣称")
+        details.append("✓ 4K宣称: 已由标准化属性字段支持")
+    else:
+        details.append("✗ 4K宣称: 未找到可支持的分辨率证据")
 
-    # 检查绝对禁止的能力
-    for capability in FORBIDDEN_CAPABILITIES:
-        forbidden.append(capability)
-        details.append(f"❌ {capability}: 绝对禁止宣称")
+    if constraints.get("waterproof_supported"):
+        depth = constraints.get("waterproof_depth_m")
+        if constraints.get("waterproof_requires_case"):
+            allowed_with_condition.append("防水宣称")
+            details.append(f"⚠ 防水宣称: 仅可带条件可见（需使用防水壳，深度={depth or '未标注'}m）")
+        else:
+            allowed_visible.append("防水宣称")
+            details.append(f"✓ 防水宣称: 可见宣称允许（深度={depth or '未标注'}m）")
+    else:
+        details.append("✗ 防水宣称: 真值层未支持可见防水")
 
-    # 检查属性表中未标注但用户可能想宣称的能力
-    # 提取属性表中的special_feature字段
-    special_features = []
-    if "special_feature" in attribute_data:
-        features = str(attribute_data["special_feature"]).split(",")
-        special_features = [f.strip() for f in features if f.strip()]
+    if constraints.get("stabilization_supported"):
+        if discouraged_claims or stabilization_modes:
+            allowed_with_condition.append("防抖宣称")
+            details.append(f"⚠ 防抖宣称: 有模式/文案限制（modes={stabilization_modes or ['GENERAL']}）")
+        else:
+            allowed_visible.append("防抖宣称")
+            details.append("✓ 防抖宣称: 可见宣称允许")
+        allowed_visible.append("EIS防抖")
+        details.append("✓ EIS防抖: 真值层支持")
+    else:
+        details.append("✗ 防抖宣称: 真值层未支持")
+        details.append("✗ EIS防抖: 真值层未支持")
 
-    # 对于特殊功能，检查是否在属性表中有支持
-    for feature in special_features:
-        # 简单检查：如果特征不在已检查的能力中，且不包含禁止词汇，则允许
-        feature_lower = feature.lower()
-        is_forbidden = any(forbidden_word in feature_lower for forbidden_word in [f.lower() for f in FORBIDDEN_CAPABILITIES])
+    if constraints.get("wifi_supported"):
+        allowed_visible.append("WiFi宣称")
+        details.append("✓ WiFi宣称: 连接能力已验证")
+    else:
+        details.append("✗ WiFi宣称: 未检测到 Wi-Fi 连接能力")
 
-        if is_forbidden:
+    if constraints.get("dual_screen_supported"):
+        allowed_visible.append("双屏幕")
+        details.append("✓ 双屏幕: Features 字段支持")
+    else:
+        details.append("✗ 双屏幕: 未检测到双屏证据")
+
+    if runtime_minutes and float(runtime_minutes) >= 120:
+        allowed_visible.append("长续航")
+        details.append(f"✓ 长续航: runtime_minutes={runtime_minutes}")
+    elif runtime_minutes:
+        allowed_with_condition.append("长续航")
+        details.append(f"⚠ 长续航: runtime_minutes={runtime_minutes}，可见表达需谨慎")
+    else:
+        details.append("✗ 长续航: 未找到续航分钟数")
+
+    if constraints.get("voice_control_supported"):
+        allowed_visible.append("语音控制")
+        details.append("✓ 语音控制: 属性字段支持")
+    else:
+        details.append("✗ 语音控制: 未检测到支持")
+
+    if constraints.get("live_streaming_supported"):
+        allowed_visible.append("直播功能")
+        details.append("✓ 直播功能: 属性字段支持")
+    else:
+        faq_only.append("直播功能")
+        details.append("⚠ 直播功能: 默认仅允许 FAQ/人工确认后使用")
+
+    faq_only.extend(constraints.get("faq_only_claims") or [])
+    forbidden.extend(str(item) for item in (constraints.get("forbidden_claims") or []))
+
+    features_blob = " ".join(
+        filter(None, [normalized.get("features", ""), normalized.get("product features", "")])
+    )
+    extra_feature_tokens = [item.strip() for item in re.split(r"[,/;；，]+", features_blob) if item.strip()]
+    for feature in extra_feature_tokens:
+        lowered = feature.lower()
+        if any(word in lowered for word in [f.lower() for f in FORBIDDEN_CAPABILITIES]):
             forbidden.append(feature)
-            details.append(f"❌ {feature}: 包含禁止词汇")
-        elif feature not in allowed and feature not in restricted:
-            # 检查是否在限制列表中
-            is_restricted = any(restricted_word.lower() in feature_lower for restricted_word in RESTRICTED_CAPABILITIES)
+            details.append(f"❌ {feature}: 包含绝对禁止表达")
+        elif feature not in allowed_visible and feature not in allowed_with_condition:
+            allowed_visible.append(feature)
+            details.append(f"✓ {feature}: 来自 Features / Product Features")
 
-            if is_restricted:
-                restricted.append(feature)
-                details.append(f"⚠ {feature}: 需要特定说明或条件")
-            else:
-                allowed.append(feature)
-                details.append(f"✓ {feature}: 属性表中标注的特殊功能")
-
-    # 移除重复项
-    allowed = list(dict.fromkeys(allowed))
-    restricted = list(dict.fromkeys(restricted))
+    allowed_visible = list(dict.fromkeys(allowed_visible))
+    allowed_with_condition = list(dict.fromkeys(allowed_with_condition))
+    faq_only = list(dict.fromkeys(faq_only))
     forbidden = list(dict.fromkeys(forbidden))
 
     return {
-        "allowed": allowed,
-        "restricted": restricted,
+        "allowed_visible": allowed_visible,
+        "allowed_with_condition": allowed_with_condition,
+        "faq_only": faq_only,
+        "allowed": allowed_visible + allowed_with_condition,
+        "restricted": allowed_with_condition + faq_only,
         "forbidden": forbidden,
         "details": details,
         "summary": {
-            "allowed_count": len(allowed),
-            "restricted_count": len(restricted),
+            "allowed_visible_count": len(allowed_visible),
+            "allowed_with_condition_count": len(allowed_with_condition),
+            "faq_only_count": len(faq_only),
             "forbidden_count": len(forbidden),
-            "total_checked": len(ACTION_CAMERA_RULES) + len(FORBIDDEN_CAPABILITIES) + len(special_features)
-        }
+            "total_checked": 8 + len(extra_feature_tokens),
+        },
+        "normalized_attribute_keys": sorted(k for k in normalized.keys() if not k.startswith("__")),
     }
 
 
@@ -395,7 +453,7 @@ def check_compliance_redlines(text: str, language: str = "English") -> Dict[str,
             "severity": "high"
         },
         {
-            "pattern": r'\$\d+|price|discount|sale|deal|coupon',
+            "pattern": r'\$\d+|\bprice\b|\bdiscount\b|\bsale\b|\bdeal\b|\bcoupon\b',
             "description": "价格/折扣信息",
             "severity": "high"
         },
@@ -405,7 +463,7 @@ def check_compliance_redlines(text: str, language: str = "English") -> Dict[str,
             "severity": "high"
         },
         {
-            "pattern": r'100%|best|#1|top rated|hot|amazing',
+            "pattern": r'100%|\bbest\b|#1|\btop rated\b|\bhot\b|\bamazing\b',
             "description": "绝对化宣称",
             "severity": "medium"
         },

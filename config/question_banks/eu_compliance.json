@@ -1,0 +1,17 @@
+{
+  "category": "eu_compliance",
+  "questions": [
+    {
+      "topic": "battery_shipping",
+      "question": "Are there any battery or air-travel handling limits buyers should know?",
+      "priority": "high",
+      "market": "DE"
+    },
+    {
+      "topic": "warranty_scope",
+      "question": "What usage conditions and accessories are required to stay within the stated product guidance?",
+      "priority": "medium",
+      "market": "FR"
+    }
+  ]
+}

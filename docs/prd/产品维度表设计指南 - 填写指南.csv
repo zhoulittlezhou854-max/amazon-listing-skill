@@ -1,0 +1,6 @@
+Data_Category,Target_Data_Type,Target_Field_Name,Processing_Instruction
+Listing_Content,Listing_Content,Title/Bullet/Desc,Standard parsing. Keep HTML tags.
+Review_Batch,Review_Insight,Pain_Point,"SLOT-FILLING LOGIC: Target exactly 3 unique rows per ASIN. Summarize bulk text into distinct issues. If slots < 3, add new unique issues. If slots = 3, only replace if new issue is more critical."
+Review_Batch,Review_Insight,Feature_Praise,"SLOT-FILLING LOGIC: Target exactly 3 unique rows per ASIN. Summarize bulk text into distinct benefits. Focus on what users love most."
+Rufus_QA,Rufus_Log,QA_Pair,"Format: 'Q: ... \n A: ...'"
+Specs_Parameters,Attributes,Tech_Specs,Extract key-value pairs.

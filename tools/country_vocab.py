@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """
 真实国家词表加载器 (Priority 1 关键词来源)
-从 language_data/ 目录读取 DE/FR 的真实 ABA / 出单词表
+从 data/raw/<country>/ 目录读取 DE/FR 的真实 ABA / 出单词 / 模板词库。
 
 词源优先级：
-  Priority 1: 真实 target-country 词表（aba / 出单词 / review 抽取）
+  Priority 1: 真实 target-country 词表（aba / 出单词 / review / template 抽取）
   Priority 2: 从真实词表归一的英文 intent/capability labels
   Priority 3: 语言映射表（CAPABILITY_TRANSLATIONS 等）
   Priority 4: [SYNTH]
@@ -12,6 +12,7 @@
 关键词来源标记：
   - "aba"        → ABA 关键词表
   - "order_winning" → 出单词表
+  - "template"  → 长尾模板关键词
   - "review"     → 全维度评论表抽取
   - "synthetic"  → 合成关键词（Fallback）
 """
@@ -34,7 +35,14 @@ from tools.data_loader import load_table, standardize_keywords, KEYWORD_FIELD_MA
 # 路径常量
 # ============================================================
 
-_LANG_DATA_ROOT = Path(__file__).parent.parent / "language_data"
+_DATA_RAW_ROOT = Path(__file__).parent.parent / "data" / "raw"
+_DE_LANG_ROOT = _DATA_RAW_ROOT / "de" / "DE"
+_FR_LANG_ROOT = _DATA_RAW_ROOT / "fr" / "FR"
+_US_LANG_ROOT = _DATA_RAW_ROOT / "us" / "US"
+_UK_LANG_ROOT = _DATA_RAW_ROOT / "uk" / "UK"
+_ES_LANG_ROOT = _DATA_RAW_ROOT / "es" / "ES"
+_IT_LANG_ROOT = _DATA_RAW_ROOT / "it" / "IT"
+_SHARED_LANG_ROOT = _DATA_RAW_ROOT / "shared"
 
 
 # ============================================================
@@ -44,26 +52,67 @@ _LANG_DATA_ROOT = Path(__file__).parent.parent / "language_data"
 COUNTRY_CONFIGS: Dict[str, Dict[str, Any]] = {
     "DE": {
         "aba_files": [
-            _LANG_DATA_ROOT / "DE" / "H88_DE_ABA_Merged.csv",
-            _LANG_DATA_ROOT / "DE" / "T70M_DE_ABA关键词表_数据表.csv",
+            _DE_LANG_ROOT / "H88_DE_ABA_Merged.csv",
+            _DE_LANG_ROOT / "T70M_DE_ABA关键词表_数据表.csv",
+            _DE_LANG_ROOT / "ActionCam_DE_ABA_20260407.csv",
+            _DE_LANG_ROOT / "KeywordList_DE_ABA_20260408.csv",
         ],
         "order_winning_files": [
-            _LANG_DATA_ROOT / "DE" / "H88_DE_出单词表.csv",
-            _LANG_DATA_ROOT / "DE" / "T70M_DE_出单词表_数据表.csv",
+            _DE_LANG_ROOT / "H88_DE_出单词表.csv",
+            _DE_LANG_ROOT / "T70M_DE_出单词表_数据表.csv",
         ],
-        "review_file": _LANG_DATA_ROOT / "H88_全维度表格_评论未合并.csv",
+        "template_files": [
+            _DE_LANG_ROOT / "de_longtail_template_keywords.csv",
+        ],
+        "review_file": _SHARED_LANG_ROOT / "H88_全维度表格_评论未合并.csv",
     },
     "FR": {
         "aba_files": [
-            _LANG_DATA_ROOT / "FR" / "H88_FR_ABA.csv",
-            _LANG_DATA_ROOT / "FR" / "T70M_FR_ABA关键词表_数据表.csv",
+            _FR_LANG_ROOT / "H88_FR_ABA.csv",
+            _FR_LANG_ROOT / "T70M_FR_ABA关键词表_数据表.csv",
+            _FR_LANG_ROOT / "ActionCam_FR_ABA_20260407.csv",
         ],
         "order_winning_files": [
-            _LANG_DATA_ROOT / "FR" / "T70M_FR_出单词表_数据表.csv",
+            _FR_LANG_ROOT / "T70M_FR_出单词表_数据表.csv",
             # H88_FR_出单词.xlsx 通过 data_loader 读取（见下方）
-            _LANG_DATA_ROOT / "FR" / "H88_FR_出单词.xlsx",
+            _FR_LANG_ROOT / "H88_FR_出单词.xlsx",
         ],
-        "review_file": _LANG_DATA_ROOT / "H88_全维度表格_评论未合并.csv",
+        "template_files": [
+            _FR_LANG_ROOT / "fr_longtail_template_keywords.csv",
+        ],
+        "review_file": _SHARED_LANG_ROOT / "H88_全维度表格_评论未合并.csv",
+    },
+    "US": {
+        "aba_files": [
+            _US_LANG_ROOT / "ActionCam_US_ABA_20260407.csv",
+        ],
+        "order_winning_files": [],
+        "template_files": [],
+        "review_file": None,
+    },
+    "UK": {
+        "aba_files": [
+            _UK_LANG_ROOT / "ActionCam_UK_ABA_20260407.csv",
+        ],
+        "order_winning_files": [],
+        "template_files": [],
+        "review_file": None,
+    },
+    "ES": {
+        "aba_files": [
+            _ES_LANG_ROOT / "ActionCam_ES_ABA_20260407.csv",
+        ],
+        "order_winning_files": [],
+        "template_files": [],
+        "review_file": None,
+    },
+    "IT": {
+        "aba_files": [
+            _IT_LANG_ROOT / "ActionCam_IT_ABA_20260407.csv",
+        ],
+        "order_winning_files": [],
+        "template_files": [],
+        "review_file": None,
     },
 }
 
@@ -82,7 +131,7 @@ MODEL_CONFIGS: Dict[str, List[str]] = {
 class CountryKeywordEntry:
     """单条关键词记录"""
     keyword: str
-    source_type: str       # "aba" | "order_winning" | "review"
+    source_type: str       # "aba" | "order_winning" | "review" | "template"
     source_file: str       # 来源文件名
     model: str             # "H88" | "T70M" | "H88_全维度"
     country: str           # "DE" | "FR"
@@ -97,6 +146,7 @@ class CountryKeywordEntry:
     tags: Optional[str] = None
     product_count: Optional[int] = None
     rating_value: Optional[float] = None
+    tier: Optional[str] = None
     # 原始行（保留给特殊字段使用）
     raw: Optional[Dict[str, Any]] = None
 
@@ -141,6 +191,8 @@ def _detect_source_type(filename: str) -> str:
     fn_lower = filename.lower()
     if "aba" in fn_lower:
         return "aba"
+    elif "template" in fn_lower or "模板" in filename or "长尾" in filename:
+        return "template"
     elif any(kw in fn_lower for kw in ["出单词", "order", "winning"]):
         return "order_winning"
     elif "全维度" in filename or "review" in fn_lower or "评论" in filename:
@@ -151,6 +203,7 @@ def _detect_source_type(filename: str) -> str:
 def _load_single_file(file_path: Path, country: str) -> List[CountryKeywordEntry]:
     """加载单个词表文件"""
     if not file_path.exists():
+        print(f"[country_vocab] ⚠️  文件不存在，跳过: {file_path}")
         return []
 
     filename = file_path.name
@@ -160,13 +213,15 @@ def _load_single_file(file_path: Path, country: str) -> List[CountryKeywordEntry
     try:
         raw_rows = load_table(str(file_path))
     except Exception as e:
-        print(f"  [WARN] 加载文件失败 {file_path}: {e}", file=sys.stderr)
+        print(f"[country_vocab] ⚠️  加载失败 {file_path}: {e}", file=sys.stderr)
         return []
 
     entries = []
     # 对关键词表进行标准化
     if source_type in ("aba", "order_winning"):
         std_rows = standardize_keywords(raw_rows)
+    elif source_type == "template":
+        std_rows = [_normalize_template_row(row) for row in raw_rows]
     else:
         # review/全维度表使用通用字段映射
         std_rows = raw_rows
@@ -183,7 +238,15 @@ def _load_single_file(file_path: Path, country: str) -> List[CountryKeywordEntry
             continue
 
         # 对于全维度表，country 字段在行内（Country 列）
-        entry_country = str(row.get("country") or row.get("Country") or country).strip()
+        entry_country = str(
+            row.get("country")
+            or row.get("Country")
+            or row.get("marketplace")
+            or row.get("Marketplace")
+            or country
+        ).strip().upper()
+        if not entry_country:
+            entry_country = country
         # 只保留目标国家的评论数据
         if source_type == "review" and entry_country and entry_country != country:
             # 全维度表的 review 条目需要按 country 过滤
@@ -195,12 +258,16 @@ def _load_single_file(file_path: Path, country: str) -> List[CountryKeywordEntry
             if entry_country_val and entry_country_val != country:
                 continue
 
+        entry_model = model
+        if source_type == "template":
+            entry_model = str(row.get("root_word") or row.get("cluster_type") or "Template").strip() or "Template"
+
         entry = CountryKeywordEntry(
             keyword=str(kw).strip(),
             source_type=source_type,
             source_file=filename,
-            model=model,
-            country=country if source_type != "review" else entry_country,
+            model=entry_model,
+            country=entry_country if source_type != "review" else entry_country,
             search_volume=_float(row.get("search_volume")),
             conversion_rate=_float(row.get("conversion_rate")),
             avg_cpc=_float(row.get("avg_cpc")),
@@ -208,13 +275,19 @@ def _load_single_file(file_path: Path, country: str) -> List[CountryKeywordEntry
             title_density=_float(row.get("title_density")),
             click_concentration=_float(row.get("click_concentration")),
             conv_concentration=_float(row.get("conv_concentration")),
-            ac_recommend=row.get("ac_recommend") or row.get("AC推荐词"),
-            tags=row.get("tags") or row.get("标签"),
+            ac_recommend=row.get("ac_recommend") or row.get("AC推荐词") or row.get("notes"),
+            tags=row.get("tags") or row.get("标签") or row.get("cluster_type"),
             product_count=_int(row.get("product_count")),
             rating_value=_float(row.get("rating_value")),
+            tier=_normalize_tier(row),
             raw=row,
         )
         entries.append(entry)
+
+    print(
+        f"[country_vocab] {country}: {filename} ({source_type}) → {len(entries)} rows",
+        file=sys.stderr,
+    )
 
     return entries
 
@@ -235,6 +308,50 @@ def _int(val: Any) -> Optional[int]:
         return int(float(val))
     except (ValueError, TypeError):
         return None
+
+
+def _normalize_tier(row: Dict[str, Any]) -> Optional[str]:
+    tier_val = (
+        row.get("tier")
+        or row.get("Tier")
+        or row.get("TIER")
+        or row.get("level")
+        or row.get("Level")
+    )
+    if not tier_val:
+        return None
+    normalized = str(tier_val).strip().upper()
+    if normalized in {"L1", "L2", "L3"}:
+        return normalized
+    return None
+
+
+def _normalize_template_row(row: Dict[str, Any]) -> Dict[str, Any]:
+    """将模板词库行字段映射到标准字段名"""
+    normalized = dict(row)
+
+    def _copy_if_missing(target: str, *candidates: str):
+        if normalized.get(target) not in (None, "", "None"):
+            return
+        for key in candidates:
+            value = normalized.get(key)
+            if value not in (None, "", "None"):
+                normalized[target] = value
+                return
+
+    _copy_if_missing("country", "marketplace", "Marketplace", "站点")
+    _copy_if_missing("search_volume", "searches", "Searches")
+    _copy_if_missing("conversion_rate", "purchase_rate", "purchaseRate")
+    _copy_if_missing("avg_cpc", "bid")
+    _copy_if_missing("product_count", "products")
+    _copy_if_missing("spr", "supply_demand_ratio")
+    _copy_if_missing("click_concentration", "monopoly_click_rate")
+    _copy_if_missing("tags", "cluster_type")
+
+    if normalized.get("country"):
+        normalized["country"] = str(normalized["country"]).strip().upper()
+
+    return normalized
 
 
 # ============================================================
@@ -261,6 +378,7 @@ def load_country_vocab(country: str) -> Dict[str, List[CountryKeywordEntry]]:
     result: Dict[str, List[CountryKeywordEntry]] = {
         "aba": [],
         "order_winning": [],
+        "template": [],
         "review": [],
         "all": [],
     }
@@ -275,6 +393,12 @@ def load_country_vocab(country: str) -> Dict[str, List[CountryKeywordEntry]]:
     for fpath in config.get("order_winning_files", []):
         entries = _load_single_file(fpath, country)
         result["order_winning"].extend(entries)
+        result["all"].extend(entries)
+
+    # 加载模板长尾词库
+    for fpath in config.get("template_files", []):
+        entries = _load_single_file(fpath, country)
+        result["template"].extend(entries)
         result["all"].extend(entries)
 
     # 加载全维度评论表（按国家过滤）
@@ -404,11 +528,23 @@ def find_high_volume_keywords(
 ) -> List[CountryKeywordEntry]:
     """获取搜索量最高的前 N 条关键词"""
     all_entries = vocab.get("all", [])
-    return sorted(
+    ranked = sorted(
         [e for e in all_entries if (e.search_volume or 0) >= min_volume],
         key=lambda x: x.search_volume or 0,
         reverse=True
-    )[:top_n]
+    )
+    result = ranked[:top_n]
+    seen = {
+        (e.keyword.lower(), e.source_type, e.source_file)
+        for e in result
+    }
+    for entry in all_entries:
+        if entry.tier and entry.tier.upper() in {"L1", "L2", "L3"}:
+            key = (entry.keyword.lower(), entry.source_type, entry.source_file)
+            if key not in seen:
+                result.append(entry)
+                seen.add(key)
+    return result
 
 
 # ============================================================
@@ -426,6 +562,7 @@ if __name__ == "__main__":
             vocab = load_country_vocab(country)
             print(f"  ABA 关键词:        {len(vocab['aba'])} 条")
             print(f"  出单词:            {len(vocab['order_winning'])} 条")
+            print(f"  模板长尾词:        {len(vocab['template'])} 条")
             print(f"  评论抽取关键词:    {len(vocab['review'])} 条")
             print(f"  合计（去重后）:    {len(vocab['all'])} 条")
 

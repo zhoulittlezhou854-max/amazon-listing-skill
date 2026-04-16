@@ -1,6 +1,0 @@
-Data_Type,Field_Name,Content_Text,Sentiment,Count
-Review_Insight,Feature_Praise,"画质清晰，夜拍表现好",positive,34
-Review_Insight,Feature_Praise,"附带的磁吸挂绳非常方便",positive,12
-Review_Insight,negative_pain,"原厂配件不足，需自行购买",negative,8
-Review_Insight,high_freq_question,"防水壳需要注意什么？",neutral,5
-Review_Insight,rufus_faq,"电池续航能否覆盖整天骑行？",neutral,11

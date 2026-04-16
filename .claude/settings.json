@@ -9,6 +9,26 @@
             "command": "cd $CLAUDE_PROJECT_DIR && git add . && git commit -m 'auto-checkpoint' --allow-empty 2>/dev/null || true"
           }
         ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/zhoulittlezhou/.codex/skills/self-improving-agent/scripts/error-detector.sh"
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/zhoulittlezhou/.codex/skills/self-improving-agent/scripts/activator.sh"
+          }
+        ]
       }
     ]
   }

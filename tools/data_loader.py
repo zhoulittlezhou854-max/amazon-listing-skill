@@ -13,7 +13,7 @@ from __future__ import annotations
 import csv
 import os
 import sys
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List
 from pathlib import Path
 
 
@@ -21,29 +21,13 @@ from pathlib import Path
 # 依赖检查
 # ============================================================
 
-_PANDAS_AVAILABLE = False
-_OPENPYXL_AVAILABLE = False
-
-try:
-    import pandas as pd
-    _PANDAS_AVAILABLE = True
-except ImportError:
-    pass
-
 try:
     import openpyxl
-    _OPENPYXL_AVAILABLE = True
-except ImportError:
-    pass
-
-
-def _get_loader_caps() -> Dict[str, bool]:
-    """返回当前环境支持的加载能力"""
-    return {
-        "csv": True,  # 始终支持
-        "xlsx_openpyxl": _OPENPYXL_AVAILABLE,
-        "xlsx_pandas": _PANDAS_AVAILABLE,
-    }
+except ImportError as exc:  # pragma: no cover - covered by runtime error message
+    openpyxl = None  # type: ignore
+    _OPENPYXL_IMPORT_ERROR = exc
+else:
+    _OPENPYXL_IMPORT_ERROR = None
 
 
 # ============================================================
@@ -93,49 +77,27 @@ def _load_csv(file_path: str) -> List[Dict[str, Any]]:
 
 
 def _load_xlsx(file_path: str) -> List[Dict[str, Any]]:
-    """
-    加载 xlsx，优先用 pandas，fallback 到 openpyxl
-
-    Raises:
-        RuntimeError: 所需依赖均不可用
-    """
-    if _PANDAS_AVAILABLE:
-        return _load_xlsx_pandas(file_path)
-    elif _OPENPYXL_AVAILABLE:
-        return _load_xlsx_openpyxl(file_path)
-    else:
+    """使用 openpyxl 加载 xlsx；缺失依赖时抛出明确提示"""
+    if openpyxl is None:
         raise RuntimeError(
-            f"读取 .xlsx 文件需要 pandas 或 openpyxl，但两者均未安装。\n"
-            f"请运行: pip install pandas openpyxl\n"
-            f"或联系管理员安装依赖。"
-        )
+            "读取 .xlsx 文件需要 openpyxl。请运行 'pip install openpyxl' 后重试。"
+        ) from _OPENPYXL_IMPORT_ERROR
 
-
-def _load_xlsx_pandas(file_path: str) -> List[Dict[str, Any]]:
-    """使用 pandas 加载 xlsx"""
-    df = pd.read_excel(file_path, engine="openpyxl")
-    # 清理列名和值
-    df.columns = [str(c).strip() for c in df.columns]
-    return [
-        {k: (str(v) if not isinstance(v, (int, float)) else v) for k, v in row.items()}
-        for row in df.to_dict(orient="records")
-    ]
-
-
-def _load_xlsx_openpyxl(file_path: str) -> List[Dict[str, Any]]:
-    """使用 openpyxl 加载 xlsx"""
     wb = openpyxl.load_workbook(file_path, data_only=True)
     ws = wb.active
     headers = [cell.value for cell in ws[1]]
     headers = [str(h).strip() if h else f"col_{i}" for i, h in enumerate(headers)]
-    data = []
+    data: List[Dict[str, Any]] = []
     for row in ws.iter_rows(min_row=2, values_only=True):
         if not any(cell is not None for cell in row):
             continue
-        record = {}
+        record: Dict[str, Any] = {}
         for i, cell in enumerate(row):
             key = headers[i] if i < len(headers) else f"col_{i}"
-            record[key] = str(cell) if cell is not None else ""
+            if isinstance(cell, str):
+                record[key] = cell.strip()
+            else:
+                record[key] = cell if cell is not None else ""
         data.append(record)
     return data
 
@@ -147,18 +109,18 @@ def _load_xlsx_openpyxl(file_path: str) -> List[Dict[str, Any]]:
 # 关键词表字段映射
 KEYWORD_FIELD_MAP: Dict[str, List[str]] = {
     "keyword":        ["关键词", "keyword", "search_term", "Search Term"],
-    "search_volume":  ["月搜索量", "search_volume", "volume", "月搜索"],
-    "conversion_rate": ["购买率", "conversion_rate", "cvr", "转化率"],
+    "search_volume":  ["月搜索量", "search_volume", "volume", "月搜索", "searches"],
+    "conversion_rate": ["购买率", "conversion_rate", "cvr", "转化率", "purchaseRate"],
     "avg_price":      ["均价", "avg_price", "price", "平均价格"],
     "monthly_purchases": ["购买量", "monthly_purchases", "purchases"],
     "click_share":     ["点击份额", "click_share"],
-    "avg_cpc":        ["平均点击成本", "avg_cpc", "PPC价格", "PPC竞价"],
+    "avg_cpc":        ["平均点击成本", "avg_cpc", "PPC价格", "PPC竞价", "bid"],
     "spr":            ["SPR", "spr"],
-    "title_density":  ["标题密度", "title_density"],
+    "title_density":  ["标题密度", "title_density", "titleDensity"],
     "click_concentration": ["点击集中度", "click_concentration"],
     "conv_concentration": ["转化集中度", "conv_concentration"],
     "ac_recommend":   ["AC推荐词", "AC推荐", "ac_recommend"],
-    "country":        ["国家", "Country", "country"],
+    "country":        ["国家", "Country", "country", "market"],
     "model":          ["型号", "model", "Model"],
     "tags":           ["标签", "tags"],
     "product_count":  ["商品数", "product_count", "商品数"],

@@ -1,0 +1,127 @@
+<knowledge_base category="ActionCamera" version="1.0">
+  <!-- 1. 基础禁用词（继承原有 Compliance_Red_Lines，可与总库合并） -->
+  <doc name="Compliance_Red_Lines_ActionCam">
+    <![CDATA[
+    RULESET_ID: ACTIONCAM_BASE_FORBIDDEN
+    SCOPE: ALL_VISIBLE_COPY
+
+    # 绝对禁止的宣称（无论参数如何都不要用）
+    - "bulletproof"
+    - "indestructible"
+    - "military grade"        # 除非有真实认证
+    - "100% safe"
+    - "guaranteed no failure"
+
+    # 高风险营销词（除非后台有真实认证/证据，不允许）
+    - "waterproof without housing"
+    - "completely waterproof without case"
+    - "fully shockproof"
+    ]]>
+  </doc>
+
+  <!-- 2. 能力熔断：分“文案可见区域”和“后台搜索词”两层 -->
+  <doc name="Capability_Fuse_ActionCam">
+    <![CDATA[
+    RULESET_ID: ACTIONCAM_CAPABILITY_FUSE_V1
+
+    # 说明：
+    # - VISIBILITY = VISIBLE 表示 Title/Bullets/Description 等用户可见区域
+    # - VISIBILITY = BACKEND_ONLY 表示 Search Terms 等后台字段
+    # - ACTION = HARD_DELETE 表示直接删除该词
+    # - ACTION = DOWNGRADE 表示改写为较弱、真实的说法
+
+    ## 2.1 分辨率相关
+    [RULE]
+    TAG: RESOLUTION_4K_VISIBLE
+    MATCH: "4k","4K","UHD","Ultra HD"
+    VISIBILITY: VISIBLE
+    CONDITION: specs.video_resolution >= 3840x2160
+    ACTION_IF_TRUE: ALLOW
+    ACTION_IF_FALSE: HARD_DELETE
+    COMMENT: "产品参数不是真 4K 时，禁止在可见文案中使用 4K/UHD 等字样"
+
+    [RULE]
+    TAG: RESOLUTION_4K_BACKEND
+    MATCH: "4k","4K","UHD","Ultra HD","4k action camera","4k body camera"
+    VISIBILITY: BACKEND_ONLY
+    CONDITION: ALWAYS
+    ACTION_IF_TRUE: ALLOW_WITH_FLAG(backend_only=true)
+    COMMENT: "允许在 Search Terms 中保留 4K 搜索词，但标记为仅后台可见"
+
+    ## 2.2 防水相关
+    [RULE]
+    TAG: WATERPROOF_STRONG_CLAIM
+    MATCH: "waterproof","防水","完全防水","fully waterproof"
+    VISIBILITY: VISIBLE
+    CONDITION: (specs.waterproof_level >= IP68) OR (specs.waterproof_case_max_depth_m >= 10)
+    ACTION_IF_TRUE: ALLOW_WITH_NOTE("必须在同一段文字中明确下潜米数或防护等级")
+    ACTION_IF_FALSE: DOWNGRADE_TO("weather-resistant","splash-resistant","日常防泼溅")
+    COMMENT: "没有 IP68 或明确防水壳参数时，不允许直接宣称防水"
+
+    [RULE]
+    TAG: UNDERWATER_USAGE
+    MATCH: "underwater","diving","snorkeling","scuba","游泳","潜水"
+    VISIBILITY: VISIBLE
+    CONDITION: (specs.waterproof_case_included = true) AND (specs.waterproof_case_max_depth_m >= 10)
+    ACTION_IF_TRUE: ALLOW_WITH_NOTE("必须说明仅在配套防水壳内可潜水，且标明深度上限")
+    ACTION_IF_FALSE: HARD_DELETE
+    COMMENT: "无防水壳或防护深度不足，不允许暗示可潜水/游泳拍摄"
+
+    ## 2.3 防抖/稳定相关
+    [RULE]
+    TAG: STABILIZATION_EIS
+    MATCH: "stabilization","image stabilization","EIS","防抖","稳定画面"
+    VISIBILITY: VISIBLE
+    CONDITION: specs.image_stabilization != "None"
+    ACTION_IF_TRUE: ALLOW
+    ACTION_IF_FALSE: HARD_DELETE
+    COMMENT: "若产品参数为 None，则禁止任何防抖/稳定相关说法"
+
+    [RULE]
+    TAG: STABILIZATION_BACKEND
+    MATCH: "eis action camera","stabilization camera"
+    VISIBILITY: BACKEND_ONLY
+    CONDITION: ALWAYS
+    ACTION_IF_TRUE: ALLOW_WITH_FLAG(backend_only=true)
+    COMMENT: "可保留在 Search Terms 中捕获流量，但不可在可见区域使用"
+
+    ## 2.4 无线/连接相关
+    [RULE]
+    TAG: WIRELESS_CONNECTIVITY
+    MATCH: "wireless","Bluetooth","WiFi","无线","蓝牙","WIFI"
+    VISIBILITY: VISIBLE
+    CONDITION: (specs.connectivity contains "WiFi") OR (specs.connectivity contains "Bluetooth")
+    ACTION_IF_TRUE: ALLOW
+    ACTION_IF_FALSE: HARD_DELETE
+    COMMENT: "无无线连接能力时，不允许宣称 wireless/Bluetooth/WiFi"
+
+    ]]>
+  </doc>
+
+  <!-- 3. 形态冲突与挂载方式禁忌（与 Profiler 配合） -->
+  <doc name="Form_Factor_Taboos_ActionCam">
+    <![CDATA[
+    RULESET_ID: ACTIONCAM_FORM_TABOOS
+
+    # 根据 Profiler 的 physical_form 和 mount_system 决定禁忌词
+
+    [RULE]
+    TAG: CLIP_ON_DEVICE_TABOOS
+    CONDITION: profile.physical_form = "Clip-On Device"
+    FORBID_TERMS:
+      - "helmet only"
+      - "tripod only"
+      - "dash cam permanent mount"
+    COMMENT: "夹持/磁吸机型不能暗示必须固定在头盔或三脚架上"
+
+    [RULE]
+    TAG: BODY_CAM_TABOOS
+    CONDITION: profile.category_subtype = "Body Camera"
+    FORBID_TERMS:
+      - "police only"
+      - "law enforcement exclusive"
+    COMMENT: "避免制造‘仅限执法/公权力’用途的误导或敏感表述"
+    ]]>
+  </doc>
+
+</knowledge_base>

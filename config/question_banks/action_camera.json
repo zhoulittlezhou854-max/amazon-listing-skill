@@ -1,0 +1,23 @@
+{
+  "category": "action_camera",
+  "questions": [
+    {
+      "topic": "battery_in_cold_weather",
+      "question": "Can it record reliably in cold outdoor conditions?",
+      "priority": "high",
+      "market": "GLOBAL"
+    },
+    {
+      "topic": "waterproof_limit",
+      "question": "Does waterproof use require the case and what is the depth limit?",
+      "priority": "high",
+      "market": "GLOBAL"
+    },
+    {
+      "topic": "mount_compatibility",
+      "question": "Which mounting setups work best for helmets, bikes, or chest use?",
+      "priority": "medium",
+      "market": "GLOBAL"
+    }
+  ]
+}
