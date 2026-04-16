@@ -156,3 +156,6 @@ If a scoring model tracks one tier per keyword record, prefer adding new distinc
 - Added `app/services/workspace_service.py::list_workspace_runs(...)` to read local run folders directly without a new backend API. It normalizes both single-version runs and dual-version runs (`version_a/`, `version_b/`, `dual_version_report.md`) into one UI-friendly payload.
 - `app/streamlit_app.py` now exposes a new `历史报告` tab: select a workspace, load all runs under that workspace, and default-expand each record with visible copy, four-dimension scores, score breakdown JSON, plus embedded `listing_report.md` / `readiness_summary.md` / `dual_version_report.md` views.
 - V2.0-B regression baseline: new targeted tests passed and full suite moved from `232 passed` to `234 passed`.
+
+## 2026-04-16 GitHub Push Retry Note
+- After completing V2.0-B and committing `634f5ef`, GitHub push retries failed twice with `Failed to connect to github.com port 443 after 7500x ms`. The repo state is ready to publish, but remote sync depends on network recovery rather than git/auth fixes.
