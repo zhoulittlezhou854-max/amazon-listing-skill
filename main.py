@@ -125,6 +125,8 @@ class AmazonListingGenerator:
         output_dir: str = None,
         *,
         blueprint_model_override: Optional[str] = None,
+        title_model_override: Optional[str] = None,
+        bullet_model_override: Optional[str] = None,
     ):
         """
         初始化生成器
@@ -149,6 +151,8 @@ class AmazonListingGenerator:
         self._runtime_healthcheck: Dict[str, Any] = {}
         self.input_validation_warnings: List[Dict[str, Any]] = []
         self.blueprint_model_override = (blueprint_model_override or "").strip()
+        self.title_model_override = (title_model_override or "").strip()
+        self.bullet_model_override = (bullet_model_override or "").strip()
 
         # 创建输出目录
         os.makedirs(self.output_dir, exist_ok=True)
@@ -523,6 +527,10 @@ class AmazonListingGenerator:
                 artifact_dir=artifact_dir,
                 resume_existing=True,
                 progress_callback=lambda message: print(f"  {message}"),
+                model_overrides={
+                    "title": self.title_model_override,
+                    "bullets": self.bullet_model_override,
+                },
             )
 
             self.generated_copy = generated
@@ -989,12 +997,16 @@ def run_generator_workflow(
     steps: Optional[List[int]] = None,
     *,
     blueprint_model_override: Optional[str] = None,
+    title_model_override: Optional[str] = None,
+    bullet_model_override: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Programmatic entrypoint used by Streamlit/service layer."""
     generator = AmazonListingGenerator(
         config_path,
         output_dir,
         blueprint_model_override=blueprint_model_override,
+        title_model_override=title_model_override,
+        bullet_model_override=bullet_model_override,
     )
     summary = generator.run_workflow(steps)
     return {

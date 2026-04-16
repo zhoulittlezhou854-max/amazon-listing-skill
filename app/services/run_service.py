@@ -40,12 +40,16 @@ def _run_single_workflow(
     steps: Optional[List[int]] = None,
     *,
     blueprint_model_override: Optional[str] = None,
+    title_model_override: Optional[str] = None,
+    bullet_model_override: Optional[str] = None,
 ) -> Dict[str, Any]:
     result = run_generator_workflow(
         run_config_path,
         str(run_dir),
         steps=steps,
         blueprint_model_override=blueprint_model_override,
+        title_model_override=title_model_override,
+        bullet_model_override=bullet_model_override,
     )
     return {
         "result": result,
@@ -83,6 +87,8 @@ def run_workspace_workflow(
                     version_b_dir,
                     steps=steps,
                     blueprint_model_override="deepseek-reasoner",
+                    title_model_override="deepseek-reasoner",
+                    bullet_model_override="deepseek-reasoner",
                 )
                 dual_report = report_generator.generate_dual_version_report(
                     sku=run_config.get("product_code") or Path(run_config_path).stem,
@@ -92,12 +98,14 @@ def run_workspace_workflow(
                         "generated_copy": version_a["generated_copy"],
                         "scoring_results": version_a["scoring_results"],
                         "blueprint_model": (version_a["bullet_blueprint"] or {}).get("llm_model") or "deepseek-chat",
+                        "visible_copy_model": "deepseek-chat",
                         "elapsed_seconds": 0,
                     },
                     version_b={
                         "generated_copy": version_b["generated_copy"],
                         "scoring_results": version_b["scoring_results"],
                         "blueprint_model": (version_b["bullet_blueprint"] or {}).get("llm_model") or "deepseek-reasoner",
+                        "visible_copy_model": "deepseek-reasoner (title+bullets)",
                         "elapsed_seconds": 0,
                     },
                 )

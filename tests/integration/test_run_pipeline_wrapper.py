@@ -73,8 +73,22 @@ def test_main_dual_version_writes_versioned_outputs_and_report(tmp_path: Path, m
 
     calls = []
 
-    def _fake_workflow(config_arg: str, output_arg: str, steps=None, blueprint_model_override=None):
-        calls.append({"output": output_arg, "override": blueprint_model_override})
+    def _fake_workflow(
+        config_arg: str,
+        output_arg: str,
+        steps=None,
+        blueprint_model_override=None,
+        title_model_override=None,
+        bullet_model_override=None,
+    ):
+        calls.append(
+            {
+                "output": output_arg,
+                "override": blueprint_model_override,
+                "title_override": title_model_override,
+                "bullet_override": bullet_model_override,
+            }
+        )
         out = Path(output_arg)
         out.mkdir(parents=True, exist_ok=True)
         model = "deepseek-reasoner" if blueprint_model_override else "deepseek-chat"
@@ -108,9 +122,11 @@ def test_main_dual_version_writes_versioned_outputs_and_report(tmp_path: Path, m
     assert "Version B generation status: live_success" in stdout
     assert calls[0]["override"] is None
     assert calls[1]["override"] == "deepseek-reasoner"
+    assert calls[1]["title_override"] == "deepseek-reasoner"
+    assert calls[1]["bullet_override"] == "deepseek-reasoner"
     assert (output_dir / "version_a" / "generated_copy.json").exists()
     assert (output_dir / "version_b" / "generated_copy.json").exists()
     dual_report = (output_dir / "dual_version_report.md").read_text(encoding="utf-8")
     assert "Listing Dual Version Report" in dual_report
     assert "Version A：V3 全链路" in dual_report
-    assert "Version B：R1 Blueprint + V3 生成" in dual_report
+    assert "Version B：R1 Title + Bullets + V3 Remaining Fields" in dual_report

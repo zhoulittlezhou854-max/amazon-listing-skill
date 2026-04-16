@@ -96,7 +96,7 @@ def _render_run_result(result: dict) -> None:
         )
         st.markdown(report_text)
     if dual_report_text:
-        st.info("已生成 V3 基线版 + R1 Blueprint 实验版，请优先查看 dual_version_report.md。")
+        st.info("已生成 V3 基线版 + R1 Title/Bullets 实验版，请优先查看 dual_version_report.md。")
         st.download_button(
             "📥 下载 Dual Version Report",
             data=dual_report_text,
@@ -191,7 +191,7 @@ def render_history_tab() -> None:
             f"{run['created_at']} | {run['run_id']} | "
             f"{run.get('generation_status') or '-'} | {run.get('listing_status') or '-'}"
         )
-        with st.expander(label, expanded=True):
+        with st.expander(label, expanded=False):
             summary_cols = st.columns(6)
             summary_cols[0].metric("Generation", run.get("generation_status") or "-")
             summary_cols[1].metric("Listing", run.get("listing_status") or "-")
@@ -258,8 +258,8 @@ def render_new_product_tab() -> None:
             "【备注】\n"
             "- 4K模式120分钟"
         )
-        dual_version = st.checkbox("同时输出 R1 Blueprint 实验版（耗时更长）", value=False)
-        st.caption("仅 bullet blueprint 使用 R1，其余字段仍走当前 V3 主链路。")
+        dual_version = st.checkbox("同时输出 R1 Title/Bullets 实验版（耗时更长）", value=False)
+        st.caption("实验版会使用 R1 生成 Blueprint、Title 和 5 条 Bullets，其余字段仍走当前 V3 主链路。")
         submitted = st.form_submit_button("🚀 初始化并生成 Listing", use_container_width=True)
 
     if not submitted:

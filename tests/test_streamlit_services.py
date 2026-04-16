@@ -93,10 +93,26 @@ def test_run_workspace_workflow_dual_version_returns_dual_report(tmp_path: Path,
         encoding="utf-8",
     )
 
-    def _fake_run(config_path, output_dir, steps=None, blueprint_model_override=None):
+    captured = []
+
+    def _fake_run(
+        config_path,
+        output_dir,
+        steps=None,
+        blueprint_model_override=None,
+        title_model_override=None,
+        bullet_model_override=None,
+    ):
         out = Path(output_dir)
         out.mkdir(parents=True, exist_ok=True)
         model = "deepseek-reasoner" if blueprint_model_override else "deepseek-chat"
+        captured.append(
+            {
+                "blueprint": blueprint_model_override,
+                "title": title_model_override,
+                "bullets": bullet_model_override,
+            }
+        )
         (out / "generated_copy.json").write_text(
             json.dumps(
                 {
@@ -152,6 +168,12 @@ def test_run_workspace_workflow_dual_version_returns_dual_report(tmp_path: Path,
     assert "Listing Dual Version Report" in result["dual_report_text"]
     assert "version_a" in result["dual_version"]["version_a_dir"]
     assert "version_b" in result["dual_version"]["version_b_dir"]
+    assert captured[0] == {"blueprint": None, "title": None, "bullets": None}
+    assert captured[1] == {
+        "blueprint": "deepseek-reasoner",
+        "title": "deepseek-reasoner",
+        "bullets": "deepseek-reasoner",
+    }
 
 
 def test_attach_intent_weight_snapshot_updates_run_config(tmp_path: Path):

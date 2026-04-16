@@ -159,3 +159,9 @@ If a scoring model tracks one tier per keyword record, prefer adding new distinc
 
 ## 2026-04-16 GitHub Push Retry Note
 - After completing V2.0-B and committing `634f5ef`, GitHub push retries failed twice with `Failed to connect to github.com port 443 after 7500x ms`. The repo state is ready to publish, but remote sync depends on network recovery rather than git/auth fixes.
+
+## 2026-04-16 Dual-Version R1 Visible Copy
+- Experimental dual-version runs no longer stop at `R1 blueprint only`. `main.py`, `run_pipeline.py`, and `app/services/run_service.py` now pass three independent model overrides so Version B can use `deepseek-reasoner` for blueprint planning, title generation, and bullet generation while leaving description / FAQ / search terms / A+ on the V3 path.
+- `modules/copy_generation.py` now threads `model_overrides` through `generate_listing_copy(...)` / `generate_multilingual_copy(...)`, then attaches `_llm_override_model` to title and bullet payloads. `_llm_generate_title(...)` and `_llm_generate_bullet(...)` honor that override, and bullet repair generation inherits the same override so experimental visible copy stays on one model family.
+- Backward-compatibility note: some unit-test fake clients still expose the old `generate_text(...)` / `generate_bullet(...)` signature without `override_model`. The safe pattern is to try the new keyword arg first and fall back to the legacy call on `TypeError`, which keeps existing test doubles and any thin local mock clients working.
+- Validation baseline after this change: full suite moved from `234 passed` to `236 passed`.

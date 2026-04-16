@@ -1868,6 +1868,7 @@ def generate_title(
     target_language: Optional[str] = None,
     request_timeout_seconds: Optional[int] = None,
     artifact_dir: Optional[str] = None,
+    llm_override_model: Optional[str] = None,
 ) -> str:
     tiered_keywords = tiered_keywords or {"l1": [], "l2": [], "l3": []}
     target_language = target_language or getattr(preprocessed_data, "language", "English")
@@ -1966,6 +1967,7 @@ def generate_title(
         "exact_match_keywords": exact_match_keywords,
         "copy_contracts": writing_policy.get("copy_contracts", {}),
         "_artifact_dir": artifact_dir,
+        "_llm_override_model": llm_override_model,
     }
     if request_timeout_seconds:
         payload["_request_timeout_seconds"] = int(request_timeout_seconds)
@@ -2031,6 +2033,7 @@ def _generate_bullet_points_legacy(
     request_timeout_seconds: Optional[int] = None,
     slot_filter: Optional[Sequence[str]] = None,
     artifact_dir: Optional[str] = None,
+    llm_override_model: Optional[str] = None,
 ) -> Tuple[List[str], List[Dict[str, Any]], List[str]]:
     """
     Generate five bullet points with constrained payloads.
@@ -2256,6 +2259,7 @@ def _generate_bullet_points_legacy(
             "spec_dimension_target": spec_dimension_target,
             "spec_dimensions_used": sorted(used_spec_dimensions),
             "_artifact_dir": artifact_dir,
+            "_llm_override_model": llm_override_model,
         }
         if request_timeout_seconds:
             payload["_request_timeout_seconds"] = int(request_timeout_seconds)
@@ -2333,6 +2337,7 @@ def generate_bullet_points(
     request_timeout_seconds: Optional[int] = None,
     slot_filter: Optional[Sequence[str]] = None,
     artifact_dir: Optional[str] = None,
+    llm_override_model: Optional[str] = None,
 ) -> Tuple[List[str], List[Dict[str, Any]], List[str]]:
     if bullet_blueprint:
         return _generate_bullets_from_blueprint(
@@ -2350,6 +2355,7 @@ def generate_bullet_points(
             request_timeout_seconds=request_timeout_seconds,
             slot_filter=slot_filter,
             artifact_dir=artifact_dir,
+            llm_override_model=llm_override_model,
         )
     return _generate_bullet_points_legacy(
         preprocessed_data=preprocessed_data,
@@ -2365,6 +2371,7 @@ def generate_bullet_points(
         request_timeout_seconds=request_timeout_seconds,
         slot_filter=slot_filter,
         artifact_dir=artifact_dir,
+        llm_override_model=llm_override_model,
     )
 
 
@@ -2490,6 +2497,7 @@ def _generate_bullets_from_blueprint(
     request_timeout_seconds: Optional[int] = None,
     slot_filter: Optional[Sequence[str]] = None,
     artifact_dir: Optional[str] = None,
+    llm_override_model: Optional[str] = None,
 ) -> Tuple[List[str], List[Dict[str, Any]], List[str]]:
     normalized_entries = _normalize_blueprint_entries(bullet_blueprint)
     if not normalized_entries:
@@ -2507,6 +2515,7 @@ def _generate_bullets_from_blueprint(
             request_timeout_seconds,
             slot_filter,
             artifact_dir,
+            llm_override_model,
         )
     selected_slots = set(_ordered_slot_filter(slot_filter, [entry["slot"] for entry in normalized_entries]))
     tiered_keywords = tiered_keywords or {"l1": [], "l2": [], "l3": []}
@@ -2688,6 +2697,7 @@ def _generate_bullets_from_blueprint(
             ),
             "spec_dimensions_used": sorted(used_spec_dimensions),
             "_artifact_dir": artifact_dir,
+            "_llm_override_model": llm_override_model,
         }
         if request_timeout_seconds:
             payload["_request_timeout_seconds"] = int(request_timeout_seconds)
@@ -3031,7 +3041,16 @@ def _llm_generate_bullet(payload: Dict[str, Any]) -> str:
         mode_guidance=mode_guidance,
         forbidden_terms=forbidden_terms,
     )
-    response = client.generate_bullet(system_prompt, payload, temperature=0.35)
+    override_model = payload.get("_llm_override_model") or None
+    try:
+        response = client.generate_bullet(
+            system_prompt,
+            payload,
+            temperature=0.35,
+            override_model=override_model,
+        )
+    except TypeError:
+        response = client.generate_bullet(system_prompt, payload, temperature=0.35)
     text = _extract_bullet_text_from_response(response, payload)
     if not text:
         raise LLMClientUnavailable("Empty LLM response")
@@ -3229,7 +3248,16 @@ def _repair_bullet_candidate_with_llm(
             fluency_requirement=fluency_requirement,
             dimension_requirement=dimension_requirement,
         )
-    response = client.generate_bullet(system_prompt, repair_payload, temperature=0.15)
+    override_model = payload.get("_llm_override_model") or None
+    try:
+        response = client.generate_bullet(
+            system_prompt,
+            repair_payload,
+            temperature=0.15,
+            override_model=override_model,
+        )
+    except TypeError:
+        response = client.generate_bullet(system_prompt, repair_payload, temperature=0.15)
     repaired = _extract_bullet_text_from_response(response, payload)
     return (repaired or "").strip()
 
@@ -3904,7 +3932,16 @@ def _llm_generate_title(payload: Dict[str, Any]) -> str:
         f"{repair_rule}"
         f"{exact_phrase_rule}"
     )
-    text = client.generate_text(system_prompt, payload, temperature=0.25)
+    override_model = payload.get("_llm_override_model") or None
+    try:
+        text = client.generate_text(
+            system_prompt,
+            payload,
+            temperature=0.25,
+            override_model=override_model,
+        )
+    except TypeError:
+        text = client.generate_text(system_prompt, payload, temperature=0.25)
     text = (text or "").strip()
     if not text:
         raise LLMClientUnavailable("Empty LLM response")
@@ -6704,7 +6741,8 @@ def generate_multilingual_copy(preprocessed_data: PreprocessedData,
                               bullet_blueprint: Optional[Any] = None,
                               artifact_dir: Optional[str] = None,
                               resume_existing: bool = False,
-                              progress_callback: Optional[Callable[[str], None]] = None) -> Dict[str, Any]:
+                              progress_callback: Optional[Callable[[str], None]] = None,
+                              model_overrides: Optional[Dict[str, str]] = None) -> Dict[str, Any]:
     """
     PRD v8.2 Node 4: 多语言文案生成
 
@@ -6816,6 +6854,7 @@ def generate_multilingual_copy(preprocessed_data: PreprocessedData,
     audit_log: List[Dict[str, Any]] = []
     field_generation_trace: Dict[str, Any] = {}
     partial_copy: Dict[str, Any] = {}
+    model_overrides = model_overrides or {}
 
     def _restore_stage_snapshot(stage_artifact: Dict[str, Any]) -> None:
         restored_records = stage_artifact.get("keyword_assignments") or []
@@ -6940,6 +6979,7 @@ def generate_multilingual_copy(preprocessed_data: PreprocessedData,
             assignment_tracker=keyword_assignment_tracker,
             target_language=target_language,
             request_timeout_seconds=_field_stage_timeout_seconds("title"),
+            llm_override_model=model_overrides.get("title") or None,
         ),
         lambda result: {"title": result},
     )
@@ -6985,6 +7025,7 @@ def generate_multilingual_copy(preprocessed_data: PreprocessedData,
                 bullet_blueprint=bullet_blueprint,
                 request_timeout_seconds=_field_stage_timeout_seconds("bullets"),
                 slot_filter=[slot_name],
+                llm_override_model=model_overrides.get("bullets") or None,
             ),
             lambda result, slot_name=slot_name: _bullet_partial_fields(slot_name, result),
         )
@@ -7313,7 +7354,8 @@ def generate_listing_copy(preprocessed_data: PreprocessedData,
                          bullet_blueprint: Optional[Any] = None,
                          artifact_dir: Optional[str] = None,
                          resume_existing: bool = False,
-                         progress_callback: Optional[Callable[[str], None]] = None) -> Dict[str, Any]:
+                         progress_callback: Optional[Callable[[str], None]] = None,
+                         model_overrides: Optional[Dict[str, str]] = None) -> Dict[str, Any]:
     """
     生成完整的Listing文案 - PRD v8.2 多语言版
 
@@ -7339,6 +7381,7 @@ def generate_listing_copy(preprocessed_data: PreprocessedData,
         artifact_dir=artifact_dir,
         resume_existing=resume_existing,
         progress_callback=progress_callback,
+        model_overrides=model_overrides,
     )
 
     # 生成标题（确保L1在首80字符内，多场景）

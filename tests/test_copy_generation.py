@@ -469,11 +469,69 @@ class _FakeBudgetClient:
     has_codex_exec_fallback = True
 
 
+class _OverrideCaptureClient:
+    def __init__(self):
+        self.calls = []
+
+    def generate_text(self, system_prompt, payload, temperature=0.35, override_model=None):
+        self.calls.append(("title", override_model, payload.get("_llm_override_model")))
+        return "TOSBARRFT Action Camera for Daily Capture with 150 Minutes Runtime"
+
+    def generate_bullet(self, system_prompt, payload, temperature=0.35, override_model=None):
+        self.calls.append(("bullet", override_model, payload.get("_llm_override_model")))
+        return '{"text":"READY TO RECORD — Capture every ride with stable 1080P footage and 150 minutes of runtime.","capability_mapping":["4K recording"]}'
+
+
 def test_budget_constrained_runtime_reduces_retry_budget(monkeypatch):
     monkeypatch.setenv("LISTING_STRICT_BUDGET_RUNTIME", "1")
     monkeypatch.setattr(cg, "get_llm_client", lambda: _FakeBudgetClient())
     assert cg._is_budget_constrained_live_runtime() is True
     assert cg._llm_retry_budget(3) == 1
+
+
+def test_llm_generate_title_passes_override_model_to_client(monkeypatch):
+    client = _OverrideCaptureClient()
+    monkeypatch.setattr(cg, "get_llm_client", lambda: client)
+
+    title = cg._llm_generate_title(
+        {
+            "brand_name": "TOSBARRFT",
+            "target_language": "English",
+            "primary_category": "Action Camera",
+            "l1_keywords": ["action camera"],
+            "assigned_keywords": ["body camera"],
+            "exact_match_keywords": ["action camera"],
+            "required_keywords": ["action camera", "body camera"],
+            "numeric_specs": ["150 minutes"],
+            "core_capability": "150 Minutes Runtime",
+            "_llm_override_model": "deepseek-reasoner",
+        }
+    )
+
+    assert title.startswith("TOSBARRFT")
+    assert client.calls == [("title", "deepseek-reasoner", "deepseek-reasoner")]
+
+
+def test_llm_generate_bullet_passes_override_model_to_client(monkeypatch):
+    client = _OverrideCaptureClient()
+    monkeypatch.setattr(cg, "get_llm_client", lambda: client)
+
+    bullet = cg._llm_generate_bullet(
+        {
+            "target_language": "English",
+            "all_scenes": ["cycling_recording"],
+            "all_capabilities": ["4K recording"],
+            "mandatory_elements": [],
+            "forbidden_visible_terms": [],
+            "evidence_numeric_values": ["150 minutes"],
+            "spec_dimension_target": "runtime",
+            "spec_dimensions_used": [],
+            "_llm_override_model": "deepseek-reasoner",
+        }
+    )
+
+    assert "READY TO RECORD" in bullet
+    assert client.calls == [("bullet", "deepseek-reasoner", "deepseek-reasoner")]
 
 
 def test_aplus_short_circuits_to_fallback_on_budget_constrained_runtime(monkeypatch):
