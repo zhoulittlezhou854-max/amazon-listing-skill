@@ -159,6 +159,104 @@ def list_workspaces(workspace_root: str = "workspace") -> List[Dict[str, Any]]:
     return workspaces
 
 
+def _load_json(path: Path) -> Dict[str, Any]:
+    if not path.exists():
+        return {}
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+
+
+def _load_text(path: Path) -> str:
+    if not path.exists():
+        return ""
+    try:
+        return path.read_text(encoding="utf-8")
+    except Exception:
+        return ""
+
+
+def _run_created_at(run_dir: Path) -> str:
+    try:
+        return datetime.strptime(run_dir.name, "%Y%m%d_%H%M%S").strftime("%Y-%m-%d %H:%M")
+    except ValueError:
+        return datetime.fromtimestamp(run_dir.stat().st_mtime, tz=timezone.utc).astimezone().strftime("%Y-%m-%d %H:%M")
+
+
+def _dimension_scores(scoring_results: Dict[str, Any]) -> Dict[str, Any]:
+    dims = scoring_results.get("dimensions") or {}
+    return {
+        "A10": (dims.get("traffic") or {}).get("score", 0),
+        "COSMO": (dims.get("content") or {}).get("score", 0),
+        "Rufus": (dims.get("conversion") or {}).get("score", 0),
+        "Fluency": (dims.get("readability") or {}).get("score", 0),
+    }
+
+
+def _load_run_version(run_dir: Path) -> Dict[str, Any]:
+    generated_copy = _load_json(run_dir / "generated_copy.json")
+    risk_report = _load_json(run_dir / "risk_report.json")
+    scoring_results = _load_json(run_dir / "scoring_results.json")
+    return {
+        "run_dir": str(run_dir.resolve()),
+        "generated_copy": generated_copy,
+        "risk_report": risk_report,
+        "scoring_results": scoring_results,
+        "report_path": str((run_dir / "listing_report.md").resolve()) if (run_dir / "listing_report.md").exists() else "",
+        "report_text": _load_text(run_dir / "listing_report.md"),
+        "readiness_summary_path": str((run_dir / "readiness_summary.md").resolve()) if (run_dir / "readiness_summary.md").exists() else "",
+        "readiness_summary_text": _load_text(run_dir / "readiness_summary.md"),
+        "listing_status": ((risk_report.get("listing_status") or {}).get("status") or scoring_results.get("listing_status") or ""),
+        "generation_status": ((generated_copy.get("metadata") or {}).get("generation_status") or ""),
+        "scores": _dimension_scores(scoring_results),
+    }
+
+
+def list_workspace_runs(workspace_dir: str) -> List[Dict[str, Any]]:
+    root = Path(workspace_dir) / "runs"
+    if not root.exists():
+        return []
+
+    records: List[Dict[str, Any]] = []
+    for run_dir in sorted([path for path in root.iterdir() if path.is_dir()], key=lambda path: path.name, reverse=True):
+        dual_report = run_dir / "dual_version_report.md"
+        if dual_report.exists():
+            version_a = _load_run_version(run_dir / "version_a")
+            version_b = _load_run_version(run_dir / "version_b")
+            records.append(
+                {
+                    "run_id": run_dir.name,
+                    "created_at": _run_created_at(run_dir),
+                    "run_dir": str(run_dir.resolve()),
+                    "is_dual_version": True,
+                    "generation_status": version_a.get("generation_status", ""),
+                    "listing_status": version_a.get("listing_status", ""),
+                    "scores": version_a.get("scores", {}),
+                    "version_a": version_a,
+                    "version_b": version_b,
+                    "dual_report_path": str(dual_report.resolve()),
+                    "dual_report_text": _load_text(dual_report),
+                }
+            )
+            continue
+
+        version = _load_run_version(run_dir)
+        records.append(
+            {
+                "run_id": run_dir.name,
+                "created_at": _run_created_at(run_dir),
+                "run_dir": str(run_dir.resolve()),
+                "is_dual_version": False,
+                "generation_status": version.get("generation_status", ""),
+                "listing_status": version.get("listing_status", ""),
+                "scores": version.get("scores", {}),
+                **version,
+            }
+        )
+    return records
+
+
 def attach_feedback_snapshot(run_config_path: str, feedback_snapshot_path: str) -> str:
     path = Path(run_config_path)
     config = json.loads(path.read_text(encoding="utf-8"))

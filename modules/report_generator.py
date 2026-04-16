@@ -566,6 +566,64 @@ def _keyword_coverage_rows(preprocessed_data: Any, generated_copy: Dict[str, Any
     return rows
 
 
+def _collect_keyword_arsenal(preprocessed_data: Any, generated_copy: Dict[str, Any]) -> Dict[str, List[str]]:
+    arsenal: Dict[str, List[str]] = {"L1": [], "L2": [], "L3": []}
+    seen = {"L1": set(), "L2": set(), "L3": set()}
+
+    def _add(keyword: str, tier: str) -> None:
+        normalized_tier = (tier or "").upper()
+        normalized_keyword = (keyword or "").strip()
+        if normalized_tier not in arsenal or not normalized_keyword:
+            return
+        dedupe_key = normalized_keyword.lower()
+        if dedupe_key in seen[normalized_tier]:
+            return
+        seen[normalized_tier].add(dedupe_key)
+        arsenal[normalized_tier].append(normalized_keyword)
+
+    decision_trace = generated_copy.get("decision_trace") or {}
+    for entry in decision_trace.get("keyword_assignments") or []:
+        _add(entry.get("keyword", ""), entry.get("tier", ""))
+
+    for entry in getattr(preprocessed_data, "keyword_metadata", []) or []:
+        _add(entry.get("keyword", ""), entry.get("tier", ""))
+
+    if not any(arsenal.values()):
+        for keyword, tier in _extract_keyword_tiers(preprocessed_data).items():
+            _add(keyword, tier)
+
+    return arsenal
+
+
+def _keyword_arsenal_block(preprocessed_data: Any, generated_copy: Dict[str, Any]) -> List[str]:
+    arsenal = _collect_keyword_arsenal(preprocessed_data, generated_copy)
+
+    def _render_keywords(keywords: Sequence[str]) -> List[str]:
+        return [f"- {keyword}" for keyword in keywords] or ["- 无"]
+
+    lines = [
+        "## Keyword Arsenal",
+        "",
+        "### L1 — Title Keywords",
+        "（直接用于 title 的核心词，最高权重）",
+        *_render_keywords(arsenal["L1"]),
+        "",
+        "### L2 — Bullet Keywords",
+        "（用于 bullets 的次级词，中等权重）",
+        *_render_keywords(arsenal["L2"]),
+        "",
+        "### L3 — Search Terms Keywords",
+        "（用于 search terms 的长尾词，低权重）",
+        *_render_keywords(arsenal["L3"]),
+        "",
+        "### Routing Summary",
+        "- L1 → Title: these keywords must appear in the product title",
+        "- L2 → Bullets: these keywords should be naturally integrated into bullets",
+        "- L3 → Search Terms: these keywords go into backend search terms field",
+    ]
+    return lines
+
+
 def _collect_assignment_stats(assignments: Sequence[Dict[str, Any]]) -> Dict[str, Dict[str, Any]]:
     stats: Dict[str, Dict[str, Any]] = {}
     for tier in ("L1", "L2", "L3"):
@@ -1794,6 +1852,8 @@ def generate_report(
     lines.append("")
     lines.append("### 关键词覆盖审计表")
     lines.append(_markdown_table(["关键词", "层级", "出现位置"], _keyword_coverage_rows(preprocessed_data, generated_copy)))
+    lines.append("")
+    lines.extend(_keyword_arsenal_block(preprocessed_data, generated_copy))
     lines.append("")
     lines.extend(_operator_summary_block(generated_copy, writing_policy))
     lines.append("")

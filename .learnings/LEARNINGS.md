@@ -150,3 +150,9 @@ If a scoring model tracks one tier per keyword record, prefer adding new distinc
 
 ## 2026-04-16 GitHub Release Publish Note
 - Publishing `v2.0.0` to GitHub hit two reusable issues: sandboxed git writes could not create `.git/index.lock`, and the remote `main` branch had unrelated history from an earlier snapshot. The safe release pattern was: escalate git write operations, `git fetch` remote `main`, merge with `--allow-unrelated-histories`, resolve add/add conflicts by keeping the validated local V2.0 tree, then push `main` plus the annotated `v2.0.0` tag.
+
+## 2026-04-16 V2.0-B
+- `modules/report_generator.py` now renders a dedicated `## Keyword Arsenal` block inside `listing_report.md`, sourced first from `generated_copy.decision_trace.keyword_assignments`, then `preprocessed_data.keyword_metadata`, and finally the keyword table tier fallback. This keeps the report aligned with the run’s actual routing decisions instead of recomputing a separate keyword view.
+- Added `app/services/workspace_service.py::list_workspace_runs(...)` to read local run folders directly without a new backend API. It normalizes both single-version runs and dual-version runs (`version_a/`, `version_b/`, `dual_version_report.md`) into one UI-friendly payload.
+- `app/streamlit_app.py` now exposes a new `历史报告` tab: select a workspace, load all runs under that workspace, and default-expand each record with visible copy, four-dimension scores, score breakdown JSON, plus embedded `listing_report.md` / `readiness_summary.md` / `dual_version_report.md` views.
+- V2.0-B regression baseline: new targeted tests passed and full suite moved from `232 passed` to `234 passed`.

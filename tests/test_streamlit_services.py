@@ -225,3 +225,59 @@ def test_run_workspace_workflow_returns_intent_weight_summary(tmp_path: Path, mo
     assert result["intent_weight_summary"]["top_external_themes"] == ["commuter vlog setup"]
     assert "prelaunch_checklist" in result
     assert "thirty_day_iteration_panel" in result
+
+
+def test_list_workspace_runs_returns_single_and_dual_payloads(tmp_path: Path):
+    workspace = tmp_path / "workspace" / "H91LITE_US"
+    single_run = workspace / "runs" / "20260416_090000"
+    dual_run = workspace / "runs" / "20260416_100000"
+    single_run.mkdir(parents=True)
+    (dual_run / "version_a").mkdir(parents=True)
+    (dual_run / "version_b").mkdir(parents=True)
+
+    (single_run / "generated_copy.json").write_text(
+        json.dumps({"title": "Single Title", "bullets": ["B1"], "description": "Desc", "search_terms": ["kw"], "metadata": {"generation_status": "live_success"}}),
+        encoding="utf-8",
+    )
+    (single_run / "risk_report.json").write_text(
+        json.dumps({"listing_status": {"status": "READY_FOR_LISTING"}}),
+        encoding="utf-8",
+    )
+    (single_run / "scoring_results.json").write_text(
+        json.dumps({"dimensions": {"traffic": {"score": 100}, "content": {"score": 90}, "conversion": {"score": 88}, "readability": {"score": 30}}}),
+        encoding="utf-8",
+    )
+    (single_run / "listing_report.md").write_text("# Single Report", encoding="utf-8")
+    (single_run / "readiness_summary.md").write_text("# Single Summary", encoding="utf-8")
+
+    for path, title in [
+        (dual_run / "version_a", "Version A Title"),
+        (dual_run / "version_b", "Version B Title"),
+    ]:
+        (path / "generated_copy.json").write_text(
+            json.dumps({"title": title, "bullets": ["B1"], "description": "Desc", "search_terms": ["kw"], "metadata": {"generation_status": "live_success"}}),
+            encoding="utf-8",
+        )
+        (path / "risk_report.json").write_text(
+            json.dumps({"listing_status": {"status": "READY_FOR_LISTING"}}),
+            encoding="utf-8",
+        )
+        (path / "scoring_results.json").write_text(
+            json.dumps({"dimensions": {"traffic": {"score": 100}, "content": {"score": 100}, "conversion": {"score": 100}, "readability": {"score": 30}}}),
+            encoding="utf-8",
+        )
+        (path / "listing_report.md").write_text(f"# {title} Report", encoding="utf-8")
+        (path / "readiness_summary.md").write_text(f"# {title} Summary", encoding="utf-8")
+
+    (dual_run / "dual_version_report.md").write_text("# Dual Version Report", encoding="utf-8")
+
+    runs = workspace_service.list_workspace_runs(str(workspace))
+
+    assert len(runs) == 2
+    assert runs[0]["is_dual_version"] is True
+    assert runs[0]["version_a"]["generated_copy"]["title"] == "Version A Title"
+    assert runs[0]["version_b"]["generated_copy"]["title"] == "Version B Title"
+    assert "Dual Version Report" in runs[0]["dual_report_text"]
+    assert runs[1]["is_dual_version"] is False
+    assert runs[1]["generated_copy"]["title"] == "Single Title"
+    assert "Single Summary" in runs[1]["readiness_summary_text"]

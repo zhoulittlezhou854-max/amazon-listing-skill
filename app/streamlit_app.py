@@ -18,6 +18,7 @@ from app.services.workspace_service import (
     attach_feedback_snapshot,
     attach_intent_weight_snapshot,
     initialize_workspace,
+    list_workspace_runs,
     list_workspaces,
 )
 from modules.csv_parser import parse_keyword_feedback_table
@@ -134,6 +135,102 @@ def _render_run_result(result: dict) -> None:
                 "snapshots": result.get("snapshots") or {},
             }
         )
+
+
+def _render_history_copy(copy_payload: dict) -> None:
+    st.markdown("**Title**")
+    st.write(copy_payload.get("title") or "-")
+    st.markdown("**Bullets**")
+    bullets = copy_payload.get("bullets") or []
+    for idx, bullet in enumerate(bullets, start=1):
+        st.write(f"B{idx}. {bullet}")
+    st.markdown("**Description**")
+    st.write(copy_payload.get("description") or "-")
+    st.markdown("**Search Terms**")
+    search_terms = copy_payload.get("search_terms") or []
+    if isinstance(search_terms, list):
+        st.write(", ".join(search_terms) or "-")
+    else:
+        st.write(search_terms or "-")
+
+
+def _render_history_scoring(scoring_results: dict, scores: dict) -> None:
+    score_cols = st.columns(4)
+    score_cols[0].metric("A10", scores.get("A10", 0))
+    score_cols[1].metric("COSMO", scores.get("COSMO", 0))
+    score_cols[2].metric("Rufus", scores.get("Rufus", 0))
+    score_cols[3].metric("Fluency", scores.get("Fluency", 0))
+    st.markdown("**Score Breakdown**")
+    st.json(scoring_results or {})
+
+
+def render_history_tab() -> None:
+    st.subheader("历史报告")
+    workspaces = list_workspaces()
+    if not workspaces:
+        st.info("还没有产品工作区，请先在“新品上架”中创建。")
+        return
+
+    workspace_options = [f"{item['product_code']}_{item['site']}" for item in workspaces]
+    workspace_recency = []
+    for item in workspaces:
+        runs = list_workspace_runs(item["workspace_dir"])
+        workspace_recency.append(runs[0]["created_at"] if runs else "")
+    default_index = max(range(len(workspaces)), key=lambda idx: workspace_recency[idx] or "")
+
+    selected_name = st.selectbox("选择 workspace", workspace_options, index=default_index, key="history_workspace")
+    selected = workspaces[workspace_options.index(selected_name)]
+    runs = list_workspace_runs(selected["workspace_dir"])
+
+    if not runs:
+        st.info("该 workspace 暂无历史 runs。")
+        return
+
+    for run in runs:
+        label = (
+            f"{run['created_at']} | {run['run_id']} | "
+            f"{run.get('generation_status') or '-'} | {run.get('listing_status') or '-'}"
+        )
+        with st.expander(label, expanded=True):
+            summary_cols = st.columns(6)
+            summary_cols[0].metric("Generation", run.get("generation_status") or "-")
+            summary_cols[1].metric("Listing", run.get("listing_status") or "-")
+            summary_cols[2].metric("A10", (run.get("scores") or {}).get("A10", 0))
+            summary_cols[3].metric("COSMO", (run.get("scores") or {}).get("COSMO", 0))
+            summary_cols[4].metric("Rufus", (run.get("scores") or {}).get("Rufus", 0))
+            summary_cols[5].metric("Fluency", (run.get("scores") or {}).get("Fluency", 0))
+            st.caption(f"Run Dir: `{run.get('run_dir')}`")
+
+            if run.get("is_dual_version"):
+                col_a, col_b = st.columns(2)
+                with col_a:
+                    st.markdown("### Version A")
+                    _render_history_copy((run.get("version_a") or {}).get("generated_copy") or {})
+                    _render_history_scoring(
+                        (run.get("version_a") or {}).get("scoring_results") or {},
+                        (run.get("version_a") or {}).get("scores") or {},
+                    )
+                with col_b:
+                    st.markdown("### Version B")
+                    _render_history_copy((run.get("version_b") or {}).get("generated_copy") or {})
+                    _render_history_scoring(
+                        (run.get("version_b") or {}).get("scoring_results") or {},
+                        (run.get("version_b") or {}).get("scores") or {},
+                    )
+            else:
+                _render_history_copy(run.get("generated_copy") or {})
+                _render_history_scoring(run.get("scoring_results") or {}, run.get("scores") or {})
+
+            st.markdown("**报告入口**")
+            if run.get("report_text"):
+                with st.expander("listing_report.md", expanded=False):
+                    st.markdown(run["report_text"])
+            if run.get("readiness_summary_text"):
+                with st.expander("readiness_summary.md", expanded=False):
+                    st.markdown(run["readiness_summary_text"])
+            if run.get("dual_report_text"):
+                with st.expander("dual_version_report.md", expanded=False):
+                    st.markdown(run["dual_report_text"])
 
 
 def render_new_product_tab() -> None:
@@ -290,11 +387,13 @@ def render_feedback_tab() -> None:
 def main() -> None:
     st.set_page_config(page_title="Amazon Listing Control Console", layout="wide")
     st.title("Amazon Listing 自动化与数据反补控制台")
-    tab1, tab2 = st.tabs(["新品上架", "老品数据反补"])
+    tab1, tab2, tab3 = st.tabs(["新品上架", "老品数据反补", "历史报告"])
     with tab1:
         render_new_product_tab()
     with tab2:
         render_feedback_tab()
+    with tab3:
+        render_history_tab()
 
 
 if __name__ == "__main__":
