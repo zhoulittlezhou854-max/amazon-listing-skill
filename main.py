@@ -411,6 +411,11 @@ class AmazonListingGenerator:
                 print(f"  Bullet Blueprint 已生成: {bullet_count} 槽位 ({source_model})")
             except Exception as blueprint_error:
                 print(f"⚠️ Blueprint 生成失败：{blueprint_error}")
+                if self.blueprint_model_override == "deepseek-reasoner":
+                    return {
+                        "status": "error",
+                        "error": f"experimental_version_b_blueprint_failed: {blueprint_error}",
+                    }
 
             return {
                 "status": "success",
@@ -498,6 +503,12 @@ class AmazonListingGenerator:
                         self.bullet_blueprint = json.load(f)
                     except json.JSONDecodeError:
                         self.bullet_blueprint = None
+        if self.blueprint_model_override == "deepseek-reasoner" and not self.bullet_blueprint:
+            return {
+                "status": "error",
+                "error": "experimental_version_b_blueprint_missing",
+                "generation_status": "live_failed",
+            }
 
         # 如果 force_live_llm=True 且无可用 LLM，则在文案生成前直接报错
         try:

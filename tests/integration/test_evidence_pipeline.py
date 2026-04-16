@@ -178,6 +178,150 @@ def test_run_step_6_persists_sidecar_artifacts(tmp_path: Path, monkeypatch):
     assert isinstance(json.loads(repair_summary_path.read_text(encoding="utf-8")), dict)
 
 
+def test_run_step_5_returns_error_when_r1_blueprint_fails(tmp_path: Path, monkeypatch):
+    config_path = tmp_path / "run_config.json"
+    config_path.write_text(
+        json.dumps(
+            {
+                "target_country": "US",
+                "brand_name": "TOSBARRFT",
+                "product_code": "SMOKE",
+                "input_files": {},
+                "llm": {},
+            },
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(app_main.AmazonListingGenerator, "_initialize_runtime", lambda self: None)
+    monkeypatch.setattr(
+        app_main.writing_policy,
+        "generate_policy",
+        lambda *_args, **_kwargs: {
+            "scene_priority": ["commuting_capture"],
+            "keyword_allocation_strategy": "balanced",
+            "capability_scene_bindings": [],
+        },
+    )
+    monkeypatch.setattr(
+        app_main.blueprint_generator,
+        "generate_bullet_blueprint_r1",
+        lambda **_kwargs: (_ for _ in ()).throw(RuntimeError("r1 blueprint timeout")),
+    )
+
+    generator = app_main.AmazonListingGenerator(
+        str(config_path),
+        str(tmp_path / "output"),
+        blueprint_model_override="deepseek-reasoner",
+    )
+    generator.preprocessed_data = SimpleNamespace(
+        language="English",
+        core_selling_points=["4K recording"],
+    )
+
+    result = generator.run_step_5()
+
+    assert result["status"] == "error"
+    assert "r1 blueprint timeout" in result["error"]
+
+
+def test_run_workflow_stops_before_step_6_when_r1_blueprint_fails(tmp_path: Path, monkeypatch):
+    config_path = tmp_path / "run_config.json"
+    config_path.write_text(
+        json.dumps(
+            {
+                "target_country": "US",
+                "brand_name": "TOSBARRFT",
+                "product_code": "SMOKE",
+                "input_files": {},
+                "llm": {},
+            },
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(app_main.AmazonListingGenerator, "_initialize_runtime", lambda self: None)
+    monkeypatch.setattr(
+        app_main.writing_policy,
+        "generate_policy",
+        lambda *_args, **_kwargs: {
+            "scene_priority": ["commuting_capture"],
+            "keyword_allocation_strategy": "balanced",
+            "capability_scene_bindings": [],
+        },
+    )
+    monkeypatch.setattr(
+        app_main.blueprint_generator,
+        "generate_bullet_blueprint_r1",
+        lambda **_kwargs: (_ for _ in ()).throw(RuntimeError("r1 blueprint timeout")),
+    )
+
+    generator = app_main.AmazonListingGenerator(
+        str(config_path),
+        str(tmp_path / "output"),
+        blueprint_model_override="deepseek-reasoner",
+    )
+    generator.preprocessed_data = SimpleNamespace(
+        language="English",
+        core_selling_points=["4K recording"],
+    )
+
+    called = {"step6": False}
+    monkeypatch.setattr(
+        generator,
+        "run_step_6",
+        lambda: called.__setitem__("step6", True) or {"status": "success"},
+    )
+
+    summary = generator.run_workflow([5, 6])
+
+    assert summary["workflow_status"] == "failed"
+    assert summary["results"]["step_5"]["status"] == "error"
+    assert "step_6" not in summary["results"]
+    assert called["step6"] is False
+
+
+def test_run_step_6_errors_when_experimental_blueprint_missing(tmp_path: Path, monkeypatch):
+    config_path = tmp_path / "run_config.json"
+    config_path.write_text(
+        json.dumps(
+            {
+                "target_country": "US",
+                "brand_name": "TOSBARRFT",
+                "product_code": "SMOKE",
+                "input_files": {},
+                "llm": {},
+            },
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(app_main.AmazonListingGenerator, "_initialize_runtime", lambda self: None)
+
+    generator = app_main.AmazonListingGenerator(
+        str(config_path),
+        str(tmp_path / "output"),
+        blueprint_model_override="deepseek-reasoner",
+        title_model_override="deepseek-reasoner",
+        bullet_model_override="deepseek-reasoner",
+    )
+    generator.preprocessed_data = SimpleNamespace(
+        language="English",
+        run_config=SimpleNamespace(brand_name="TOSBARRFT"),
+        attribute_data=SimpleNamespace(data={}),
+    )
+    generator.writing_policy = {"target_language": "English"}
+    generator.bullet_blueprint = None
+
+    result = generator.run_step_6()
+
+    assert result["status"] == "error"
+    assert result["error"] == "experimental_version_b_blueprint_missing"
+
+
 def test_run_step_8_uses_scoring_max_total_in_console_output(tmp_path: Path, monkeypatch):
     config_path = tmp_path / "run_config.json"
     config_path.write_text(

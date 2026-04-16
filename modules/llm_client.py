@@ -53,6 +53,14 @@ NON_RETRYABLE_SAME_PROVIDER_ERROR_CODES = {
 }
 
 
+def _disable_fallback_for_request(payload: Optional[Dict[str, Any]], override_model: Optional[str]) -> bool:
+    if str(override_model or "").strip() == "deepseek-reasoner":
+        return True
+    if not isinstance(payload, dict):
+        return False
+    return bool(payload.get("_disable_fallback"))
+
+
 def _codex_sessions_accessible() -> bool:
     sessions_dir = os.path.expanduser("~/.codex/sessions")
     if not os.path.exists(sessions_dir):
@@ -497,6 +505,7 @@ class LLMClient:
         override_model: Optional[str] = None,
     ) -> Optional[str]:
         timeout_seconds = self._resolve_request_timeout(payload)
+        disable_fallback = _disable_fallback_for_request(payload, override_model)
         if self._provider == "openai_compatible":
             if override_model:
                 text = self._call_openai_compatible(
@@ -517,7 +526,11 @@ class LLMClient:
                 return text
             # If the upstream method was monkeypatched or exited early before
             # tracking a response, still allow the fallback chain to recover once.
-            if (self._http_fallback_provider or self._codex_exec_fallback) and not (self._last_response_meta or {}).get("wire_api"):
+            if (
+                not disable_fallback
+                and (self._http_fallback_provider or self._codex_exec_fallback)
+                and not (self._last_response_meta or {}).get("wire_api")
+            ):
                 return self._call_fallback(
                     system_prompt=system_prompt,
                     payload=payload,
@@ -543,7 +556,7 @@ class LLMClient:
                 )
             if text:
                 return text
-            if self._http_fallback_provider or self._codex_exec_fallback:
+            if not disable_fallback and (self._http_fallback_provider or self._codex_exec_fallback):
                 return self._call_fallback(
                     system_prompt=system_prompt,
                     payload=payload,

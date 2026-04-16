@@ -1355,6 +1355,163 @@ def test_generate_listing_copy_attaches_evidence_bundle(monkeypatch):
     assert result["metadata"]["unsupported_claim_count"] == 0
 
 
+class _FakeLiveReasonerClient:
+    def __init__(self, text=None, error=None):
+        self._text = text
+        self._error = error
+        self._meta = {}
+        self._offline = False
+        self.provider_label = "deepseek"
+        self.mode_label = "live"
+        self.credential_source = "env"
+        self.active_model = "deepseek-chat"
+        self.wire_api = "chat/completions"
+        self.base_url = "https://api.deepseek.com/v1"
+
+    @property
+    def response_metadata(self):
+        return dict(self._meta)
+
+    @property
+    def healthcheck_status(self):
+        return {}
+
+    def generate_text(self, system_prompt, payload, temperature=0.35, override_model=None):
+        self._meta = {
+            "configured_model": override_model or "deepseek-chat",
+            "returned_model": override_model or "deepseek-chat",
+            "success": self._error is None,
+            "error": "" if self._error is None else str(self._error),
+        }
+        if self._error is not None:
+            raise self._error
+        return self._text
+
+
+def _sample_preprocessed():
+    return SimpleNamespace(
+        run_config=SimpleNamespace(brand_name="TestBrand", product_name="Cam", category="Action Camera"),
+        attribute_data=SimpleNamespace(data={"battery_life": "150 minutes"}),
+        keyword_data=SimpleNamespace(keywords=[]),
+        review_data=SimpleNamespace(insights=[]),
+        aba_data=SimpleNamespace(trends=[]),
+        core_selling_points=["4K recording", "150-minute runtime"],
+        canonical_core_selling_points=["4K recording", "150-minute runtime"],
+        accessory_descriptions=[],
+        canonical_accessory_descriptions=[],
+        canonical_capability_notes={},
+        quality_score=80,
+        language="English",
+        processed_at="2026-04-17T00:00:00",
+        data_mode="SYNTHETIC_COLD_START",
+        capability_constraints={},
+        raw_human_insights="",
+        keyword_metadata=[],
+        feedback_context={},
+        real_vocab=None,
+        asin_entity_profile={},
+    )
+
+
+def _sample_policy():
+    return {
+        "scene_priority": ["cycling_recording", "travel_documentation"],
+        "keyword_allocation_strategy": "balanced",
+        "keyword_slots": {"search_terms": {"keywords": []}},
+        "compliance_directives": {"backend_only_terms": []},
+        "search_term_plan": {"backend_only_terms": []},
+        "product_profile": {"reasoning_language": "EN"},
+        "copy_contracts": {},
+    }
+
+
+def test_generate_listing_copy_uses_pure_r1_batch_for_visible_copy(monkeypatch):
+    client = _FakeLiveReasonerClient(
+        text=(
+            '{"title":"TestBrand Action Camera for Daily Rides with 150-Minute Runtime",'
+            '"bullets":['
+            '"READY TO RIDE — Capture every commute with stable 1080P footage and 150 minutes of runtime.",'
+            '"EVIDENCE READY — Clip on for work shifts when clear first-person recording matters.",'
+            '"TRAVEL LIGHT — Slip the mini camera into a pocket for quick scenic clips.",'
+            '"USE IT RIGHT — Best for walking, commuting, and steady handheld moments.",'
+            '"VALUE KIT — Start fast with the included essentials for everyday recording."'
+            "]}"
+        )
+    )
+    monkeypatch.setattr(cg, "get_llm_client", lambda: client)
+    monkeypatch.setattr(
+        cg,
+        "extract_tiered_keywords",
+        lambda *_args, **_kwargs: {
+            "l1": ["action camera", "mini camera", "body camera"],
+            "l2": ["bike camera"],
+            "l3": ["travel camera"],
+            "_metadata": {},
+            "_preferred_locale": "en",
+        },
+    )
+    monkeypatch.setattr(cg, "build_keyword_slots", lambda *_args, **_kwargs: {"search_terms": {"keywords": []}})
+    monkeypatch.setattr(cg, "generate_title", lambda *args, **kwargs: pytest.fail("single-field title path should be skipped"))
+    monkeypatch.setattr(cg, "generate_bullet_points", lambda *args, **kwargs: pytest.fail("single-field bullet path should be skipped"))
+    monkeypatch.setattr(cg, "_polish_bullet_quality_with_llm", lambda *args, **kwargs: pytest.fail("pure R1 batch bullets should not be re-polished"))
+    monkeypatch.setattr(cg, "generate_description", lambda *args, **kwargs: "Description text.")
+    monkeypatch.setattr(cg, "generate_faq", lambda *args, **kwargs: [{"q": "Q", "a": "A"}])
+    monkeypatch.setattr(cg, "generate_search_terms", lambda *args, **kwargs: (["travel camera"], {"byte_length": 12, "max_bytes": 249, "backend_only_used": 0}))
+    monkeypatch.setattr(cg, "generate_aplus_content", lambda *args, **kwargs: ("## A+\nBody", True, []))
+    monkeypatch.setattr(
+        cg,
+        "build_evidence_bundle",
+        lambda *_args, **_kwargs: {
+            "claim_support_matrix": [],
+            "rufus_readiness": {"score": 1.0},
+        },
+    )
+
+    result = cg.generate_listing_copy(
+        _sample_preprocessed(),
+        _sample_policy(),
+        language="English",
+        model_overrides={"title": "deepseek-reasoner", "bullets": "deepseek-reasoner"},
+    )
+
+    assert result["title"].startswith("TestBrand Action Camera")
+    assert len(result["bullets"]) == 5
+    assert result["metadata"]["generation_status"] == "live_success"
+    assert result["metadata"]["llm_fallback_count"] == 0
+    assert result["metadata"]["field_generation_trace"]["visible_copy_batch"]["status"] == "success"
+    assert result["metadata"]["field_generation_trace"]["title"]["status"] == "success"
+    assert result["metadata"]["field_generation_trace"]["bullet_b1"]["status"] == "success"
+
+
+def test_generate_listing_copy_raises_when_pure_r1_batch_times_out(monkeypatch):
+    client = _FakeLiveReasonerClient(
+        error=cg.LLMClientUnavailable("r1 timeout", error_code="timed_out", retryable=True)
+    )
+    monkeypatch.setattr(cg, "get_llm_client", lambda: client)
+    monkeypatch.setattr(
+        cg,
+        "extract_tiered_keywords",
+        lambda *_args, **_kwargs: {
+            "l1": ["action camera", "mini camera", "body camera"],
+            "l2": ["bike camera"],
+            "l3": ["travel camera"],
+            "_metadata": {},
+            "_preferred_locale": "en",
+        },
+    )
+    monkeypatch.setattr(cg, "build_keyword_slots", lambda *_args, **_kwargs: {"search_terms": {"keywords": []}})
+    monkeypatch.setattr(cg, "generate_title", lambda *args, **kwargs: pytest.fail("fallback title path should stay disabled"))
+    monkeypatch.setattr(cg, "generate_bullet_points", lambda *args, **kwargs: pytest.fail("fallback bullet path should stay disabled"))
+
+    with pytest.raises(RuntimeError, match="R1 batch visible copy generation failed"):
+        cg.generate_listing_copy(
+            _sample_preprocessed(),
+            _sample_policy(),
+            language="English",
+            model_overrides={"title": "deepseek-reasoner", "bullets": "deepseek-reasoner"},
+        )
+
+
 def test_generate_faq_uses_question_bank_context(monkeypatch):
     preprocessed = SimpleNamespace(
         run_config=SimpleNamespace(brand_name="TestBrand"),

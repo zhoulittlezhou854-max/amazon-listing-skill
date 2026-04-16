@@ -189,7 +189,8 @@ def _generate_bullet_blueprint_impl(
         "copy_contracts": writing_policy.get("copy_contracts", {}),
         "feedback_context": getattr(preprocessed_data, "feedback_context", {}) or {},
         "audience_allocation": audience_allocation,
-        "_request_timeout_seconds": 120 if override_model == "deepseek-reasoner" else 90,
+        "_request_timeout_seconds": 45 if override_model == "deepseek-reasoner" else 90,
+        "_disable_fallback": bool(override_model == "deepseek-reasoner"),
     }
 
     system_prompt = (

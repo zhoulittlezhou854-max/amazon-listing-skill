@@ -1971,6 +1971,8 @@ def generate_title(
     }
     if request_timeout_seconds:
         payload["_request_timeout_seconds"] = int(request_timeout_seconds)
+    if llm_override_model:
+        payload["_disable_fallback"] = True
     required_keywords = _dedupe_keyword_sequence(
         exact_match_keywords + payload["assigned_keywords"]
     )
@@ -2263,6 +2265,8 @@ def _generate_bullet_points_legacy(
         }
         if request_timeout_seconds:
             payload["_request_timeout_seconds"] = int(request_timeout_seconds)
+        if llm_override_model:
+            payload["_disable_fallback"] = True
         payload["_last_capability_mapping"] = []
         localized_text = _generate_and_audit_bullet(payload, audit_log, slot_name)
         capability_map = _merge_capability_mapping(
@@ -2701,6 +2705,8 @@ def _generate_bullets_from_blueprint(
         }
         if request_timeout_seconds:
             payload["_request_timeout_seconds"] = int(request_timeout_seconds)
+        if llm_override_model:
+            payload["_disable_fallback"] = True
         payload["_last_capability_mapping"] = []
         localized_text = _generate_and_audit_bullet(payload, audit_log, slot_name)
         capability_map = _merge_capability_mapping(
@@ -6657,6 +6663,33 @@ def _field_stage_timeout_seconds(stage_name: str) -> int:
         return defaults.get(stage_name, 60)
 
 
+def _uses_pure_r1_visible_batch(model_overrides: Optional[Dict[str, str]]) -> bool:
+    overrides = model_overrides or {}
+    return (
+        str(overrides.get("title") or "").strip() == "deepseek-reasoner"
+        and str(overrides.get("bullets") or "").strip() == "deepseek-reasoner"
+    )
+
+
+def _r1_batch_timeout_seconds() -> int:
+    raw = os.getenv("R1_BATCH_TIMEOUT_SEC")
+    try:
+        return max(30, int(raw)) if raw else 180
+    except Exception:
+        return 180
+
+
+def _experimental_stage_timeout_seconds(stage_name: str, override_model: Optional[str]) -> int:
+    timeout = _field_stage_timeout_seconds(stage_name)
+    if str(override_model or "").strip() != "deepseek-reasoner":
+        return timeout
+    caps = {
+        "title": 45,
+        "bullets": 45,
+    }
+    return min(timeout, caps.get(stage_name, timeout))
+
+
 def _field_stage_retry_budget(stage_name: str) -> int:
     defaults = {
         "title": 2,
@@ -6672,6 +6705,13 @@ def _field_stage_retry_budget(stage_name: str) -> int:
         return max(1, int(raw)) if raw else defaults.get(stage_name, 1)
     except Exception:
         return defaults.get(stage_name, 1)
+
+
+def _experimental_stage_retry_budget(stage_name: str, override_model: Optional[str]) -> int:
+    budget = _field_stage_retry_budget(stage_name)
+    if str(override_model or "").strip() == "deepseek-reasoner":
+        return 1
+    return budget
 
 
 def _stage_artifact_path(artifact_dir: Optional[str], stage_name: str) -> Optional[Path]:
@@ -6732,6 +6772,166 @@ def _ordered_bullet_slot_names(bullet_blueprint: Optional[Any]) -> List[str]:
         if ordered:
             return ordered
     return ["B1", "B2", "B3", "B4", "B5"]
+
+
+def _build_r1_batch_bullet_trace(
+    bullet_blueprint: Optional[Any],
+    bullet_slots: Sequence[str],
+    slot_keyword_records: Optional[Dict[str, List[str]]] = None,
+) -> List[Dict[str, Any]]:
+    slot_keyword_records = slot_keyword_records or {}
+    normalized_entries = {entry.get("slot"): entry for entry in _normalize_blueprint_entries(bullet_blueprint)}
+    trace: List[Dict[str, Any]] = []
+    for slot_name in bullet_slots:
+        entry = normalized_entries.get(slot_name) or {}
+        capability_bundle = list(entry.get("capabilities") or [])
+        capability = capability_bundle[0] if capability_bundle else ""
+        trace.append(
+            {
+                "slot": slot_name,
+                "scene_code": ((entry.get("scenes") or [""])[0] if entry.get("scenes") else ""),
+                "scene_mapping": list(entry.get("scenes") or []),
+                "theme": entry.get("theme") or slot_name,
+                "capability": capability,
+                "capability_mapping": capability_bundle,
+                "capability_bundle": capability_bundle,
+                "keywords": list(slot_keyword_records.get(slot_name) or entry.get("assigned_keywords") or []),
+                "mandatory_elements": list(entry.get("mandatory_elements") or []),
+                "blueprint_accessories": entry.get("accessories"),
+                "persona": entry.get("persona"),
+                "pain_point": entry.get("pain_point"),
+                "buying_trigger": entry.get("buying_trigger"),
+                "proof_angle": entry.get("proof_angle"),
+                "slot_directive": entry.get("slot_directive"),
+                "audience_group": entry.get("audience_group"),
+                "audience_label": entry.get("audience_label"),
+                "audience_focus": entry.get("audience_focus"),
+                "spec_dimension_target": "",
+                "numeric_source": "",
+            }
+        )
+    return trace
+
+
+def _r1_batch_generate_listing(
+    preprocessed_data: PreprocessedData,
+    writing_policy: Dict[str, Any],
+    tiered_keywords: Dict[str, List[str]],
+    bullet_blueprint: Optional[Any],
+    target_language: str,
+    blocked_terms: Sequence[str],
+    audit_log: Optional[List[Dict[str, Any]]] = None,
+) -> Dict[str, Any]:
+    client = get_llm_client()
+    attr_lookup = _build_attr_lookup(preprocessed_data.attribute_data)
+    directives = writing_policy.get("compliance_directives", {}) or {}
+    normalized_entries = _normalize_blueprint_entries(bullet_blueprint)
+    core_capabilities = _filter_capabilities(
+        getattr(preprocessed_data, "core_selling_points", []) or [],
+        directives,
+        audit_log,
+        "bullets",
+    )
+    numeric_specs = _collect_numeric_tokens(preprocessed_data, directives)[:4]
+    exact_keywords = _dedupe_keyword_sequence(
+        list((writing_policy.get("keyword_routing") or {}).get("title_traffic_keywords") or [])
+        + list((writing_policy.get("keyword_slots") or {}).get("title") or [])
+        + list(tiered_keywords.get("l1", []) or [])
+    )[:6]
+    differentiators = _clean_title_phrases(core_capabilities + list(_flatten_tokens(numeric_specs)))[:3]
+    bullet_slots = [f"B{idx}" for idx in range(1, 6)]
+    slot_keyword_records: Dict[str, List[str]] = {}
+    bullet_plan: List[Dict[str, Any]] = []
+    for slot_name in bullet_slots:
+        entry = next((item for item in normalized_entries if item.get("slot") == slot_name), {}) or {}
+        keywords = list(entry.get("assigned_keywords") or [])
+        if not keywords:
+            fallback_pool = list(tiered_keywords.get("l2", []) or []) + list(tiered_keywords.get("l3", []) or [])
+            idx = max(0, int(slot_name[1:]) - 1)
+            keywords = fallback_pool[idx:idx + 1]
+        cleaned_keywords = [kw for kw in keywords if kw and kw.lower() not in {term.lower() for term in blocked_terms or []}]
+        slot_keyword_records[slot_name] = cleaned_keywords
+        bullet_plan.append(
+            {
+                "slot": slot_name,
+                "theme": entry.get("theme") or slot_name,
+                "audience_group": entry.get("audience_group") or "",
+                "audience_label": entry.get("audience_label") or "",
+                "audience_focus": entry.get("audience_focus") or "",
+                "persona": entry.get("persona") or "",
+                "buying_trigger": entry.get("buying_trigger") or "",
+                "proof_angle": entry.get("proof_angle") or "",
+                "scene_mapping": list(entry.get("scenes") or []),
+                "capabilities": list(entry.get("capabilities") or []),
+                "assigned_keywords": cleaned_keywords,
+                "mandatory_elements": list(entry.get("mandatory_elements") or []),
+                "slot_directive": entry.get("slot_directive") or "",
+            }
+        )
+
+    system_prompt = (
+        "You are an elite Amazon ecommerce copywriter using DeepSeek R1 to draft the visible listing copy in one pass.\n"
+        "Return exactly one JSON object with keys title and bullets.\n"
+        "Format:\n"
+        '{\"title\":\"...\",\"bullets\":[\"B1 text\",\"B2 text\",\"B3 text\",\"B4 text\",\"B5 text\"]}\n'
+        "Hard rules:\n"
+        "1. Output valid JSON only. No markdown, no commentary, no code fences.\n"
+        "2. title must start with the brand name, read naturally, and stay under 200 characters.\n"
+        "3. title must naturally include at least 3 core keywords when provided; never produce a comma-stacked keyword dump.\n"
+        "4. Write exactly 5 bullets in the requested slot order.\n"
+        "5. Each bullet must use the format HEADER — body.\n"
+        "6. Each bullet must feel distinct in audience or feature angle; do not write 3 or more commute/on-the-go bullets.\n"
+        "7. Keep each bullet under 500 characters.\n"
+        "8. Use the Audience Allocation Plan and Bullet Plan as binding instructions.\n"
+        "9. Do not invent unsupported specs or accessories.\n"
+        "10. Do not use fallback wording like ready to share, every clip feels ready, or generic keyword stuffing.\n"
+    )
+    payload = {
+        "field": "visible_copy_batch",
+        "brand_name": getattr(getattr(preprocessed_data, "run_config", None), "brand_name", "TOSBARRFT"),
+        "product_name": getattr(getattr(preprocessed_data, "run_config", None), "product_name", ""),
+        "primary_category": getattr(getattr(preprocessed_data, "run_config", None), "category", "camera"),
+        "target_language": target_language,
+        "core_keywords": exact_keywords,
+        "top_differentiators": differentiators,
+        "numeric_specs": numeric_specs,
+        "scene_priority": list(writing_policy.get("scene_priority") or []),
+        "core_capabilities": core_capabilities[:5],
+        "attribute_snapshot": {k: attr_lookup.get(k) for k in list(attr_lookup.keys())[:8]},
+        "audience_allocation": (bullet_blueprint or {}).get("audience_allocation") if isinstance(bullet_blueprint, dict) else {},
+        "bullet_plan": bullet_plan,
+        "_request_timeout_seconds": _r1_batch_timeout_seconds(),
+        "_disable_fallback": True,
+    }
+    text = client.generate_text(
+        system_prompt,
+        payload,
+        temperature=0.2,
+        override_model="deepseek-reasoner",
+    )
+    parsed = _extract_embedded_json_payload(text or "")
+    if not isinstance(parsed, dict):
+        raise RuntimeError("R1 batch returned non-JSON payload")
+    title = str(parsed.get("title") or "").strip()
+    bullets = parsed.get("bullets") or []
+    if not title:
+        raise RuntimeError("R1 batch returned empty title")
+    if not isinstance(bullets, list) or len(bullets) != 5:
+        raise RuntimeError("R1 batch must return exactly 5 bullets")
+    cleaned_bullets = [str(item or "").strip() for item in bullets]
+    if any(not item for item in cleaned_bullets):
+        raise RuntimeError("R1 batch returned empty bullet")
+    if _title_is_keyword_dump(title):
+        raise RuntimeError("R1 batch title is still a keyword dump")
+    if len(title) > LENGTH_RULES["title"]["hard_ceiling"]:
+        raise RuntimeError("R1 batch title exceeds hard ceiling")
+    if any(len(item) > LENGTH_RULES["bullet"]["hard_ceiling"] for item in cleaned_bullets):
+        raise RuntimeError("R1 batch bullet exceeds hard ceiling")
+    return {
+        "title": title,
+        "bullets": cleaned_bullets,
+        "bullet_trace": _build_r1_batch_bullet_trace(bullet_blueprint, bullet_slots, slot_keyword_records),
+    }
 
 
 def generate_multilingual_copy(preprocessed_data: PreprocessedData,
@@ -6855,6 +7055,7 @@ def generate_multilingual_copy(preprocessed_data: PreprocessedData,
     field_generation_trace: Dict[str, Any] = {}
     partial_copy: Dict[str, Any] = {}
     model_overrides = model_overrides or {}
+    pure_r1_visible_batch = _uses_pure_r1_visible_batch(model_overrides)
 
     def _restore_stage_snapshot(stage_artifact: Dict[str, Any]) -> None:
         restored_records = stage_artifact.get("keyword_assignments") or []
@@ -6885,7 +7086,12 @@ def generate_multilingual_copy(preprocessed_data: PreprocessedData,
         stage_start_idx = len(audit_log)
         attempts: List[Dict[str, Any]] = []
         last_error = ""
-        max_retries = _field_stage_retry_budget(stage_name)
+        stage_override_model = None
+        if stage_name == "title":
+            stage_override_model = model_overrides.get("title") or None
+        elif stage_name.startswith("bullet_"):
+            stage_override_model = model_overrides.get("bullets") or None
+        max_retries = _experimental_stage_retry_budget(stage_name, stage_override_model)
         for attempt in range(1, max_retries + 1):
             if progress_callback:
                 progress_callback(f"{stage_name}: attempt {attempt}/{max_retries}")
@@ -6966,81 +7172,186 @@ def generate_multilingual_copy(preprocessed_data: PreprocessedData,
             return result
         raise RuntimeError(f"{stage_name} generation failed: {last_error or 'unknown error'}")
 
-    title_text = _run_stage(
-        "title",
-        lambda: generate_title(
-            preprocessed_en,
-            writing_policy,
-            l1_keywords,
-            tiered_keywords,
-            keyword_allocation_strategy,
-            audit_log=audit_log,
-            blocked_terms=blocked_terms,
-            assignment_tracker=keyword_assignment_tracker,
-            target_language=target_language,
-            request_timeout_seconds=_field_stage_timeout_seconds("title"),
-            llm_override_model=model_overrides.get("title") or None,
-        ),
-        lambda result: {"title": result},
-    )
-    title = title_text
-    title_ceiling = LENGTH_RULES["title"]["hard_ceiling"]
-    if len(title) > title_ceiling:
-        _log_action(audit_log, "title", "truncate", {"reason": f"exceeded {title_ceiling} char limit"})
-        title = title[: title_ceiling - 3] + "..."
-        partial_copy["title"] = title
-        _write_partial_generation_artifact(artifact_dir, partial_copy, field_generation_trace)
-
     bullet_slots = _ordered_bullet_slot_names(bullet_blueprint)
-    bullet_reasoning_map: Dict[str, str] = {}
-    bullet_trace_map: Dict[str, Dict[str, Any]] = {}
-    bullet_text_map: Dict[str, str] = {}
-    bullet_stage_traces: List[Dict[str, Any]] = []
-
-    def _bullet_partial_fields(slot_name: str, result: Any) -> Dict[str, Any]:
-        reasoning_list, trace_list, bullet_list = result or ([], [], [])
-        bullet_reasoning_map[slot_name] = (reasoning_list or [""])[0] if reasoning_list else ""
-        bullet_trace_map[slot_name] = (trace_list or [{}])[0] if trace_list else {}
-        bullet_text_map[slot_name] = (bullet_list or [""])[0] if bullet_list else ""
-        return {
-            "bullets": [bullet_text_map[slot] for slot in bullet_slots if bullet_text_map.get(slot)],
-            "bullet_trace": [bullet_trace_map[slot] for slot in bullet_slots if bullet_trace_map.get(slot)],
-        }
-
-    for slot_name in bullet_slots:
-        stage_name = f"bullet_{slot_name.lower()}"
-        result = _run_stage(
-            stage_name,
-            lambda slot_name=slot_name: generate_bullet_points(
+    if pure_r1_visible_batch:
+        started = time.time()
+        if progress_callback:
+            progress_callback("visible_copy_batch: attempt 1/1")
+        try:
+            batch_result = _r1_batch_generate_listing(
                 preprocessed_en,
                 writing_policy,
-                "English",
+                tiered_keywords,
+                bullet_blueprint,
+                target_language,
+                list(blocked_terms),
+                audit_log=audit_log,
+            )
+        except Exception as exc:
+            llm_meta = deepcopy(getattr(llm_client, "response_metadata", {}) or {})
+            duration_ms = int((time.time() - started) * 1000)
+            _save_stage_artifact(
+                artifact_dir,
+                "visible_copy_batch",
+                {
+                    "stage": "visible_copy_batch",
+                    "status": "error",
+                    "attempt_count": 1,
+                    "attempts": [
+                        {
+                            "attempt": 1,
+                            "status": "error",
+                            "duration_ms": duration_ms,
+                            "error": str(exc),
+                            "llm_response_meta": llm_meta,
+                        }
+                    ],
+                    "error": str(exc),
+                    "audit_entries": audit_log,
+                    "keyword_assignments": keyword_assignment_tracker.as_list(),
+                },
+            )
+            field_generation_trace["visible_copy_batch"] = {
+                "status": "error",
+                "attempt_count": 1,
+                "duration_ms": duration_ms,
+                "error": str(exc),
+                "llm_response_meta": llm_meta,
+            }
+            _write_partial_generation_artifact(artifact_dir, partial_copy, field_generation_trace)
+            raise RuntimeError(f"R1 batch visible copy generation failed: {exc}") from exc
+
+        llm_meta = deepcopy(getattr(llm_client, "response_metadata", {}) or {})
+        duration_ms = int((time.time() - started) * 1000)
+        title = batch_result["title"]
+        title_ceiling = LENGTH_RULES["title"]["hard_ceiling"]
+        if len(title) > title_ceiling:
+            raise RuntimeError("R1 batch visible copy generation failed: title exceeds hard ceiling")
+        bullets = list(batch_result["bullets"] or [])
+        bullet_trace = list(batch_result.get("bullet_trace") or [])
+        reasoning_bullets = list(bullets)
+        partial_copy.update({"title": title, "bullets": bullets, "bullet_trace": bullet_trace})
+        field_generation_trace["visible_copy_batch"] = {
+            "status": "success",
+            "attempt_count": 1,
+            "duration_ms": duration_ms,
+            "subfields": ["title"] + [f"bullet_{slot.lower()}" for slot in bullet_slots],
+            "llm_response_meta": llm_meta,
+        }
+        field_generation_trace["title"] = {
+            "status": "success",
+            "attempt_count": 1,
+            "duration_ms": duration_ms,
+            "llm_response_meta": llm_meta,
+            "source": "visible_copy_batch",
+        }
+        for idx, slot_name in enumerate(bullet_slots, start=1):
+            field_generation_trace[f"bullet_{slot_name.lower()}"] = {
+                "status": "success",
+                "attempt_count": 1,
+                "duration_ms": duration_ms,
+                "llm_response_meta": llm_meta,
+                "source": "visible_copy_batch",
+                "slot_index": idx,
+            }
+        field_generation_trace["bullets"] = {
+            "status": "success",
+            "slot_count": len(bullet_slots),
+            "subfields": [f"bullet_{slot.lower()}" for slot in bullet_slots],
+            "duration_ms": duration_ms,
+            "source": "visible_copy_batch",
+        }
+        _save_stage_artifact(
+            artifact_dir,
+            "visible_copy_batch",
+            {
+                "stage": "visible_copy_batch",
+                "status": "success",
+                "attempt_count": 1,
+                "duration_ms": duration_ms,
+                "result": {"title": title, "bullets": bullets, "bullet_trace": bullet_trace},
+                "audit_entries": audit_log,
+                "keyword_assignments": keyword_assignment_tracker.as_list(),
+                "llm_response_meta": llm_meta,
+                "completed_at": time.strftime("%Y-%m-%dT%H:%M:%S"),
+            },
+        )
+        _write_partial_generation_artifact(artifact_dir, partial_copy, field_generation_trace)
+    else:
+        title_text = _run_stage(
+            "title",
+            lambda: generate_title(
+                preprocessed_en,
+                writing_policy,
+                l1_keywords,
                 tiered_keywords,
                 keyword_allocation_strategy,
-                keyword_slots,
                 audit_log=audit_log,
                 blocked_terms=blocked_terms,
                 assignment_tracker=keyword_assignment_tracker,
                 target_language=target_language,
-                bullet_blueprint=bullet_blueprint,
-                request_timeout_seconds=_field_stage_timeout_seconds("bullets"),
-                slot_filter=[slot_name],
-                llm_override_model=model_overrides.get("bullets") or None,
+                request_timeout_seconds=_experimental_stage_timeout_seconds("title", model_overrides.get("title") or None),
+                llm_override_model=model_overrides.get("title") or None,
             ),
-            lambda result, slot_name=slot_name: _bullet_partial_fields(slot_name, result),
+            lambda result: {"title": result},
         )
-        bullet_stage_traces.append(field_generation_trace.get(stage_name, {}))
+        title = title_text
+        title_ceiling = LENGTH_RULES["title"]["hard_ceiling"]
+        if len(title) > title_ceiling:
+            _log_action(audit_log, "title", "truncate", {"reason": f"exceeded {title_ceiling} char limit"})
+            title = title[: title_ceiling - 3] + "..."
+            partial_copy["title"] = title
+            _write_partial_generation_artifact(artifact_dir, partial_copy, field_generation_trace)
 
-    reasoning_bullets = [bullet_reasoning_map.get(slot, "") for slot in bullet_slots if slot in bullet_reasoning_map]
-    bullet_trace = [bullet_trace_map.get(slot, {}) for slot in bullet_slots if slot in bullet_trace_map]
-    bullets = [bullet_text_map.get(slot, "") for slot in bullet_slots if slot in bullet_text_map]
-    field_generation_trace["bullets"] = {
-        "status": "success" if all(trace.get("status") in {"success", "resumed"} for trace in bullet_stage_traces) else "partial",
-        "slot_count": len(bullet_slots),
-        "subfields": [f"bullet_{slot.lower()}" for slot in bullet_slots],
-        "duration_ms": sum(int(trace.get("duration_ms") or 0) for trace in bullet_stage_traces),
-    }
-    _write_partial_generation_artifact(artifact_dir, partial_copy, field_generation_trace)
+        bullet_reasoning_map: Dict[str, str] = {}
+        bullet_trace_map: Dict[str, Dict[str, Any]] = {}
+        bullet_text_map: Dict[str, str] = {}
+        bullet_stage_traces: List[Dict[str, Any]] = []
+
+        def _bullet_partial_fields(slot_name: str, result: Any) -> Dict[str, Any]:
+            reasoning_list, trace_list, bullet_list = result or ([], [], [])
+            bullet_reasoning_map[slot_name] = (reasoning_list or [""])[0] if reasoning_list else ""
+            bullet_trace_map[slot_name] = (trace_list or [{}])[0] if trace_list else {}
+            bullet_text_map[slot_name] = (bullet_list or [""])[0] if bullet_list else ""
+            return {
+                "bullets": [bullet_text_map[slot] for slot in bullet_slots if bullet_text_map.get(slot)],
+                "bullet_trace": [bullet_trace_map[slot] for slot in bullet_slots if bullet_trace_map.get(slot)],
+            }
+
+        for slot_name in bullet_slots:
+            stage_name = f"bullet_{slot_name.lower()}"
+            _run_stage(
+                stage_name,
+                lambda slot_name=slot_name: generate_bullet_points(
+                    preprocessed_en,
+                    writing_policy,
+                    "English",
+                    tiered_keywords,
+                    keyword_allocation_strategy,
+                    keyword_slots,
+                    audit_log=audit_log,
+                    blocked_terms=blocked_terms,
+                    assignment_tracker=keyword_assignment_tracker,
+                    target_language=target_language,
+                    bullet_blueprint=bullet_blueprint,
+                    request_timeout_seconds=_experimental_stage_timeout_seconds("bullets", model_overrides.get("bullets") or None),
+                    slot_filter=[slot_name],
+                    llm_override_model=model_overrides.get("bullets") or None,
+                ),
+                lambda result, slot_name=slot_name: _bullet_partial_fields(slot_name, result),
+            )
+            bullet_stage_traces.append(field_generation_trace.get(stage_name, {}))
+
+        reasoning_bullets = [bullet_reasoning_map.get(slot, "") for slot in bullet_slots if slot in bullet_reasoning_map]
+        bullet_trace = [bullet_trace_map.get(slot, {}) for slot in bullet_slots if slot in bullet_trace_map]
+        bullets = [bullet_text_map.get(slot, "") for slot in bullet_slots if slot in bullet_text_map]
+        field_generation_trace["bullets"] = {
+            "status": "success" if all(trace.get("status") in {"success", "resumed"} for trace in bullet_stage_traces) else "partial",
+            "slot_count": len(bullet_slots),
+            "subfields": [f"bullet_{slot.lower()}" for slot in bullet_slots],
+            "duration_ms": sum(int(trace.get("duration_ms") or 0) for trace in bullet_stage_traces),
+        }
+        _write_partial_generation_artifact(artifact_dir, partial_copy, field_generation_trace)
 
     description = _run_stage(
         "description",
@@ -7142,7 +7453,7 @@ def generate_multilingual_copy(preprocessed_data: PreprocessedData,
             forbidden_terms=visible_forbidden_terms,
         )
         bullet_text = _finalize_visible_text(bullet_text, field_name, target_language, audit_log)
-        if not llm_offline:
+        if not llm_offline and not pure_r1_visible_batch:
             polish_payload = {
                 "target_language": target_language,
                 "mandatory_keywords": trace_entry.get("keywords") or [],
@@ -7311,6 +7622,8 @@ def generate_multilingual_copy(preprocessed_data: PreprocessedData,
             "llm_response_error": llm_response_meta.get("error", ""),
             "llm_healthcheck": llm_healthcheck,
             "field_generation_trace": field_generation_trace,
+            "visible_copy_mode": "r1_batch" if pure_r1_visible_batch else "stage_by_stage",
+            "visible_copy_status": "r1_pure" if pure_r1_visible_batch else "standard",
             "unsupported_claim_count": unsupported_claim_count,
             "weak_claim_count": weak_claim_count,
             "rufus_readiness_score": rufus_readiness.get("score", 0.0),
