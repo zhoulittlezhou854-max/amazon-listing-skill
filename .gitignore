@@ -78,7 +78,7 @@ data/processed/**/*.json
 
 # Output directories (temporary outputs)
 output/debug/
-output/runs/*/  # keep directory but not contents
+output/runs/*/
 !output/runs/.gitkeep
 workspace/*/
 !workspace/.gitkeep
@@ -94,3 +94,10 @@ config/products/**/*
 tmp_*
 debug_*
 scratch_*
+
+# Local agent / editor metadata
+.codex/
+
+# Local generated artifacts
+output/
+.learnings/ERRORS.md
