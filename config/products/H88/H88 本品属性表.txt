@@ -1,0 +1,38 @@
+Amazon Spec Reconciliation - H88 Action Camera (Final)
+--------------------------------------------------
+Amazon Field Name           | Final Value
+--------------------------------------------------
+Brand                       | TOSBARRFT
+Video capture resolution    | 4K
+Camcorder type              | Action Camera
+Included components         | body camera, back clip, card reader, magnetic neck strap, waterproof case, data cable, user manual
+Photo sensor technology     | BSI CMOS
+Maximum focal length        | 6.8 Millimeters
+Flash memory type           | Memory Card (Micro SD)
+Video capture format        | MP4
+Supported audio format      | AAC, MP3
+Connectivity technology     | USB, Wi-Fi
+Special feature             | 4K Video Recording, Lightweight Design, Long Battery Life, One-Click Recording, Hands-Free Usage
+Water resistance level      | Waterproof
+Product Features            | 4K Resolution, Lightweight, WiFi Sharing, Time Lapse
+Has Image Stabilization     | No
+Image Stabilization Type    | Digital
+Form Factor                 | Compact
+Item Weight                 | 0.36 Kilograms
+Battery Average Life        | 150 minutes
+Style Name                  | 4K-P-128G
+Number of Batteries         | 1 Lithium Ion batteries required. (included)
+Minimum Focal Length        | 6.8 Millimeters
+Lens Type                   | Wide Angle
+Focus Type                  | Fixed Focus
+Maximum Display Resolution  | 4K UHD
+Operating System            | Linux
+Flash Memory Speed Class    | C10
+Compatible Devices          | Smartphone, Tablet, Personal Computer
+Image Aspect Ratio          | 16:9
+Effective Video Resolution  | 8.29 MP
+Shooting Modes              | Continuous Shooting, Sports, Time-lapse, Underwater
+Antenna Location            | Indoor, Outdoor, cycling, motorcycling, diving
+Flash Memory Video Speed Class | V30
+Zoom                        | Digital
+--------------------------------------------------

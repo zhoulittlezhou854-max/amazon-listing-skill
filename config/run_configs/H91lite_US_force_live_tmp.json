@@ -1,0 +1,20 @@
+{
+  "target_country": "US",
+  "brand_name": "TOSBARRFT",
+  "core_selling_points_raw": "",
+  "accessory_params_raw": "",
+  "input_files": {
+    "attribute_table": "config/products/H91lite_US/H91本品属性表.txt",
+    "keyword_table": "config/products/H91lite_US/H91竞品出单词报告.xlsx",
+    "review_table": "config/products/H91lite_US/H91产品全维度表.csv",
+    "aba_merged": "config/products/H91lite_US/H91_ABA关键词数据.xlsx"
+  },
+  "llm": {
+    "provider": "openai_compatible",
+    "model": "gpt-5.4",
+    "base_url": "https://api.gptclubapi.xyz/openai",
+    "wire_api": "responses",
+    "api_key_env": "CRS_OAI_KEY",
+    "force_live_llm": true
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "target_country": "FR",
+  "brand_name": "TOSBARRFT",
+  "core_selling_points_raw": "",
+  "accessory_params_raw": "",
+  "input_files": {
+    "attribute_table": "config/products/T70_real_FR/M70T本品属性表.txt",
+    "keyword_table": "config/products/T70_real_FR/T70M_FR_出单词表_数据表.csv",
+    "review_table": "config/products/T70_real_FR/T70M_ALL_全维度表_数据表.csv",
+    "aba_merged": "config/products/T70_real_FR/T70M_FR_ABA关键词表_数据表.csv"
+  },
+  "llm": {
+    "provider": "openai_compatible",
+    "model": "gpt-5.4",
+    "base_url": "https://api.gptclubapi.xyz/openai",
+    "wire_api": "responses",
+    "api_key_env": "CRS_OAI_KEY",
+    "force_live_llm": true
+  }
+}
