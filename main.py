@@ -69,6 +69,14 @@ DEFAULT_OUTPUT_DIR = "output"
 DEFAULT_REPORT_FILE = "listing_report.md"
 
 
+def _save_step_artifact(output_dir: str, artifact_subdir: str, stage_name: str, payload: Dict[str, Any]) -> str:
+    artifact_dir = Path(output_dir) / artifact_subdir
+    artifact_dir.mkdir(parents=True, exist_ok=True)
+    artifact_path = artifact_dir / f"{stage_name}.json"
+    artifact_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    return str(artifact_path)
+
+
 def load_preprocessed_snapshot(preprocessed_path: str) -> Any:
     """Reconstruct a lightweight preprocessed object from saved JSON for UI/services reuse."""
     with open(preprocessed_path, "r", encoding="utf-8") as f:
@@ -411,10 +419,25 @@ class AmazonListingGenerator:
                 print(f"  Bullet Blueprint 已生成: {bullet_count} 槽位 ({source_model})")
             except Exception as blueprint_error:
                 print(f"⚠️ Blueprint 生成失败：{blueprint_error}")
+                llm_debug_context = getattr(blueprint_error, "debug_context", {}) or {}
+                llm_meta = llm_debug_context.get("llm_response_meta", {})
+                artifact_path = _save_step_artifact(
+                    self.output_dir,
+                    "step5_artifacts",
+                    "bullet_blueprint",
+                    {
+                        "stage": "bullet_blueprint",
+                        "status": "error",
+                        "error": str(blueprint_error),
+                        "llm_response_meta": llm_meta,
+                        "llm_debug_context": llm_debug_context,
+                    },
+                )
                 if self.blueprint_model_override == "deepseek-reasoner":
                     return {
                         "status": "error",
                         "error": f"experimental_version_b_blueprint_failed: {blueprint_error}",
+                        "artifact_path": artifact_path,
                     }
 
             return {

@@ -204,11 +204,18 @@ def test_run_step_5_returns_error_when_r1_blueprint_fails(tmp_path: Path, monkey
             "capability_scene_bindings": [],
         },
     )
-    monkeypatch.setattr(
-        app_main.blueprint_generator,
-        "generate_bullet_blueprint_r1",
-        lambda **_kwargs: (_ for _ in ()).throw(RuntimeError("r1 blueprint timeout")),
-    )
+    def _raise_blueprint_failure(**_kwargs):
+        error = RuntimeError("r1 blueprint timeout")
+        error.debug_context = {
+            "field": "bullet_blueprint",
+            "system_prompt": "test system prompt",
+            "request_payload": {"field": "bullet_blueprint"},
+            "llm_response_meta": {"configured_model": "deepseek-reasoner"},
+            "error": "r1 blueprint timeout",
+        }
+        raise error
+
+    monkeypatch.setattr(app_main.blueprint_generator, "generate_bullet_blueprint_r1", _raise_blueprint_failure)
 
     generator = app_main.AmazonListingGenerator(
         str(config_path),
@@ -224,6 +231,12 @@ def test_run_step_5_returns_error_when_r1_blueprint_fails(tmp_path: Path, monkey
 
     assert result["status"] == "error"
     assert "r1 blueprint timeout" in result["error"]
+    artifact_path = Path(result["artifact_path"])
+    assert artifact_path.exists()
+    artifact = json.loads(artifact_path.read_text(encoding="utf-8"))
+    assert artifact["status"] == "error"
+    assert artifact["llm_debug_context"]["request_payload"]["field"] == "bullet_blueprint"
+    assert artifact["llm_debug_context"]["system_prompt"] == "test system prompt"
 
 
 def test_run_workflow_stops_before_step_6_when_r1_blueprint_fails(tmp_path: Path, monkeypatch):

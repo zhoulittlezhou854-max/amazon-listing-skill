@@ -5,14 +5,21 @@ from __future__ import annotations
 
 import json
 import re
+import time
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Sequence
 
 from modules.llm_client import get_llm_client, LLMClientUnavailable
 from modules.keyword_utils import extract_tiered_keywords
 from modules.language_utils import english_capability_label, canonicalize_capability
+try:
+    from openai import OpenAI  # type: ignore
+except Exception:  # pragma: no cover - optional dependency
+    OpenAI = None  # type: ignore
 
 MAX_INSIGHT_CHARS = 4000
+BLUEPRINT_PRIMARY_MODEL = "deepseek-chat"
+BLUEPRINT_FALLBACK_MODEL = "deepseek-reasoner"
 
 AUDIENCE_GROUPS = {
     "hero": "Primary use case / main buyer persona",
@@ -143,6 +150,99 @@ def _build_audience_allocation_prompt(plan: Sequence[Dict[str, str]]) -> str:
     return "\n".join(lines)
 
 
+def _stream_llm_response(client: Any, messages: List[Dict[str, str]], model: str, timeout: int) -> str:
+    stream = client.chat.completions.create(
+        model=model,
+        messages=messages,
+        stream=True,
+        timeout=timeout,
+    )
+    chunks: List[str] = []
+    for chunk in stream:
+        choices = getattr(chunk, "choices", None) or []
+        if not choices:
+            continue
+        delta = getattr(choices[0], "delta", None)
+        content = getattr(delta, "content", None)
+        if content:
+            chunks.append(content)
+    return "".join(chunks)
+
+
+def _call_blueprint_llm(
+    client: Any,
+    messages: List[Dict[str, str]],
+    timeout: int,
+    artifact_dir: Optional[str],
+    audit_log: Optional[List[Dict[str, Any]]],
+) -> str:
+    del artifact_dir  # Reserved for future artifact logging, kept in signature by design.
+    attempts = [
+        (BLUEPRINT_PRIMARY_MODEL, 30),
+        (BLUEPRINT_FALLBACK_MODEL, 120),
+    ]
+    last_exc: Optional[Exception] = None
+    for index, (model, model_timeout) in enumerate(attempts, start=1):
+        started = time.time()
+        try:
+            response = _stream_llm_response(client, messages, model=model, timeout=model_timeout)
+            try:
+                setattr(client, "_last_blueprint_model", model)
+            except Exception:
+                pass
+            if hasattr(client, "_record_response_meta"):
+                try:
+                    client._record_response_meta(  # type: ignore[attr-defined]
+                        endpoint="chat.completions",
+                        wire_api="chat/completions",
+                        response_data={"model": model},
+                        latency_ms=int((time.time() - started) * 1000),
+                        success=bool(response),
+                        error="" if response else "empty_content",
+                        configured_model=model,
+                    )
+                except Exception:
+                    pass
+            return response
+        except Exception as exc:
+            last_exc = exc
+            if hasattr(client, "_record_response_meta"):
+                try:
+                    client._record_response_meta(  # type: ignore[attr-defined]
+                        endpoint="chat.completions",
+                        wire_api="chat/completions",
+                        response_data={"model": model},
+                        latency_ms=int((time.time() - started) * 1000),
+                        success=False,
+                        error=str(exc),
+                        configured_model=model,
+                    )
+                except Exception:
+                    pass
+            if index == 1 and audit_log is not None:
+                audit_log.append(
+                    {
+                        "action": "llm_retry",
+                        "model": model,
+                        "error": str(exc),
+                    }
+                )
+    if last_exc is None:
+        raise RuntimeError("Blueprint LLM call failed without an exception")
+    raise last_exc
+
+
+def _resolve_blueprint_stream_client(llm: Any) -> Any:
+    stream_client = getattr(llm, "_client", None)
+    if stream_client is not None:
+        return stream_client
+    deepseek_key = getattr(llm, "_deepseek_key", None)
+    deepseek_base = getattr(llm, "_deepseek_base", None)
+    if OpenAI is not None and deepseek_key and deepseek_base:
+        return OpenAI(api_key=deepseek_key, base_url=deepseek_base)
+    raise RuntimeError("Blueprint streaming client is unavailable")
+
+
 def _generate_bullet_blueprint_impl(
     preprocessed_data: Any,
     writing_policy: Dict[str, Any],
@@ -173,7 +273,7 @@ def _generate_bullet_blueprint_impl(
                 persona_notes.append(description)
     audience_allocation = _build_audience_allocation_plan(preprocessed_data, writing_policy)
 
-    payload = {
+    request_payload = {
         "target_language": getattr(preprocessed_data, "language", "English"),
         "l2_keywords": l2_keywords[:20],
         "canonical_capabilities": canonical_caps[:8],
@@ -218,16 +318,73 @@ def _generate_bullet_blueprint_impl(
     )
 
     llm = get_llm_client()
+    stream_client = _resolve_blueprint_stream_client(llm)
+    messages = [
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": json.dumps(request_payload, ensure_ascii=False)},
+    ]
     try:
-        response = llm.generate_text(
-            system_prompt,
-            payload,
-            temperature=0.15,
-            override_model=override_model,
+        response = _call_blueprint_llm(
+            stream_client,
+            messages,
+            int(request_payload.get("_request_timeout_seconds") or 30),
+            None,
+            [],
         )
+        configured_model = (
+            getattr(stream_client, "_last_blueprint_model", "")
+            or (getattr(llm, "response_metadata", {}) or {}).get("configured_model")
+            or BLUEPRINT_PRIMARY_MODEL
+        )
+        if hasattr(llm, "_record_response_meta"):
+            llm._record_response_meta(  # type: ignore[attr-defined]
+                endpoint="chat.completions",
+                wire_api="chat/completions",
+                response_data={"model": configured_model},
+                latency_ms=None,
+                success=bool(response),
+                error="" if response else "empty_content",
+                configured_model=configured_model,
+            )
         blueprint = _parse_llm_blueprint(response or "")
     except (LLMClientUnavailable, ValueError, json.JSONDecodeError) as exc:
-        raise RuntimeError(f"Bullet blueprint generation failed: {exc}") from exc
+        error = RuntimeError(f"Bullet blueprint generation failed: {exc}")
+        setattr(
+            error,
+            "debug_context",
+            {
+                "stage": "bullet_blueprint",
+                "field": "bullet_blueprint",
+                "system_prompt": system_prompt,
+                "request_payload": {
+                    "field": "bullet_blueprint",
+                    "override_model": override_model or "",
+                    "payload": request_payload,
+                },
+                "llm_response_meta": (getattr(llm, "response_metadata", {}) or {}),
+                "error": str(exc),
+            },
+        )
+        raise error from exc
+    except Exception as exc:
+        error = RuntimeError(f"Bullet blueprint generation failed: {exc}")
+        setattr(
+            error,
+            "debug_context",
+            {
+                "stage": "bullet_blueprint",
+                "field": "bullet_blueprint",
+                "system_prompt": system_prompt,
+                "request_payload": {
+                    "field": "bullet_blueprint",
+                    "override_model": override_model or "",
+                    "payload": request_payload,
+                },
+                "llm_response_meta": (getattr(llm, "response_metadata", {}) or {}),
+                "error": str(exc),
+            },
+        )
+        raise error from exc
 
     blueprint["created_at"] = datetime.now(timezone.utc).isoformat()
     blueprint["llm_model"] = (

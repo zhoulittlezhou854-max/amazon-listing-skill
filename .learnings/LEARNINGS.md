@@ -181,3 +181,74 @@ If a scoring model tracks one tier per keyword record, prefer adding new distinc
 - `main.py::run_step_5()` now treats R1 blueprint failure as a blocking error when `blueprint_model_override == "deepseek-reasoner"`. This prevents the experimental Version B branch from swallowing blueprint timeouts as warnings and then continuing into Step 6.
 - `main.py::run_step_6()` now has a second guard: if experimental Version B is configured but `bullet_blueprint.json` is missing / unreadable, Step 6 returns `experimental_version_b_blueprint_missing` immediately instead of running `visible_copy_batch`.
 - Real verification from `H91lite_US_r1_batch_strict_verify`: Version A completed normally, while Version B hit an R1 blueprint timeout in Step 5 and stopped there. No `bullet_blueprint.json`, no `generated_copy.json`, no `scoring_results.json`, and no `step6_artifacts/` were produced under `version_b/`; `execution_summary.json` recorded `workflow_status=failed` with no `step_6` entry.
+
+## 2026-04-17 Failure Display + Title Length Tuning
+- `run_pipeline.py`, `app/services/run_service.py`, and `app/services/workspace_service.py` now infer explicit experimental failure states from `execution_summary.json` when `generated_copy.json` is missing. The two named states currently surfaced are `FAILED_AT_BLUEPRINT` and `FAILED_AT_COPY`, replacing the previous ambiguous `unknown` display in dual-version CLI/UI summaries.
+- `modules/report_generator.py::generate_dual_version_report(...)` now renders failed Version B runs as failure blocks instead of empty listings. The report includes `Generation Status`, `Failure Reason`, and `Visible Copy: not generated`, so operators can tell whether the experiment stopped at blueprint or copy generation.
+- Title length rules were tightened without changing the 200-character ceiling: `modules/writing_policy.py` now targets `175-195` characters with a `160`-character soft warning, and `modules/copy_generation.py::_generate_and_audit_title(...)` retries titles that are too skeletal only when the active max length still supports a full title. This avoids regressing small-ceiling repair tests while nudging normal runs toward richer, less stubby titles.
+- Regression baseline after this pass: full suite moved from `241 passed` to `244 passed`.
+
+## 2026-04-17 Title 190-198 Target
+- Title targeting was tightened again: `modules/writing_policy.py` now sets `target_min=190`, `target_max=198`, `soft_warning=185`, while keeping `hard_ceiling=200`. `modules/copy_generation.py` also now prefers the longest valid deterministic title candidate near the target window instead of returning the first merely-valid short candidate.
+- Real verification run `H91lite_US_title_190_198_verify` completed with `live_success`; the generated title length was `196`, which lands inside the requested `190-198` window. The exact title was: `TOSBARRFT vlogging camera Action Camera with 150 minutes and 1080p for Commuting Capture and Vlog Content Creation, built for mini camera, body camera, and travel camera recording for Vlog Content`.
+- Follow-up quality note: the length target is now working, but this title still reads somewhat mechanical because the model is packing keyword coverage aggressively near the ceiling. If we want the next iteration to improve *quality* rather than just *length compliance*, the next lever is title phrasing quality, not title length budget.
+
+## 2026-04-17 Shared V3/R1 Title Naturalness Pass
+- V3 and experimental R1 now share the same tightened title budget: `190-198` target characters, `185` soft warning, `200` hard ceiling. The centralized values remain in `modules/writing_policy.py::LENGTH_RULES["title"]`, so prompt guidance and post-generation repair stay aligned.
+- `modules/copy_generation.py::_build_natural_title_candidate(...)` was tightened to prefer fuller natural product-name phrasing instead of keyword-stack tails: it now prioritizes richer differentiators, uses `... use` phrasing instead of awkward `... recording` tails for secondary keyword coverage, and only adds a generic fallback usage phrase when a title is still below the soft warning.
+- `modules/copy_generation.py::_build_deterministic_title_candidate(...)` now prioritizes `core_capability` before raw numeric specs when constructing the natural scaffold. This keeps the fallback title closer to a real product name while still preserving required keyword hits.
+- `modules/copy_generation.py::_compose_exact_match_title(...)` now refuses to accept a candidate that technically contains the secondary exact keywords but trims away the full framed phrase (for example `helmet camera for Helmet POV`). It falls through to the explicit exact-match title when needed so scene-framed exact keywords survive intact.
+- Verification after this pass: targeted title tests plus the full suite are green at `245 passed`.
+
+## 2026-04-17 V3 vs R1 Compare Run Note
+- Fresh verification runs completed for `H91lite_US_compare_v3b_20260417` and `H91lite_US_compare_dual_20260417`. The V3-only run finished `live_success`, but the strict dual Version B path failed again at Step 5 with `FAILED_AT_BLUEPRINT` because the `deepseek-reasoner` blueprint request timed out before any visible copy was generated.
+- To still inspect R1 visible-copy quality without mixing providers in title/bullets, a separate compare run `H91lite_US_compare_r1visible_20260417` used Steps `0-5` on the standard blueprint path, then Step `6` with `title_model_override=deepseek-reasoner` and `bullet_model_override=deepseek-reasoner`. This yields pure-R1 title + bullets for comparison while making the dependency explicit: it is an R1 visible-copy sample on top of a validated V3 blueprint, not a successful strict Version B run.
+- Current quality gap observed from that run: the R1 visible-copy batch can still ignore the shared `190-198` title target and returned a 96-character title, so the next fix needs to be in the batch prompt / validation path rather than the stage-by-stage title generator alone.
+
+## 2026-04-17 R1 Short Title Root Cause
+- The `190-198` title lock is only enforced in the stage-by-stage title path (`_llm_generate_title` + `_generate_and_audit_title`). The pure R1 visible-copy batch path bypasses that logic entirely.
+- Evidence: `modules/copy_generation.py::_r1_batch_generate_listing` only tells R1 to keep the title `under 200 characters` and only validates `len(title) <= hard_ceiling`; it never passes `target_min/target_max`, never calls `_generate_and_audit_title`, and never rejects a too-short title. The compare artifact `output/runs/H91lite_US_compare_r1visible_20260417/step6_artifacts/visible_copy_batch.json` shows a successful 96-char R1 title accepted on the first and only batch attempt.
+
+## 2026-04-17 R1 Batch Title Audit Reuse
+- `modules/copy_generation.py::_r1_batch_generate_listing(...)` now routes the batch-returned title through the shared `_generate_and_audit_title(...)` path before accepting it. The batch title is passed as `_prefetched_title_candidates`, so the shared validator sees the actual R1 batch output first instead of skipping straight to a second generator path.
+- `_generate_and_audit_title(...)` now consumes `_prefetched_title_candidates` before calling `_llm_generate_title(...)`. When `_disable_fallback=True`, it also stops before deterministic fallback and raises `title_validation_failed_after_retry`, which keeps experimental R1 title paths strict instead of silently accepting or replacing invalid short titles.
+- Regression coverage: `tests/test_copy_generation.py::test_r1_batch_generate_listing_reuses_shared_title_audit` locks the wiring so future R1 batch changes cannot bypass the shared title audit again.
+
+## 2026-04-17 R1 Batch Prompt Tightening Verification
+- The R1 batch prompt now explicitly mirrors the shared title contract: natural product-name phrasing, at least 3 core keywords, top differentiators, target length `190-198`, and `200` hard ceiling. Regression coverage lives in `tests/test_copy_generation.py::test_r1_batch_prompt_uses_shared_title_length_contract`.
+- Fresh live verification `H91lite_US_compare_r1visible_fix2_20260417` still failed, but the failure mode shifted in a useful way: the first R1 batch title was no longer accepted silently, and the shared audit logged `length_exceeded` first, then a second retry returned a `131`-character title and failed `below_target_length`. This suggests the prompt is influencing the first answer, but R1 still needs a stronger single-pass title constraint or a batch-specific repair instruction to land inside `190-198` reliably.
+
+## 2026-04-17 R1 Batch In-Path Title Repair
+- `modules/copy_generation.py::_r1_batch_generate_listing(...)` now performs a batch-native title repair before handing the title to the shared audit path. If the first batch title falls outside the `190-198` target window, `_r1_batch_repair_title(...)` makes one more DeepSeek-R1 request with a title-only JSON contract and the same natural-title rules, then the repaired title is sent through `_generate_and_audit_title(...)` as the prefetched candidate.
+- Regression coverage: `tests/test_copy_generation.py::test_r1_batch_repairs_title_in_batch_before_shared_audit` ensures the R1 batch path makes the extra repair call and forwards the repaired title into the shared audit instead of immediately dropping into the generic single-field retry pattern.
+- Fresh live verification `H91lite_US_compare_r1visible_fix3_20260417` did not reach the new repair logic because the very first `visible_copy_batch` request timed out at the network layer (`HTTPSConnectionPool(host='api.deepseek.com', port=443): Read timed out.`). So the code path is now in place and fully tested locally, but the latest live run was blocked by provider/network instability before title-quality behavior could be observed.
+
+## 2026-04-17 R1 Retry Verification Note
+- A second fresh retry run `H91lite_US_compare_r1visible_fix4_20260417` failed at the same earliest network boundary as `fix3`: the initial `visible_copy_batch` DeepSeek-R1 request timed out before returning any JSON. This confirms the current blocker is provider/network instability rather than the new batch-native title repair logic.
+
+## 2026-04-17 Deterministic R1 Title Length Repair
+- Replaced the batch-title repair dependence on `_r1_batch_repair_title(...)` with a deterministic `_rule_repair_title_length(...)` helper. It now trims titles above the target window back to a word boundary at `198`, and extends short titles by appending non-duplicate keywords from `exact_match_keywords -> l1_keywords -> assigned_keywords`, all without any LLM call.
+- The R1 batch path still keeps shared `_generate_and_audit_title(...)` as the final validator. That gives us deterministic length convergence while preserving one authoritative title quality gate for keyword dump detection, exact phrase handling, and final normalization.
+- Regression coverage was expanded in `tests/test_copy_generation.py` for trim, extend, duplicate suppression, audit logging, exhausted keyword pool behavior, and confirmation that `_r1_batch_generate_listing(...)` now uses `_rule_repair_title_length(...)` instead of the old LLM repair path.
+- Verification after this pass: targeted title/copy tests passed, and the full suite moved to `256 passed`.
+
+## 2026-04-17 R1 Rule-Repair Live Attempt
+- Fresh run `H91lite_US_compare_r1visible_rulefix_20260417` still did not produce a usable R1 visible-copy sample. Step 5 blueprint timed out once, and the Step 6 `visible_copy_batch` call failed with `Response ended prematurely` before any JSON payload was returned. This confirms the current blocker remains transport/provider instability, not the deterministic title repair logic.
+
+## 2026-04-17 R1 Debug Retry Outcome
+- Fresh dual-version verification runs `H91lite_US_r1debug_20260417b` and `H91lite_US_r1debug_retry_20260417` both reproduced the same transport-side blocker before Version B could reach `visible_copy_batch`: Version A finished `live_success`, but Version B failed at Step 5 blueprint with `experimental_version_b_blueprint_failed` caused by `HTTPSConnectionPool(host='api.deepseek.com', port=443): Read timed out.`
+- Because both retries stopped at blueprint, no new `version_b/step6_artifacts/visible_copy_batch.json` was produced. So the new `llm_debug_context` persistence for R1 batch failures is still code/test verified, but not yet live-artifact verified in a real run.
+
+## 2026-04-17 Step5 Blueprint Debug Artifact
+- `modules/blueprint_generator.py` now attaches a `debug_context` payload when bullet blueprint generation fails, including `system_prompt`, structured `request_payload`, `llm_response_meta`, and the original error string.
+- `main.py::run_step_5()` now persists failed blueprint artifacts to `step5_artifacts/bullet_blueprint.json` before returning `experimental_version_b_blueprint_failed`, so Version B no longer loses prompt/payload context when it times out before Step 6.
+- Live verification run `H91lite_US_r1debug_step5ctx_20260417` confirmed the new artifact shape at `output/runs/H91lite_US_H91lite_US_r1debug_step5ctx_20260417/version_b/step5_artifacts/bullet_blueprint.json`; it captured the full blueprint system prompt, `override_model=deepseek-reasoner`, request payload keys, and DeepSeek timeout metadata (`latency_ms=45203`, `error=HTTPSConnectionPool(... Read timed out.)`).
+
+## 2026-04-17 R1 Step6 Debug Attempt Still Blocked By Blueprint
+- Fresh verification run `H91lite_US_r1debug_step6ctx_20260417` again completed Version A successfully but failed Version B at Step 5 with the same DeepSeek timeout before `visible_copy_batch` could start.
+- This means the new Step 5 debug artifact path is now the practical source of truth for diagnosing current R1 instability; Step 6 `visible_copy_batch.json` still cannot be live-verified until the reasoner blueprint call survives long enough to hand off into visible copy generation.
+
+## 2026-04-17 Blueprint V3 Primary + Streaming
+- `modules/blueprint_generator.py` now uses a two-level streamed model strategy for Step 5: primary `deepseek-chat` (30s) and fallback `deepseek-reasoner` (120s). The blueprint prompt/payload and JSON schema remain unchanged; only the transport/model selection changed.
+- Because the runtime `LLMClient` deepseek path does not expose `chat.completions.create`, blueprint generation now resolves a temporary OpenAI-compatible client from the existing DeepSeek API key/base URL solely for streamed Step 5 calls.
+- Verification run `H91lite_US_blueprint_v3stream_fix_20260417` proved the intended outcome: Version B no longer died at Step 5 blueprint timeout, generated a `deepseek-chat` blueprint successfully, and advanced into Step 6 `visible_copy_batch`. The new blocker shifted downstream to `title_validation_failed_after_retry`, which is a copy-quality issue rather than a Step 5 transport timeout.
