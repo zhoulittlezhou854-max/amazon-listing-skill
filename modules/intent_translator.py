@@ -16,6 +16,22 @@ from modules.language_utils import canonicalize_capability, english_capability_l
 from modules.intent_weights import apply_intent_weight_to_intent_graph
 from modules.keyword_utils import infer_category_type
 
+SUPPRESSED_FALSE_SPECS = {
+    "live_streaming_supported",
+    "waterproof_supported",
+    "stabilization_supported",
+}
+
+
+def _is_suppressed_false_spec(spec_name: str, spec_value: Any) -> bool:
+    key = str(spec_name or "").strip().lower()
+    if key not in SUPPRESSED_FALSE_SPECS:
+        return False
+    if isinstance(spec_value, bool):
+        return spec_value is False
+    lowered = str(spec_value or "").strip().lower()
+    return lowered in {"false", "0", "no", "none", "not supported", "unsupported"}
+
 
 @dataclass
 class IntentNode:
@@ -428,6 +444,7 @@ def enrich_policy_with_intent_graph(policy: Dict[str, Any], specs: Optional[Dict
     category = policy.get("product_profile", {}).get("category_type", "action_camera")
     templates = INTENT_GRAPH_LIBRARY.get(category, [])
     seen_specs = set()
+    suppressed_capabilities = set(policy.get("suppressed_capabilities") or [])
 
     for preset in templates:
         spec_key = preset.get("spec", "").lower()
@@ -439,6 +456,9 @@ def enrich_policy_with_intent_graph(policy: Dict[str, Any], specs: Optional[Dict
             or specs.get(spec_key.replace(" ", "_"))
             or preset.get("resolution", "")
         )
+        if _is_suppressed_false_spec(spec_key, resolved_value):
+            suppressed_capabilities.add(spec_key)
+            continue
         mini_brief = preset.get("mini_brief") or _build_mini_brief(
             _normalize_scene_label(preset.get("scene") or default_scene),
             preset.get("audience") or default_audience,
@@ -464,6 +484,9 @@ def enrich_policy_with_intent_graph(policy: Dict[str, Any], specs: Optional[Dict
         spec_key = str(spec_name).lower()
         if spec_key in seen_specs:
             continue
+        if _is_suppressed_false_spec(spec_key, spec_value):
+            suppressed_capabilities.add(spec_key)
+            continue
         normalized_scene = _normalize_scene_label(default_scene)
         node = IntentNode(
             spec=str(spec_name),
@@ -480,6 +503,7 @@ def enrich_policy_with_intent_graph(policy: Dict[str, Any], specs: Optional[Dict
 
     enriched_policy = dict(policy)
     enriched_policy["intent_graph"] = [node.to_dict() for node in nodes]
+    enriched_policy["suppressed_capabilities"] = sorted(suppressed_capabilities)
     return enriched_policy
 
 

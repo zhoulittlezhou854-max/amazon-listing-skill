@@ -1895,6 +1895,7 @@ def generate_dual_version_report(
     run_id: str,
     version_a: Dict[str, Any],
     version_b: Dict[str, Any],
+    hybrid: Optional[Dict[str, Any]] = None,
 ) -> str:
     def _failure_reason(version: Dict[str, Any]) -> str:
         return (
@@ -1972,6 +1973,17 @@ def generate_dual_version_report(
         f"| 总耗时（秒） | {version_a.get('elapsed_seconds', 0)} | {version_b.get('elapsed_seconds', 0)} |",
         "",
     ]
+    if hybrid:
+        lines.extend(
+            [
+                "## Hybrid Recommendation",
+                "",
+                *_listing_block(hybrid),
+                *_scoring_block(hybrid.get("scoring_results") or {}),
+                f"- Source Split: {((hybrid.get('generated_copy') or {}).get('metadata') or {}).get('hybrid_sources') or {}}",
+                "",
+            ]
+        )
     return "\n".join(lines)
 
 

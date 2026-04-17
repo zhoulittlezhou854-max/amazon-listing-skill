@@ -6,6 +6,7 @@ from __future__ import annotations
 import json
 import re
 import time
+from copy import deepcopy
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Sequence
 
@@ -36,6 +37,12 @@ AUDIENCE_FALLBACK_PLAN = [
     {"slot": "B4", "group": "guidance", "focus": "usage boundary or compatibility note"},
     {"slot": "B5", "group": "kit", "focus": "included items and package value"},
 ]
+
+SUPPRESSED_CAPABILITY_TERMS = {
+    "live_streaming_supported": ["live stream", "live streaming", "livestream"],
+    "waterproof_supported": ["waterproof", "underwater"],
+    "stabilization_supported": ["stabilization", "stabilized", "eis"],
+}
 
 
 def _summarize_attributes(attr_data: Any) -> Dict[str, Any]:
@@ -100,6 +107,45 @@ def _parse_llm_blueprint(response: str) -> Dict[str, Any]:
         raise ValueError("LLM blueprint returned empty bullets")
     data["bullets"] = normalized[:5]
     return data
+
+
+def _clean_suppressed_text(text: str, blocked_terms: Sequence[str]) -> str:
+    cleaned = str(text or "")
+    for term in blocked_terms:
+        cleaned = re.sub(re.escape(term), "", cleaned, flags=re.IGNORECASE)
+    cleaned = re.sub(r"\s+", " ", cleaned)
+    cleaned = re.sub(r"\s+([,;:])", r"\1", cleaned)
+    cleaned = re.sub(r"([,;:]){2,}", r"\1", cleaned)
+    cleaned = re.sub(r"\b(and|or)\b\s*$", "", cleaned, flags=re.IGNORECASE)
+    cleaned = re.sub(r"^[,;:\-\s]+|[,;:\-\s]+$", "", cleaned)
+    return cleaned.strip()
+
+
+def _scrub_suppressed_blueprint_content(
+    blueprint: Dict[str, Any],
+    suppressed_capabilities: Sequence[str],
+) -> Dict[str, Any]:
+    suppressed = {str(item or "").strip().lower() for item in (suppressed_capabilities or []) if str(item or "").strip()}
+    blocked_terms: List[str] = []
+    for key in suppressed:
+        blocked_terms.extend(SUPPRESSED_CAPABILITY_TERMS.get(key, []))
+    if not blocked_terms:
+        return blueprint
+
+    scrubbed = deepcopy(blueprint)
+    for entry in scrubbed.get("bullets") or []:
+        if not isinstance(entry, dict):
+            continue
+        for field in ("theme", "proof_angle", "slot_directive"):
+            entry[field] = _clean_suppressed_text(entry.get(field, ""), blocked_terms)
+        for list_field in ("mandatory_elements", "capabilities"):
+            values = []
+            for item in entry.get(list_field) or []:
+                cleaned = _clean_suppressed_text(str(item or ""), blocked_terms)
+                if cleaned:
+                    values.append(cleaned)
+            entry[list_field] = values
+    return scrubbed
 
 
 def _build_audience_allocation_plan(preprocessed_data: Any, writing_policy: Dict[str, Any]) -> List[Dict[str, str]]:
@@ -272,6 +318,24 @@ def _generate_bullet_blueprint_impl(
             if description:
                 persona_notes.append(description)
     audience_allocation = _build_audience_allocation_plan(preprocessed_data, writing_policy)
+    suppressed_capabilities = sorted(
+        {
+            str(item).strip()
+            for item in (
+                list(writing_policy.get("suppressed_capabilities") or [])
+                + [
+                    spec_name
+                    for spec_name, spec_value in (getattr(preprocessed_data, "capability_constraints", {}) or {}).items()
+                    if spec_name in SUPPRESSED_CAPABILITY_TERMS
+                    and (
+                        (isinstance(spec_value, bool) and spec_value is False)
+                        or str(spec_value).strip().lower() in {"false", "0", "no", "none", "not supported", "unsupported"}
+                    )
+                ]
+            )
+            if str(item).strip()
+        }
+    )
 
     request_payload = {
         "target_language": getattr(preprocessed_data, "language", "English"),
@@ -289,6 +353,7 @@ def _generate_bullet_blueprint_impl(
         "copy_contracts": writing_policy.get("copy_contracts", {}),
         "feedback_context": getattr(preprocessed_data, "feedback_context", {}) or {},
         "audience_allocation": audience_allocation,
+        "suppressed_capabilities": suppressed_capabilities,
         "_request_timeout_seconds": 45 if override_model == "deepseek-reasoner" else 90,
         "_disable_fallback": bool(override_model == "deepseek-reasoner"),
     }
@@ -346,7 +411,10 @@ def _generate_bullet_blueprint_impl(
                 error="" if response else "empty_content",
                 configured_model=configured_model,
             )
-        blueprint = _parse_llm_blueprint(response or "")
+        blueprint = _scrub_suppressed_blueprint_content(
+            _parse_llm_blueprint(response or ""),
+            suppressed_capabilities,
+        )
     except (LLMClientUnavailable, ValueError, json.JSONDecodeError) as exc:
         error = RuntimeError(f"Bullet blueprint generation failed: {exc}")
         setattr(

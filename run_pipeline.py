@@ -7,8 +7,8 @@ import shutil
 import time
 from pathlib import Path
 
-from main import run_generator_workflow
-from modules import report_generator
+from main import load_preprocessed_snapshot, run_generator_workflow
+from modules import hybrid_composer, report_generator
 
 
 def _read_generation_status(output_dir: Path, summary: dict) -> str:
@@ -85,6 +85,7 @@ def _run_single_version(
         "result": result,
         "elapsed_seconds": elapsed_seconds,
         "generated_copy": _load_json(output_dir / "generated_copy.json"),
+        "risk_report": _load_json(output_dir / "risk_report.json"),
         "scoring_results": _load_json(output_dir / "scoring_results.json"),
         "bullet_blueprint": _load_json(output_dir / "bullet_blueprint.json"),
         "execution_summary": _load_json(output_dir / "execution_summary.json"),
@@ -135,6 +136,28 @@ def main() -> None:
         title_model_override="deepseek-reasoner",
         bullet_model_override="deepseek-reasoner",
     )
+    hybrid_dir = output_dir / "hybrid"
+    version_a_for_hybrid = {**version_a["generated_copy"], "risk_report": version_a.get("risk_report") or {}}
+    version_b_for_hybrid = {**version_b["generated_copy"], "risk_report": version_b.get("risk_report") or {}}
+    hybrid_copy = hybrid_composer.compose_hybrid_listing(
+        version_a=version_a_for_hybrid,
+        version_b=version_b_for_hybrid,
+        output_dir=hybrid_dir,
+    )
+    hybrid_bundle = {}
+    preprocessed_path = version_a_dir / "preprocessed_data.json"
+    writing_policy_path = version_a_dir / "writing_policy.json"
+    if preprocessed_path.exists() and writing_policy_path.exists():
+        hybrid_bundle = hybrid_composer.finalize_hybrid_outputs(
+            hybrid_copy=hybrid_copy,
+            version_a=version_a_for_hybrid,
+            version_b=version_b_for_hybrid,
+            writing_policy=_load_json(writing_policy_path),
+            preprocessed_data=load_preprocessed_snapshot(str(preprocessed_path)),
+            output_dir=hybrid_dir,
+            language=((version_a["generated_copy"].get("metadata") or {}).get("target_language") or "English"),
+            intent_graph=_load_json(version_a_dir / "intent_graph.json"),
+        )
     dual_report = report_generator.generate_dual_version_report(
         sku=args.product,
         market=args.market.upper(),
@@ -157,6 +180,11 @@ def main() -> None:
             "visible_copy_model": "deepseek-reasoner (title+bullets)",
             "elapsed_seconds": version_b["elapsed_seconds"],
         },
+        hybrid={
+            "generated_copy": hybrid_bundle.get("generated_copy") or hybrid_copy,
+            "scoring_results": hybrid_bundle.get("scoring_results") or {},
+            "generation_status": ((hybrid_bundle.get("generated_copy") or hybrid_copy).get("metadata") or {}).get("hybrid_generation_status", "composed"),
+        },
     )
     dual_report_path = output_dir / "dual_version_report.md"
     dual_report_path.write_text(dual_report, encoding="utf-8")
@@ -169,6 +197,8 @@ def main() -> None:
         "Version B generation status:",
         _read_generation_status(version_b_dir, (version_b["result"].get("summary") or {})),
     )
+    print(f"Hybrid output: {hybrid_dir / 'generated_copy.json'}")
+    print(f"Hybrid title source: {(hybrid_copy.get('metadata') or {}).get('hybrid_sources', {}).get('title', '')}")
     print(f"Dual report: {dual_report_path}")
 
 

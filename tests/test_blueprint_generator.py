@@ -3,6 +3,7 @@ from types import SimpleNamespace
 import pytest
 
 from modules import blueprint_generator
+from modules import intent_translator
 from modules.llm_client import LLMClientUnavailable
 
 
@@ -201,3 +202,115 @@ def test_generate_blueprint_r1_attaches_debug_context_on_failure(monkeypatch):
     assert debug_context.get("request_payload", {}).get("field") == "bullet_blueprint"
     assert "system_prompt" in debug_context
     assert debug_context.get("llm_response_meta", {}).get("configured_model") == "deepseek-reasoner"
+
+
+def test_false_live_streaming_not_in_enriched_policy_intent_graph():
+    policy = {
+        "scene_priority": ["commuting_capture"],
+        "product_profile": {"target_audience_role": "commuter", "category_type": "action_camera"},
+    }
+
+    enriched = intent_translator.enrich_policy_with_intent_graph(
+        policy,
+        {"live_streaming_supported": False, "wifi_connection": "2.4GHz"},
+    )
+
+    capabilities = [str(item.get("capability") or "").lower() for item in enriched.get("intent_graph") or []]
+    assert "live streaming" not in capabilities
+    assert "live_streaming_supported" in (enriched.get("suppressed_capabilities") or [])
+
+
+def test_blueprint_scrubs_false_live_streaming_from_entry_fields():
+    blueprint = {
+        "bullets": [
+            {
+                "bullet_index": 3,
+                "theme": "Live Streaming POV Capture",
+                "assigned_l2_keywords": ["thumb camera"],
+                "mandatory_elements": ["WiFi 2.4GHz for app control and live stream", "1080P clarity"],
+                "scenes": ["vlog_content_creation"],
+                "capabilities": ["live streaming", "easy operation"],
+                "accessories": [],
+                "persona": "creator",
+                "pain_point": "missed moments",
+                "buying_trigger": "fast sharing",
+                "proof_angle": "live streaming proof via WiFi app",
+                "priority": "P1",
+                "slot_directive": "Highlight live streaming and WiFi sharing.",
+            }
+        ]
+    }
+
+    scrubbed = blueprint_generator._scrub_suppressed_blueprint_content(
+        blueprint,
+        suppressed_capabilities={"live_streaming_supported"},
+    )
+    entry = scrubbed["bullets"][0]
+
+    assert "live stream" not in entry["theme"].lower()
+    assert not any("live stream" in item.lower() for item in entry["mandatory_elements"])
+    assert not any("live stream" in item.lower() for item in entry["capabilities"])
+    assert "live stream" not in entry["proof_angle"].lower()
+    assert "live stream" not in entry["slot_directive"].lower()
+
+
+def test_true_live_streaming_still_enters_blueprint():
+    blueprint = {
+        "bullets": [
+            {
+                "bullet_index": 3,
+                "theme": "Live Streaming POV Capture",
+                "assigned_l2_keywords": [],
+                "mandatory_elements": ["WiFi 2.4GHz for app control and live stream"],
+                "scenes": [],
+                "capabilities": ["live streaming"],
+                "accessories": [],
+                "persona": "creator",
+                "pain_point": "",
+                "buying_trigger": "",
+                "proof_angle": "live streaming proof",
+                "priority": "P1",
+                "slot_directive": "Highlight live streaming.",
+            }
+        ]
+    }
+
+    scrubbed = blueprint_generator._scrub_suppressed_blueprint_content(
+        blueprint,
+        suppressed_capabilities=set(),
+    )
+
+    entry = scrubbed["bullets"][0]
+    assert "live streaming" in entry["theme"].lower()
+    assert any("live stream" in item.lower() for item in entry["mandatory_elements"])
+
+
+def test_waterproof_false_scrubs_underwater_terms():
+    blueprint = {
+        "bullets": [
+            {
+                "bullet_index": 4,
+                "theme": "Underwater Waterproof Adventure",
+                "assigned_l2_keywords": [],
+                "mandatory_elements": ["waterproof case for underwater capture", "1080P footage"],
+                "scenes": [],
+                "capabilities": ["waterproof"],
+                "accessories": [],
+                "persona": "traveler",
+                "pain_point": "",
+                "buying_trigger": "",
+                "proof_angle": "waterproof proof",
+                "priority": "P1",
+                "slot_directive": "Position as waterproof for underwater use.",
+            }
+        ]
+    }
+
+    scrubbed = blueprint_generator._scrub_suppressed_blueprint_content(
+        blueprint,
+        suppressed_capabilities={"waterproof_supported"},
+    )
+    entry = scrubbed["bullets"][0]
+    assert "waterproof" not in entry["theme"].lower()
+    assert "underwater" not in entry["theme"].lower()
+    assert not any(any(token in item.lower() for token in ("waterproof", "underwater")) for item in entry["mandatory_elements"])
