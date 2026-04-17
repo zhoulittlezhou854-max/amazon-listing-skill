@@ -252,3 +252,45 @@ If a scoring model tracks one tier per keyword record, prefer adding new distinc
 - `modules/blueprint_generator.py` now uses a two-level streamed model strategy for Step 5: primary `deepseek-chat` (30s) and fallback `deepseek-reasoner` (120s). The blueprint prompt/payload and JSON schema remain unchanged; only the transport/model selection changed.
 - Because the runtime `LLMClient` deepseek path does not expose `chat.completions.create`, blueprint generation now resolves a temporary OpenAI-compatible client from the existing DeepSeek API key/base URL solely for streamed Step 5 calls.
 - Verification run `H91lite_US_blueprint_v3stream_fix_20260417` proved the intended outcome: Version B no longer died at Step 5 blueprint timeout, generated a `deepseek-chat` blueprint successfully, and advanced into Step 6 `visible_copy_batch`. The new blocker shifted downstream to `title_validation_failed_after_retry`, which is a copy-quality issue rather than a Step 5 transport timeout.
+
+## 2026-04-17 Repair Keyword Pool For Strict R1 Titles
+- `modules/copy_generation.py::_rule_repair_title_length(...)` now looks at `_repair_keyword_pool` after the visible title keyword slices (`exact_match_keywords`, `l1_keywords`, `assigned_keywords`). This keeps the normal title prompt compact while giving strict repair enough extra L1/L2 material to reach the `190-198` target window when the visible payload alone is too small.
+- `generate_title(...)` and the R1 `visible_copy_batch` title payloads now pass `_repair_keyword_pool` built from the broader `tiered_keywords` L1+L2 set, so `title_validation_failed_after_retry` can fail for real quality reasons instead of simple keyword-pool starvation.
+
+## 2026-04-17 Repair Pool Verification Result
+- Fresh run `H91lite_US_r1repairpool_verify_20260417` proved the Step 5 fix is stable and the extra repair keyword pool alone is not enough to clear Version B. Version B reached `visible_copy_batch`, but still failed with `title_validation_failed_after_retry`.
+- The new `visible_copy_batch.json` audit trail shows the blocker is no longer pool starvation: the first batch title came back too long (`rule_repair_trim` from 204 -> 194), then shared title audit still rejected it for missing required keywords (`mini camera`, `body camera`), and the follow-up R1 retry timed out. Final post-retry patch still reported missing `mini camera`, `body camera`, and `travel camera`.
+- This means the next root cause is keyword-presence reconciliation inside `_generate_and_audit_title(...)` after the batch repair step, not the size of `_repair_keyword_pool`.
+
+## 2026-04-17 Required Keyword Frontload Verification
+- Added `_frontload_required_keywords(...)` before `_rule_repair_title_length(...)` trims overlong titles, so required/exact keywords that already exist in the title are moved out of the trailing danger zone before `_trim_to_word_boundary(...)` cuts the tail.
+- Local regression coverage now includes a trim case that keeps `mini camera` and `body camera` present after the repair pass. Title-focused regression suite stayed green at `78 passed` across `tests/test_copy_generation.py`, `tests/test_title_naturalness.py`, and `tests/test_length_rules.py`.
+- Real-data validation produced a partial win: the targeted Step 6 run `output/runs/H91lite_US_frontload_step6only_20260417` still ended with `title_validation_failed_after_retry`, but the audit trail no longer reported missing required keywords after trim. The failure signature changed from `missing_keywords + timeout` to `length_exceeded + timeout`, which means the frontload fix likely solved the keyword-loss bug and exposed the next issue: post-trim title reconciliation is still too long before the final retry times out.
+
+## 2026-04-17 R1 Recipe Title Assembly Trial
+- Added an R1-only recipe path inside `modules/copy_generation.py::_r1_batch_generate_listing(...)`: the R1 visible-copy batch prompt now asks for `title_recipe` (`lead_keyword`, `differentiators`, `use_cases`), and the new deterministic `_assemble_title_from_segments(...)` composes the final title before it enters the shared audit path. V3 title generation remains unchanged.
+- Regression coverage now includes `TestAssembleTitleFromSegments` plus R1-batch tests that confirm the recipe prompt shape and that prefetched titles sent into shared audit come from the assembled recipe, not a raw full-title string.
+- Real Step 6 verification run `output/runs/H91lite_US_r1recipe_step6only_20260417` shows another partial improvement: the old `missing_keywords` / `length_exceeded` blocker is gone. The audit trail now shows `recipe_assembled` at length `189`, then a deterministic extend to `198`, and the remaining failure moved to `missing_numeric` (`150 minutes`, `1080p`) before the retry timed out. So the next bottleneck is numeric/spec preservation in the recipe assembly path, not keyword retention or title length control.
+
+## 2026-04-17 R1 Recipe Numeric Preservation Trial
+- Extended the R1-only `_assemble_title_from_segments(...)` path to treat `numeric_specs[:2]` as must-keep material before optional differentiators/use cases, so the recipe title can carry validated proof like `150 minutes` and `1080p` without depending on a second LLM repair call.
+- Title-focused regression stayed green at `82 passed` across `tests/test_copy_generation.py`, `tests/test_title_naturalness.py`, and `tests/test_length_rules.py`.
+- Real Step 6 verification run `output/runs/H91lite_US_r1recipe_numeric_step6_20260417` shows another improvement: the old `missing_numeric` blocker is gone and `recipe_assembled` now lands directly at length `196`. The next blocker is structural rather than factual: shared title audit now rejects the assembled title for `weak_connector_overuse` (`with`, `with`), then the fallback retry times out and the final post-retry patch still misses `mini camera` / `body camera`.
+
+## 2026-04-17 R1 Recipe Connector Consolidation Trial
+- Simplified `_assemble_title_from_segments(...)` so required keywords are front-loaded as a comma list, differentiators/numeric proof are merged into a single `with ...` clause, and use cases are merged into a single `for ...` clause. This removes the earlier repeated `with ... with ...` structure while keeping the change scoped to the R1-only recipe assembly path.
+- Title-focused regression still passed at `82 passed` across `tests/test_copy_generation.py`, `tests/test_title_naturalness.py`, and `tests/test_length_rules.py`.
+- Real Step 6 run `output/runs/H91lite_US_r1recipe_connector_step6_20260417` shows the `weak_connector_overuse` blocker is gone, but the title still fails later for `length_exceeded` after shared audit prepends the primary L1 (`llm_adjusted_l1`) and the dewater pass reshapes the assembled title. So the next root cause is no longer connector repetition; it is post-assembly mutation inside `_generate_and_audit_title(...)` re-inflating the title before the retry timeout.
+
+## 2026-04-17 R1 Title Isolation Branch-In
+- `modules/copy_generation.py::_generate_and_audit_title(...)` now hard-branches on `payload["use_r1_recipe"]` into a new R1-only `_generate_title_r1(...)` finalize path, leaving the original V3/shared retry loop untouched for every non-R1 payload.
+- The new `_generate_title_r1(...)` path only performs light cleanup, deterministic keyword/length repair, and final validation via `_validate_title_final(...)`; it deliberately skips shared `llm_adjusted_l1`, strong `title_dewater`, and any second title LLM call.
+- `_r1_batch_generate_listing(...)` now marks its title payload with `use_r1_recipe=True`, so assembled recipe titles no longer re-enter the generic post-processing chain that was re-inflating them.
+- Regression coverage added direct tests for R1 delegation and post-processing bypass, and `./.venv/bin/pytest tests/test_copy_generation.py -q` is green at `77 passed`.
+
+## 2026-04-17 R1 Title Isolation Real Step6 Verification
+- Real validation run `output/runs/H91lite_US_r1_title_isolation_step6_20260417` completed Step 6 successfully and produced `step6_artifacts/visible_copy_batch.json` with `status=success`.
+- The title audit trail is now exactly the isolated path we wanted: only `recipe_assembled` and `r1_recipe_success` appear for the title field. There are no `llm_adjusted_l1`, `title_dewater`, or `llm_retry` entries in the title audit.
+- The final R1 title came back at 198 characters, which proves the isolated finalize path can close the strict length window without falling back into the shared retry loop:
+  `TOSBARRFT vlogging camera, mini camera and body camera, with 150 minutes, 1080p, long battery life, lightweight design, and easy operation, for daily commuting, vlog creation, travel camera, bodycam`
+- This confirms the current blocker was architectural coupling, not endless prompt instability: once the recipe title stopped flowing through the V3-oriented post-processing chain, the Step 6 title path stabilized.

@@ -838,8 +838,19 @@ def _rule_repair_title_length(
 ) -> str:
     candidate = re.sub(r"\s+", " ", (title or "")).strip(" ,")
     length = len(candidate)
+    required_keywords = [
+        str(item).strip()
+        for item in (
+            payload.get("required_keywords")
+            or payload.get("exact_match_keywords")
+            or []
+        )
+        if str(item).strip()
+    ]
 
     if length > hard_ceiling:
+        if required_keywords:
+            candidate = _frontload_required_keywords(candidate, required_keywords)
         trimmed = _trim_to_word_boundary(candidate, target_max)
         if audit_log is not None:
             _log_action(audit_log, "title", "rule_repair_trim", {
@@ -853,6 +864,8 @@ def _rule_repair_title_length(
         return candidate
 
     if target_max < length <= hard_ceiling:
+        if required_keywords:
+            candidate = _frontload_required_keywords(candidate, required_keywords)
         trimmed = _trim_to_word_boundary(candidate, target_max)
         if audit_log is not None:
             _log_action(audit_log, "title", "rule_repair_trim", {
@@ -866,6 +879,7 @@ def _rule_repair_title_length(
         list(payload.get("exact_match_keywords") or [])
         + list(payload.get("l1_keywords") or [])
         + list(payload.get("assigned_keywords") or [])
+        + list(payload.get("_repair_keyword_pool") or [])
     )
 
     repaired = candidate
@@ -907,6 +921,163 @@ def _rule_repair_title_length(
         repaired = _trim_to_word_boundary(repaired, target_max)
 
     return repaired
+
+
+def _frontload_required_keywords(title: str, required_keywords: Sequence[str]) -> str:
+    candidate = re.sub(r"\s+", " ", str(title or "")).strip(" ,")
+    if not candidate:
+        return candidate
+
+    parts = [part.strip(" ,") for part in candidate.split(",") if part.strip(" ,")]
+    if len(parts) <= 1:
+        return candidate
+
+    safe_zone = max(1, len(candidate) * 2 // 3)
+    front_parts = [parts[0]]
+    middle_parts: List[str] = []
+    tail_parts: List[str] = []
+    normalized_candidate = _normalize_keyword_text(candidate)
+
+    for keyword in required_keywords or []:
+        normalized_keyword = _normalize_keyword_text(keyword)
+        if not normalized_keyword or normalized_keyword not in normalized_candidate:
+            continue
+
+        current_candidate = ", ".join(front_parts + middle_parts + tail_parts + parts[1:])
+        current_normalized = _normalize_keyword_text(current_candidate)
+        pos = current_normalized.find(normalized_keyword)
+        if pos < 0 or pos < safe_zone:
+            continue
+
+        moved = False
+        for index in range(1, len(parts)):
+            part = parts[index]
+            if normalized_keyword not in _normalize_keyword_text(part):
+                continue
+            if part not in front_parts and part not in middle_parts:
+                middle_parts.append(part)
+            parts[index] = ""
+            moved = True
+            break
+        if not moved:
+            continue
+
+    for part in parts[1:]:
+        cleaned = part.strip(" ,")
+        if cleaned:
+            tail_parts.append(cleaned)
+
+    reordered = [part for part in front_parts + middle_parts + tail_parts if part]
+    return re.sub(r"\s+", " ", ", ".join(reordered)).strip(" ,")
+
+
+def _assemble_title_from_segments(
+    brand: str,
+    lead_keyword: str,
+    required_keywords: List[str],
+    numeric_specs: List[str],
+    differentiators: List[str],
+    use_cases: List[str],
+    target_min: int = 190,
+    target_max: int = 198,
+    hard_ceiling: int = 200,
+) -> str:
+    brand_clean = re.sub(r"\s+", " ", str(brand or "")).strip(" ,")
+    lead_clean = re.sub(r"\s+", " ", str(lead_keyword or "")).strip(" ,")
+    lead = " ".join(part for part in [brand_clean, lead_clean] if part).strip(" ,")
+
+    def _clean_list(items: Sequence[str]) -> List[str]:
+        cleaned: List[str] = []
+        seen_local = set()
+        for item in items or []:
+            text = re.sub(r"\s+", " ", str(item or "")).strip(" ,")
+            normalized = _normalize_keyword_text(text)
+            if not text or not normalized or normalized in seen_local:
+                continue
+            cleaned.append(text)
+            seen_local.add(normalized)
+        return cleaned
+
+    def _human_join(items: Sequence[str]) -> str:
+        values = [str(item).strip() for item in items or [] if str(item).strip()]
+        if not values:
+            return ""
+        if len(values) == 1:
+            return values[0]
+        if len(values) == 2:
+            return f"{values[0]} and {values[1]}"
+        return f"{', '.join(values[:-1])}, and {values[-1]}"
+
+    required_clean = _clean_list(required_keywords)
+    numeric_clean = _clean_list(numeric_specs)
+    numeric_norms = {_normalize_keyword_text(item) for item in numeric_clean}
+    diff_clean = [
+        item for item in _clean_list(differentiators)
+        if _normalize_keyword_text(item) not in numeric_norms
+    ]
+    use_clean = _clean_list(use_cases)
+
+    title = lead
+
+    def _append_required_list(limit: int) -> None:
+        nonlocal title
+        selected: List[str] = []
+        for item in required_clean:
+            if _normalize_keyword_text(item) in _normalize_keyword_text(title):
+                continue
+            trial = f"{title}, {_human_join(selected + [item])}".strip(" ,")
+            if len(trial) > limit:
+                continue
+            selected.append(item)
+        if selected:
+            title = f"{title}, {_human_join(selected)}".strip(" ,")
+
+    def _append_clause(prefix: str, items: Sequence[str], limit: int) -> None:
+        nonlocal title
+        selected: List[str] = []
+        title_norm = _normalize_keyword_text(title)
+        for item in items:
+            if _normalize_keyword_text(item) in title_norm:
+                continue
+            trial = f"{title}, {prefix}{_human_join(selected + [item])}".strip(" ,")
+            if len(trial) > limit:
+                continue
+            selected.append(item)
+        if selected:
+            title = f"{title}, {prefix}{_human_join(selected)}".strip(" ,")
+
+    for limit in (target_max, hard_ceiling):
+        if len(title) >= target_min:
+            break
+        _append_required_list(limit)
+        _append_clause("with ", numeric_clean + diff_clean, limit)
+        _append_clause("for ", use_clean, limit)
+
+    title = re.sub(r"\s+", " ", title).strip(" ,")
+    if len(title) > hard_ceiling:
+        title = _trim_to_word_boundary(title, hard_ceiling)
+    return title
+
+
+def _extract_title_recipe(payload: Dict[str, Any]) -> Dict[str, List[str] | str]:
+    if not isinstance(payload, dict):
+        return {"lead_keyword": "", "differentiators": [], "use_cases": []}
+    lead_keyword = str(payload.get("lead_keyword") or "").strip()
+    differentiators = [
+        str(item).strip()
+        for item in (payload.get("differentiators") or [])
+        if str(item).strip()
+    ]
+    use_cases = [
+        str(item).strip()
+        for item in (payload.get("use_cases") or [])
+        if str(item).strip()
+    ]
+    return {
+        "lead_keyword": lead_keyword,
+        "differentiators": differentiators[:4],
+        "use_cases": use_cases[:4],
+    }
 
 
 def _build_deterministic_title_candidate(
@@ -2110,6 +2281,9 @@ def generate_title(
     )[:3]
     primary_l1 = ranked_l1[:2] if len(ranked_l1) > 1 else ranked_l1[:1]
     assigned_keywords = _filter_blocked(tiered_keywords.get("l2", [])[:1])
+    repair_keyword_pool = _filter_blocked(
+        list(tiered_keywords.get("l1", []) or []) + list(tiered_keywords.get("l2", []) or [])
+    )
 
     core_capabilities = _filter_capabilities(preprocessed_data.core_selling_points, directives, audit_log, "title")
     numeric_specs = _collect_numeric_tokens(preprocessed_data, directives)
@@ -2126,6 +2300,7 @@ def generate_title(
         "target_language": target_language,
         "max_length": LENGTH_RULES["title"]["hard_ceiling"],
         "exact_match_keywords": exact_match_keywords,
+        "_repair_keyword_pool": repair_keyword_pool,
         "copy_contracts": writing_policy.get("copy_contracts", {}),
         "_artifact_dir": artifact_dir,
         "_llm_override_model": llm_override_model,
@@ -4123,6 +4298,8 @@ def _generate_and_audit_title(
     required_keywords: Sequence[str],
     max_retries: int = 3,
 ) -> str:
+    if payload.get("use_r1_recipe"):
+        return _generate_title_r1(payload, audit_log, assignment_tracker, required_keywords)
     prefetched_candidates = list(payload.get("_prefetched_title_candidates") or [])
     brand = (payload.get("brand_name") or "").strip()
     brand_lower = brand.lower()
@@ -4485,6 +4662,100 @@ def _generate_and_audit_title(
     if assignment_tracker and required_keywords:
         assignment_tracker.record("title", required_keywords)
     return fallback
+
+
+def _validate_title_final(
+    title: str,
+    payload: Dict[str, Any],
+    required_keywords: Sequence[str],
+) -> Tuple[bool, Dict[str, Any]]:
+    numeric_specs = payload.get("numeric_specs") or []
+    max_length = int(payload.get("max_length") or LENGTH_RULES["title"]["hard_ceiling"])
+    issues: Dict[str, Any] = {}
+    if len(title or "") > max_length:
+        issues["length_exceeded"] = True
+    if _title_is_below_target_length(title or "", payload):
+        issues["below_target_length"] = {
+            "length": len(title or ""),
+            "target_min": int(payload.get("target_min_length") or LENGTH_RULES["title"]["target_min"]),
+        }
+    passed, reason, _ = _validate_field_text(title or "", required_keywords, numeric_specs)
+    if not passed and reason:
+        issues.update(reason if isinstance(reason, dict) else {"validation_error": reason})
+    if _title_is_keyword_dump(title or ""):
+        issues["keyword_dump_title"] = True
+    if _title_has_bare_parameter_brackets(title or ""):
+        issues["bare_parameter_brackets"] = True
+    return not issues, issues
+
+
+def _generate_title_r1(
+    payload: Dict[str, Any],
+    audit_log: Optional[List[Dict[str, Any]]],
+    assignment_tracker: Optional[KeywordAssignmentTracker],
+    required_keywords: Sequence[str],
+) -> str:
+    brand = (payload.get("brand_name") or "").strip()
+    brand_lower = brand.lower()
+    max_length = int(payload.get("max_length") or LENGTH_RULES["title"]["hard_ceiling"])
+    target_min = int(payload.get("target_min_length") or LENGTH_RULES["title"]["target_min"])
+    prefetched_candidates = list(payload.get("_prefetched_title_candidates") or [])
+
+    def _light_cleanup(text: str) -> str:
+        cleaned = re.sub(r"[。.]+", " ", str(text or ""))
+        cleaned = cleaned.replace("，", ",")
+        cleaned = _dedupe_adjacent_words(re.sub(r"\s+", " ", cleaned)).strip(" ,")
+        if brand and cleaned and not cleaned.lower().startswith(brand_lower):
+            cleaned = f"{brand} {cleaned}".strip()
+        return cleaned
+
+    def _repair(candidate: str) -> str:
+        repaired = _light_cleanup(candidate)
+        if required_keywords:
+            repaired = _patch_title_missing_keywords(repaired, required_keywords, payload, max_length)
+        if len(repaired) > max_length or len(repaired) < target_min:
+            repaired = _rule_repair_title_length(
+                repaired,
+                {**payload, "required_keywords": list(required_keywords or [])},
+                audit_log=None,
+                target_min=target_min,
+                target_max=int(payload.get("target_max_length") or LENGTH_RULES["title"]["target_max"]),
+                hard_ceiling=max_length,
+            )
+        if required_keywords:
+            repaired = _patch_title_missing_keywords(repaired, required_keywords, payload, max_length)
+        repaired = _trim_to_word_boundary(_light_cleanup(repaired), max_length)
+        return repaired
+
+    candidate = _repair(str(prefetched_candidates.pop(0) or "")) if prefetched_candidates else ""
+    if candidate:
+        passed, issues = _validate_title_final(candidate, payload, required_keywords)
+        if passed:
+            _log_action(audit_log, "title", "r1_recipe_success", {"attempt": "prefetched_recipe", "length": len(candidate)})
+            if assignment_tracker and required_keywords:
+                assignment_tracker.record("title", required_keywords)
+            return candidate
+        _log_action(audit_log, "title", "r1_recipe_retry", {"attempt": "prefetched_recipe", "reason": issues})
+
+    deterministic = _repair(
+        _build_deterministic_title_candidate(
+            payload,
+            required_keywords,
+            payload.get("numeric_specs") or [],
+            max_length,
+        )
+    )
+    passed, issues = _validate_title_final(deterministic, payload, required_keywords)
+    if passed:
+        _log_action(audit_log, "title", "r1_recipe_success", {"attempt": "deterministic_finalize", "length": len(deterministic)})
+        if assignment_tracker and required_keywords:
+            assignment_tracker.record("title", required_keywords)
+        return deterministic
+
+    _log_action(audit_log, "title", "r1_recipe_validation_failed", {"reason": issues, "length": len(deterministic)})
+    if payload.get("_disable_fallback"):
+        raise RuntimeError("title_validation_failed_after_r1_finalize")
+    return deterministic
 
 
 def _llm_generate_aplus(payload: Dict[str, Any]) -> str:
@@ -7110,24 +7381,22 @@ def _r1_batch_generate_listing(
 
     system_prompt = (
         "You are an elite Amazon ecommerce copywriter using DeepSeek R1 to draft the visible listing copy in one pass.\n"
-        "Return exactly one JSON object with keys title and bullets.\n"
+        "Return exactly one JSON object with keys title_recipe and bullets.\n"
         "Format:\n"
-        '{\"title\":\"...\",\"bullets\":[\"B1 text\",\"B2 text\",\"B3 text\",\"B4 text\",\"B5 text\"]}\n'
+        '{\"title_recipe\":{\"lead_keyword\":\"...\",\"differentiators\":[\"...\"],\"use_cases\":[\"...\"]},\"bullets\":[\"B1 text\",\"B2 text\",\"B3 text\",\"B4 text\",\"B5 text\"]}\n'
         "Hard rules:\n"
         "1. Output valid JSON only. No markdown, no commentary, no code fences.\n"
-        "2. Title must start with the brand name.\n"
-        "3. Title must read like a natural product name phrase, not a keyword list.\n"
-        "4. Title must naturally include at least 3 core keywords when provided; never produce a comma-stacked keyword dump.\n"
-        "5. Title must naturally embed the top differentiators when available.\n"
-        "6. Title target length is 190-198 characters. Hard ceiling: 200 characters.\n"
-        "7. Do not finalize a short skeletal title. If the title is below 190 characters, expand it before finalizing.\n"
-        "8. Write exactly 5 bullets in the requested slot order.\n"
-        "9. Each bullet must use the format HEADER — body.\n"
-        "10. Each bullet must feel distinct in audience or feature angle; do not write 3 or more commute/on-the-go bullets.\n"
-        "11. Keep each bullet under 500 characters.\n"
-        "12. Use the Audience Allocation Plan and Bullet Plan as binding instructions.\n"
-        "13. Do not invent unsupported specs or accessories.\n"
-        "14. Do not use fallback wording like ready to share, every clip feels ready, or generic keyword stuffing.\n"
+        "2. title_recipe.lead_keyword must be the strongest category phrase for the product.\n"
+        "3. title_recipe.differentiators must be short supported selling-point phrases, not full sentences.\n"
+        "4. title_recipe.use_cases must be short supported scenario phrases, not full sentences.\n"
+        "5. Do not output a finished title string unless explicitly requested elsewhere.\n"
+        "6. Write exactly 5 bullets in the requested slot order.\n"
+        "7. Each bullet must use the format HEADER — body.\n"
+        "8. Each bullet must feel distinct in audience or feature angle; do not write 3 or more commute/on-the-go bullets.\n"
+        "9. Keep each bullet under 500 characters.\n"
+        "10. Use the Audience Allocation Plan and Bullet Plan as binding instructions.\n"
+        "11. Do not invent unsupported specs or accessories.\n"
+        "12. Do not use fallback wording like ready to share, every clip feels ready, or generic keyword stuffing.\n"
     )
     payload = {
         "field": "visible_copy_batch",
@@ -7169,7 +7438,42 @@ def _r1_batch_generate_listing(
     parsed = _extract_embedded_json_payload(text or "")
     if not isinstance(parsed, dict):
         raise RuntimeError("R1 batch returned non-JSON payload")
-    raw_title = str(parsed.get("title") or "").strip()
+    recipe_payload = parsed.get("title_recipe") if isinstance(parsed, dict) else None
+    recipe = _extract_title_recipe(recipe_payload if isinstance(recipe_payload, dict) else {})
+    if not recipe.get("lead_keyword"):
+        recipe = {
+            "lead_keyword": exact_keywords[0] if exact_keywords else getattr(getattr(preprocessed_data, "run_config", None), "category", "camera"),
+            "differentiators": differentiators[:3],
+            "use_cases": list(writing_policy.get("scene_priority") or [])[:3],
+        }
+    recipe_required_keywords = [
+        keyword
+        for keyword in exact_keywords[:3]
+        if _normalize_keyword_text(keyword) != _normalize_keyword_text(str(recipe.get("lead_keyword") or ""))
+    ]
+    raw_title = _assemble_title_from_segments(
+        getattr(getattr(preprocessed_data, "run_config", None), "brand_name", "TOSBARRFT"),
+        str(recipe.get("lead_keyword") or ""),
+        recipe_required_keywords,
+        list(_flatten_tokens(numeric_specs[:2])),
+        list(recipe.get("differentiators") or []),
+        [str(item).replace("_", " ") for item in list(recipe.get("use_cases") or [])],
+        target_min=LENGTH_RULES["title"]["target_min"],
+        target_max=LENGTH_RULES["title"]["target_max"],
+        hard_ceiling=LENGTH_RULES["title"]["hard_ceiling"],
+    )
+    if audit_log is not None:
+        _log_action(
+            audit_log,
+            "title",
+            "recipe_assembled",
+            {
+                "lead_keyword": recipe.get("lead_keyword") or "",
+                "differentiators": list(recipe.get("differentiators") or []),
+                "use_cases": list(recipe.get("use_cases") or []),
+                "after_len": len(raw_title),
+            },
+        )
     bullets = parsed.get("bullets") or []
     if not raw_title:
         raise RuntimeError("R1 batch returned empty title")
@@ -7180,6 +7484,7 @@ def _r1_batch_generate_listing(
             "exact_match_keywords": exact_keywords[:3],
             "l1_keywords": exact_keywords[:2],
             "assigned_keywords": list(tiered_keywords.get("l2", []) or [])[:1],
+            "_repair_keyword_pool": list(tiered_keywords.get("l1", []) or []) + list(tiered_keywords.get("l2", []) or []),
         }
         raw_title = _rule_repair_title_length(
             raw_title,
@@ -7207,9 +7512,11 @@ def _r1_batch_generate_listing(
         "target_language": target_language,
         "max_length": LENGTH_RULES["title"]["hard_ceiling"],
         "exact_match_keywords": exact_keywords[:3],
+        "_repair_keyword_pool": list(tiered_keywords.get("l1", []) or []) + list(tiered_keywords.get("l2", []) or []),
         "copy_contracts": writing_policy.get("copy_contracts", {}),
         "_llm_override_model": "deepseek-reasoner",
         "_disable_fallback": True,
+        "use_r1_recipe": True,
         "_prefetched_title_candidates": [raw_title],
     }
     required_title_keywords = _dedupe_keyword_sequence(
