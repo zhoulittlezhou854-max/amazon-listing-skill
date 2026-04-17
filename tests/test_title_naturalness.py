@@ -36,3 +36,31 @@ def test_deterministic_title_candidate_reads_like_natural_title():
     assert len(title) <= 200
     assert hits >= 3
     assert cg._title_is_keyword_dump(title) is False
+
+
+def test_deterministic_title_candidate_avoids_redundant_recording_tail():
+    payload = {
+        "brand_name": "TOSBARRFT",
+        "primary_category": "Action Camera",
+        "l1_keywords": ["action camera", "body camera"],
+        "assigned_keywords": ["mini camera", "vlogging camera", "travel camera"],
+        "numeric_specs": ["1080P", "150 Minutes Runtime"],
+        "core_capability": "180° Rotatable Lens",
+        "scene_priority": ["commuting_capture", "travel_documentation"],
+        "target_language": "English",
+        "exact_match_keywords": ["action camera", "body camera", "mini camera"],
+        "required_keywords": ["action camera", "body camera", "mini camera"],
+    }
+
+    title = cg._build_deterministic_title_candidate(
+        payload,
+        required_keywords=["action camera", "body camera", "mini camera"],
+        numeric_specs=["1080P", "150 Minutes Runtime"],
+        max_length=200,
+    )
+
+    lowered = title.lower()
+    assert len(title) <= 200
+    assert "recording for travel documentation" not in lowered
+    assert "built for body camera, mini camera, and vlogging camera recording" not in lowered
+    assert lowered.count(" for ") <= 2

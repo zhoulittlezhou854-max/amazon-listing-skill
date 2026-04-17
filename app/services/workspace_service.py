@@ -177,6 +177,27 @@ def _load_text(path: Path) -> str:
         return ""
 
 
+def infer_run_generation_status(run_dir: Path, generated_copy: Dict[str, Any] | None = None) -> str:
+    generated_copy = generated_copy or _load_json(run_dir / "generated_copy.json")
+    status = ((generated_copy.get("metadata") or {}).get("generation_status") or "").strip()
+    if status:
+        return status
+    execution_summary = _load_json(run_dir / "execution_summary.json")
+    if execution_summary.get("workflow_status") == "failed":
+        results = execution_summary.get("results") or {}
+        step_5 = results.get("step_5") or {}
+        step_6 = results.get("step_6") or {}
+        if step_5.get("status") == "error":
+            error = str(step_5.get("error") or "")
+            if "experimental_version_b_blueprint_failed" in error:
+                return "FAILED_AT_BLUEPRINT"
+            return "FAILED"
+        if step_6.get("status") == "error":
+            return "FAILED_AT_COPY"
+        return "FAILED"
+    return ""
+
+
 def _run_created_at(run_dir: Path) -> str:
     try:
         return datetime.strptime(run_dir.name, "%Y%m%d_%H%M%S").strftime("%Y-%m-%d %H:%M")
@@ -208,7 +229,7 @@ def _load_run_version(run_dir: Path) -> Dict[str, Any]:
         "readiness_summary_path": str((run_dir / "readiness_summary.md").resolve()) if (run_dir / "readiness_summary.md").exists() else "",
         "readiness_summary_text": _load_text(run_dir / "readiness_summary.md"),
         "listing_status": ((risk_report.get("listing_status") or {}).get("status") or scoring_results.get("listing_status") or ""),
-        "generation_status": ((generated_copy.get("metadata") or {}).get("generation_status") or ""),
+        "generation_status": infer_run_generation_status(run_dir, generated_copy),
         "scores": _dimension_scores(scoring_results),
     }
 

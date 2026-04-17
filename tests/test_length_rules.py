@@ -5,10 +5,10 @@ from modules.writing_policy import LENGTH_RULES, DEFAULT_4SCENE_POLICY
 def test_title_length_rules_are_centralized():
     title_rules = LENGTH_RULES["title"]
 
-    assert title_rules["target_min"] == 160
-    assert title_rules["target_max"] == 190
+    assert title_rules["target_min"] == 190
+    assert title_rules["target_max"] == 198
     assert title_rules["hard_ceiling"] == 200
-    assert title_rules["soft_warning"] == 150
+    assert title_rules["soft_warning"] == 185
     assert DEFAULT_4SCENE_POLICY["title_keyword_slots"]["max_title_length"] == title_rules["hard_ceiling"]
 
 

@@ -130,3 +130,60 @@ def test_main_dual_version_writes_versioned_outputs_and_report(tmp_path: Path, m
     assert "Listing Dual Version Report" in dual_report
     assert "Version A：V3 全链路" in dual_report
     assert "Version B：R1 Title + Bullets + V3 Remaining Fields" in dual_report
+
+
+def test_main_dual_version_reports_explicit_version_b_failure(tmp_path: Path, monkeypatch, capsys):
+    config_path = tmp_path / "config" / "run_configs" / "H91lite_US.json"
+    output_dir = tmp_path / "output" / "runs" / "H91lite_US_r15_dual_fail"
+    config_path.parent.mkdir(parents=True, exist_ok=True)
+    config_path.write_text("{}", encoding="utf-8")
+
+    monkeypatch.setattr(
+        run_pipeline,
+        "resolve_run_paths",
+        lambda product, market, run_id: (config_path, output_dir),
+    )
+
+    def _fake_workflow(
+        config_arg: str,
+        output_arg: str,
+        steps=None,
+        blueprint_model_override=None,
+        title_model_override=None,
+        bullet_model_override=None,
+    ):
+        out = Path(output_arg)
+        out.mkdir(parents=True, exist_ok=True)
+        if blueprint_model_override:
+            (out / "execution_summary.json").write_text(
+                '{"workflow_status":"failed","results":{"step_5":{"status":"error","error":"experimental_version_b_blueprint_failed: timeout"}}}',
+                encoding="utf-8",
+            )
+            return {"summary": {"workflow_status": "failed", "results": {"step_5": {"status": "error"}}}}
+        (out / "generated_copy.json").write_text(
+            '{"title":"Demo","bullets":["B1","B2","B3","B4","B5"],'
+            '"description":"Desc","search_terms":["k1","k2"],'
+            '"metadata":{"generation_status":"live_success"}}',
+            encoding="utf-8",
+        )
+        (out / "scoring_results.json").write_text(
+            '{"listing_status":"READY_FOR_LISTING","dimensions":{'
+            '"traffic":{"score":100},"content":{"score":100},"conversion":{"score":90},"readability":{"score":30}}}',
+            encoding="utf-8",
+        )
+        (out / "bullet_blueprint.json").write_text('{"llm_model":"deepseek-chat"}', encoding="utf-8")
+        return {"summary": {"results": {"step_6": {"metadata": {"generation_status": "live_success"}}}}}
+
+    monkeypatch.setattr(run_pipeline, "run_generator_workflow", _fake_workflow)
+    monkeypatch.setattr(
+        "sys.argv",
+        ["run_pipeline.py", "--product", "H91lite", "--market", "US", "--run-id", "r15_dual_fail", "--dual-version"],
+    )
+
+    run_pipeline.main()
+
+    stdout = capsys.readouterr().out
+    assert "Version B generation status: FAILED_AT_BLUEPRINT" in stdout
+    dual_report = (output_dir / "dual_version_report.md").read_text(encoding="utf-8")
+    assert "Generation Status: FAILED_AT_BLUEPRINT" in dual_report
+    assert "experimental_version_b_blueprint_failed: timeout" in dual_report

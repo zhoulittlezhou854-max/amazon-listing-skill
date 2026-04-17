@@ -21,6 +21,24 @@ def _read_generation_status(output_dir: Path, summary: dict) -> str:
                 return status
         except Exception:
             pass
+    execution_summary_path = output_dir / "execution_summary.json"
+    if execution_summary_path.exists():
+        try:
+            execution_summary = json.loads(execution_summary_path.read_text(encoding="utf-8"))
+            if execution_summary.get("workflow_status") == "failed":
+                results = execution_summary.get("results") or {}
+                step_5 = results.get("step_5") or {}
+                step_6 = results.get("step_6") or {}
+                if step_5.get("status") == "error":
+                    error = str(step_5.get("error") or "")
+                    if "experimental_version_b_blueprint_failed" in error:
+                        return "FAILED_AT_BLUEPRINT"
+                    return "FAILED"
+                if step_6.get("status") == "error":
+                    return "FAILED_AT_COPY"
+                return "FAILED"
+        except Exception:
+            pass
     return (summary.get("results", {}).get("step_6") or {}).get("metadata", {}).get("generation_status", "unknown")
 
 
@@ -69,6 +87,8 @@ def _run_single_version(
         "generated_copy": _load_json(output_dir / "generated_copy.json"),
         "scoring_results": _load_json(output_dir / "scoring_results.json"),
         "bullet_blueprint": _load_json(output_dir / "bullet_blueprint.json"),
+        "execution_summary": _load_json(output_dir / "execution_summary.json"),
+        "generation_status": _read_generation_status(output_dir, result.get("summary") or {}),
     }
 
 
@@ -122,6 +142,8 @@ def main() -> None:
         version_a={
             "generated_copy": version_a["generated_copy"],
             "scoring_results": version_a["scoring_results"],
+            "generation_status": version_a["generation_status"],
+            "execution_summary": version_a["execution_summary"],
             "blueprint_model": (version_a["bullet_blueprint"] or {}).get("llm_model") or "deepseek-chat",
             "visible_copy_model": "deepseek-chat",
             "elapsed_seconds": version_a["elapsed_seconds"],
@@ -129,6 +151,8 @@ def main() -> None:
         version_b={
             "generated_copy": version_b["generated_copy"],
             "scoring_results": version_b["scoring_results"],
+            "generation_status": version_b["generation_status"],
+            "execution_summary": version_b["execution_summary"],
             "blueprint_model": (version_b["bullet_blueprint"] or {}).get("llm_model") or "deepseek-reasoner",
             "visible_copy_model": "deepseek-reasoner (title+bullets)",
             "elapsed_seconds": version_b["elapsed_seconds"],

@@ -1,3 +1,4 @@
+import json
 import pytest
 from types import SimpleNamespace
 
@@ -214,6 +215,47 @@ def test_title_generation_patches_missing_keywords_before_fallback(monkeypatch):
     )
 
 
+def test_title_generation_retries_when_first_candidate_is_too_short(monkeypatch):
+    attempts = iter(
+        [
+            "TOSBARRFT Action Camera 150-Min Runtime",
+            "TOSBARRFT Action Camera for Vlogging and Daily Recording with 150-Min Runtime, 1080P HD Video, Mini Clip-On Design, Travel-Ready Mounting, and Everyday POV Capture for Commutes and Weekend Adventures",
+            "TOSBARRFT Action Camera for Vlogging and Daily Recording with 150-Min Runtime, 1080P HD Video, Mini Clip-On Design, Travel-Ready Mounting, Everyday POV Capture, and Versatile Body Camera Utility for Commutes and Weekend Adventures",
+        ]
+    )
+    monkeypatch.setattr(cg, "_llm_generate_title", lambda payload: next(attempts))
+    audit_log = []
+    payload = {
+        "brand_name": "TOSBARRFT",
+        "l1_keywords": ["action camera"],
+        "numeric_specs": ["1080P", "150-Min Runtime"],
+        "copy_contracts": {},
+        "exact_match_keywords": ["action camera"],
+        "assigned_keywords": ["mini camera", "vlogging camera"],
+        "scene_priority": ["commuting_capture", "travel_documentation"],
+        "max_length": 200,
+        "primary_category": "Action Camera",
+        "core_capability": "clip-on design",
+    }
+
+    title = cg._generate_and_audit_title(
+        payload,
+        audit_log,
+        assignment_tracker=None,
+        required_keywords=["action camera", "mini camera", "vlogging camera"],
+        max_retries=2,
+    )
+
+    assert len(title) >= cg.LENGTH_RULES["title"]["soft_warning"]
+    assert "mini camera" in title.lower()
+    assert any(
+        entry.get("field") == "title"
+        and entry.get("action") == "llm_retry"
+        and entry.get("reason") == "below_target_length"
+        for entry in audit_log
+    )
+
+
 def test_repair_bullet_deterministic_frontload_avoids_header_duplicate():
     candidate = "FEATHERLIGHT TRAVEL CAMERA — Weighs just 0.1kg for commute capture."
     repaired = cg._repair_bullet_candidate_deterministically(
@@ -366,7 +408,7 @@ def test_title_generation_uses_coordinated_repair_for_missing_keywords_and_lengt
     def _fake_generate(payload):
         calls["count"] += 1
         if payload.get("repair_context"):
-            return "TOSBARRFT mini camera, vlogging camera, 1080p, 150 minutes"
+            return "TOSBARRFT mini camera for vlogging camera clips, 1080p, 150 minutes"
         return (
             "TOSBARRFT mini camera, 1080p, 150 minutes, body camera for commuting capture, "
             "travel creator setup, compact daily clip rig"
@@ -580,7 +622,7 @@ def test_title_fallback_trims_at_word_boundary():
 
     text = cg._fallback_text_for_field("title", payload, ["4K 60FPS", "150-Minute Runtime"])
 
-    assert len(text) <= 150
+    assert len(text) <= cg.LENGTH_RULES["title"]["hard_ceiling"]
     assert text.startswith("TOSBARRFT")
     assert "action camera 4k" in text
     assert "bike camera" in text
@@ -1355,6 +1397,122 @@ def test_generate_listing_copy_attaches_evidence_bundle(monkeypatch):
     assert result["metadata"]["unsupported_claim_count"] == 0
 
 
+
+
+class TestRuleRepairTitleLength:
+
+    def _make_payload(self, extra_keywords=None):
+        payload = {
+            "exact_match_keywords": ["action camera 4K", "helmet mount camera"],
+            "l1_keywords": ["waterproof action cam", "bike camera 4K"],
+            "assigned_keywords": ["travel vlog camera", "cycling camera"],
+        }
+        if extra_keywords:
+            payload.update(extra_keywords)
+        return payload
+
+    def test_over_ceiling_trimmed_to_word_boundary(self):
+        long_title = (
+            "TOSBARRA 4K Action Camera with EIS Stabilization, Waterproof Housing, Helmet Mount, "
+            "Cycling Vlog Capture, Travel Dash Recording, Creator Support, and Extended Runtime "
+            "for Weekend Adventure Documentation Plus"
+        )
+        result = cg._rule_repair_title_length(long_title, self._make_payload(), hard_ceiling=200, target_max=198)
+        assert len(result) <= 198
+        assert not result.endswith(" ")
+
+    def test_short_title_extended_with_keywords(self):
+        short_title = "TOSBARRA 4K Action Camera with EIS for Cycling"
+        payload = self._make_payload({
+            "assigned_keywords": [
+                "travel vlog camera",
+                "cycling camera",
+                "helmet action recorder",
+                "dash cam",
+                "daily cam",
+            ]
+        })
+        result = cg._rule_repair_title_length(short_title, payload, target_min=190, hard_ceiling=200)
+        assert len(result) >= 190
+        assert len(result) <= 200
+
+    def test_extended_title_no_duplicate_keywords(self):
+        title = "TOSBARRA action camera 4K with EIS for Cycling"
+        result = cg._rule_repair_title_length(title, self._make_payload(), target_min=190, hard_ceiling=200)
+        normalized = cg._normalize_keyword_text(result)
+        assert normalized.count("action camera 4k") <= 1
+
+    def test_acceptable_title_unchanged(self):
+        ok_title = (
+            "TOSBARRA 4K Action Camera with EIS Stabilization, Waterproof Housing, Helmet Mount, "
+            "Cycling Vlog Capture, Travel Dash Recording, Creator Support and Daily Ride Memory Support for Weekend Travel"
+        )
+        assert 190 <= len(ok_title) <= 198
+        result = cg._rule_repair_title_length(ok_title, self._make_payload(), target_min=190, hard_ceiling=200)
+        assert result == ok_title
+
+    def test_audit_log_records_trim_action(self):
+        audit_log = []
+        long_title = "TOSBARRA " + ("X" * 210)
+        cg._rule_repair_title_length(long_title, self._make_payload(), audit_log=audit_log, hard_ceiling=200)
+        actions = [e["action"] for e in audit_log]
+        assert "rule_repair_trim" in actions
+
+    def test_audit_log_records_extend_action(self):
+        audit_log = []
+        short_title = "Short Title"
+        cg._rule_repair_title_length(short_title, self._make_payload(), audit_log=audit_log, target_min=190)
+        actions = [e["action"] for e in audit_log]
+        assert "rule_repair_extend" in actions
+
+    def test_keyword_pool_exhausted_still_within_ceiling(self):
+        payload = {"exact_match_keywords": ["a"], "l1_keywords": [], "assigned_keywords": []}
+        result = cg._rule_repair_title_length("Hi", payload, target_min=190, hard_ceiling=200)
+        assert len(result) <= 200
+
+
+class TestR1BatchRepairUsesRuleRepair:
+
+    def test_r1_batch_repairs_title_without_llm_call(self, monkeypatch):
+        calls = {"count": 0}
+
+        class _RepairClient(_FakeLiveReasonerClient):
+            def generate_text(self, system_prompt, payload, temperature=0.35, override_model=None):
+                calls["count"] += 1
+                return '{"title":"TestBrand Short Batch Title","bullets":["B1 — one","B2 — two","B3 — three","B4 — four","B5 — five"]}'
+
+        monkeypatch.setattr(cg, "get_llm_client", lambda: _RepairClient())
+
+        def _unexpected_llm_repair(*args, **kwargs):
+            raise AssertionError("LLM repair should not be called")
+
+        monkeypatch.setattr(cg, "_r1_batch_repair_title", _unexpected_llm_repair)
+        mock_rule_calls = []
+
+        def _fake_rule_repair(title, payload, audit_log=None, target_min=190, target_max=198, hard_ceiling=200):
+            mock_rule_calls.append({"title": title, "payload": payload})
+            return (
+                "TestBrand Action Camera with 150-Minute Runtime and 1080P Recording for Daily Vlogging, "
+                "Hands-Free Travel Documentation, and Compact Body Camera Use with Mini Camera Flexibility"
+            )
+
+        monkeypatch.setattr(cg, "_rule_repair_title_length", _fake_rule_repair)
+        monkeypatch.setattr(cg, "_generate_and_audit_title", lambda payload, audit_log, assignment_tracker, required_keywords, max_retries=3: payload["_prefetched_title_candidates"][0])
+
+        result = cg._r1_batch_generate_listing(
+            _sample_preprocessed(),
+            _sample_policy(),
+            {"l1": ["action camera", "mini camera", "body camera"], "l2": ["bike camera"], "l3": ["travel camera"]},
+            {"entries": [{"slot": idx, "theme": f"Bullet {idx}", "assigned_keywords": []} for idx in range(1, 6)]},
+            "English",
+            [],
+            audit_log=[],
+        )
+
+        assert calls["count"] == 1
+        assert len(mock_rule_calls) == 1
+        assert result["title"].startswith("TestBrand Action Camera with 150-Minute Runtime")
+
 class _FakeLiveReasonerClient:
     def __init__(self, text=None, error=None):
         self._text = text
@@ -1425,6 +1583,123 @@ def _sample_policy():
     }
 
 
+
+
+
+
+def test_r1_batch_prompt_uses_shared_title_length_contract(monkeypatch):
+    captured = {}
+
+    class _CaptureClient(_FakeLiveReasonerClient):
+        def generate_text(self, system_prompt, payload, temperature=0.35, override_model=None):
+            captured["system_prompt"] = system_prompt
+            captured["payload"] = payload
+            return '{"title":"TestBrand Action Camera with 150-Minute Runtime and Mini Camera Coverage for Daily Recording Use","bullets":["B1 — one","B2 — two","B3 — three","B4 — four","B5 — five"]}'
+
+    monkeypatch.setattr(cg, "get_llm_client", lambda: _CaptureClient())
+    monkeypatch.setattr(cg, "_generate_and_audit_title", lambda payload, audit_log, assignment_tracker, required_keywords, max_retries=3: payload["_prefetched_title_candidates"][0])
+
+    cg._r1_batch_generate_listing(
+        _sample_preprocessed(),
+        _sample_policy(),
+        {"l1": ["action camera", "mini camera", "body camera"], "l2": ["bike camera"], "l3": ["travel camera"]},
+        {"entries": [{"slot": idx, "theme": f"Bullet {idx}", "assigned_keywords": []} for idx in range(1, 6)]},
+        "English",
+        [],
+        audit_log=[],
+    )
+
+    prompt = captured["system_prompt"]
+    assert "190-198" in prompt
+    assert "Hard ceiling: 200 characters" in prompt
+    assert "natural product name phrase" in prompt
+    assert "Do not finalize a short skeletal title" in prompt
+
+
+
+def test_r1_batch_repairs_title_in_batch_before_shared_audit(monkeypatch):
+    calls = {"count": 0}
+
+    class _RepairClient(_FakeLiveReasonerClient):
+        def generate_text(self, system_prompt, payload, temperature=0.35, override_model=None):
+            calls["count"] += 1
+            return '{"title":"TestBrand Short Batch Title","bullets":["B1 — one","B2 — two","B3 — three","B4 — four","B5 — five"]}'
+
+    monkeypatch.setattr(cg, "get_llm_client", lambda: _RepairClient())
+
+    captured = {}
+    def _fake_title_audit(payload, audit_log, assignment_tracker, required_keywords, max_retries=3):
+        captured["prefetched"] = list(payload.get("_prefetched_title_candidates") or [])
+        return payload["_prefetched_title_candidates"][0]
+
+    monkeypatch.setattr(cg, "_generate_and_audit_title", _fake_title_audit)
+    monkeypatch.setattr(
+        cg,
+        "_rule_repair_title_length",
+        lambda *args, **kwargs: "TestBrand Action Camera with 150-Minute Runtime and 1080P Recording for Daily Vlogging, Hands-Free Travel Documentation, and Compact Body Camera Use with Mini Camera Flexibility for Creator Coverage",
+    )
+
+    result = cg._r1_batch_generate_listing(
+        _sample_preprocessed(),
+        _sample_policy(),
+        {"l1": ["action camera", "mini camera", "body camera"], "l2": ["bike camera"], "l3": ["travel camera"]},
+        {"entries": [{"slot": idx, "theme": f"Bullet {idx}", "assigned_keywords": []} for idx in range(1, 6)]},
+        "English",
+        [],
+        audit_log=[],
+    )
+
+    assert calls["count"] == 1
+    assert len(captured["prefetched"][0]) >= cg.LENGTH_RULES["title"]["target_min"]
+    assert result["title"].startswith("TestBrand Action Camera with 150-Minute Runtime")
+
+def test_r1_batch_generate_listing_reuses_shared_title_audit(monkeypatch):
+    client = _FakeLiveReasonerClient(
+        text=(
+            '{"title":"TestBrand Short R1 Title","bullets":['
+            '"READY TO RIDE — Capture every commute with stable 1080P footage and 150 minutes of runtime.",'
+            '"EVIDENCE READY — Clip on for work shifts when clear first-person recording matters.",'
+            '"TRAVEL LIGHT — Slip the mini camera into a pocket for quick scenic clips.",'
+            '"USE IT RIGHT — Best for walking, commuting, and steady handheld moments.",'
+            '"VALUE KIT — Start fast with the included essentials for everyday recording."'
+            ']}'
+        )
+    )
+    monkeypatch.setattr(cg, "get_llm_client", lambda: client)
+
+    captured = {}
+
+    def _fake_title_audit(payload, audit_log, assignment_tracker, required_keywords, max_retries=3):
+        captured["payload"] = payload
+        captured["required_keywords"] = list(required_keywords)
+        return "TestBrand Audited Action Camera Title with 150-Minute Runtime and Mini Camera Coverage for Daily Recording Use"
+
+    monkeypatch.setattr(cg, "_generate_and_audit_title", _fake_title_audit)
+
+    result = cg._r1_batch_generate_listing(
+        _sample_preprocessed(),
+        _sample_policy(),
+        {
+            "l1": ["action camera", "mini camera", "body camera"],
+            "l2": ["bike camera"],
+            "l3": ["travel camera"],
+        },
+        {
+            "entries": [{"slot": idx, "theme": f"Bullet {idx}", "assigned_keywords": []} for idx in range(1, 6)]
+        },
+        "English",
+        [],
+        audit_log=[],
+    )
+
+    assert result["title"].startswith("TestBrand Audited Action Camera")
+    assert captured["payload"]["_prefetched_title_candidates"] == [
+        "TestBrand Short R1 Title, action camera, mini camera, body camera, bike camera"
+    ]
+    assert captured["payload"]["_llm_override_model"] == "deepseek-reasoner"
+    assert captured["payload"]["_disable_fallback"] is True
+    assert captured["required_keywords"]
+
 def test_generate_listing_copy_uses_pure_r1_batch_for_visible_copy(monkeypatch):
     client = _FakeLiveReasonerClient(
         text=(
@@ -1453,6 +1728,7 @@ def test_generate_listing_copy_uses_pure_r1_batch_for_visible_copy(monkeypatch):
     monkeypatch.setattr(cg, "build_keyword_slots", lambda *_args, **_kwargs: {"search_terms": {"keywords": []}})
     monkeypatch.setattr(cg, "generate_title", lambda *args, **kwargs: pytest.fail("single-field title path should be skipped"))
     monkeypatch.setattr(cg, "generate_bullet_points", lambda *args, **kwargs: pytest.fail("single-field bullet path should be skipped"))
+    monkeypatch.setattr(cg, "_generate_and_audit_title", lambda payload, audit_log, assignment_tracker, required_keywords, max_retries=3: payload["_prefetched_title_candidates"][0])
     monkeypatch.setattr(cg, "_polish_bullet_quality_with_llm", lambda *args, **kwargs: pytest.fail("pure R1 batch bullets should not be re-polished"))
     monkeypatch.setattr(cg, "generate_description", lambda *args, **kwargs: "Description text.")
     monkeypatch.setattr(cg, "generate_faq", lambda *args, **kwargs: [{"q": "Q", "a": "A"}])
@@ -1482,6 +1758,44 @@ def test_generate_listing_copy_uses_pure_r1_batch_for_visible_copy(monkeypatch):
     assert result["metadata"]["field_generation_trace"]["title"]["status"] == "success"
     assert result["metadata"]["field_generation_trace"]["bullet_b1"]["status"] == "success"
 
+
+
+
+def test_generate_listing_copy_persists_r1_batch_debug_context_on_failure(monkeypatch, tmp_path):
+    client = _FakeLiveReasonerClient(
+        error=cg.LLMClientUnavailable("r1 timeout", error_code="timed_out", retryable=True)
+    )
+    monkeypatch.setattr(cg, "get_llm_client", lambda: client)
+    monkeypatch.setattr(
+        cg,
+        "extract_tiered_keywords",
+        lambda *_args, **_kwargs: {
+            "l1": ["action camera", "mini camera", "body camera"],
+            "l2": ["bike camera"],
+            "l3": ["travel camera"],
+            "_metadata": {},
+            "_preferred_locale": "en",
+        },
+    )
+    monkeypatch.setattr(cg, "build_keyword_slots", lambda *_args, **_kwargs: {"search_terms": {"keywords": []}})
+    monkeypatch.setattr(cg, "generate_title", lambda *args, **kwargs: pytest.fail("fallback title path should stay disabled"))
+    monkeypatch.setattr(cg, "generate_bullet_points", lambda *args, **kwargs: pytest.fail("fallback bullet path should stay disabled"))
+
+    artifact_dir = tmp_path / "artifacts"
+    with pytest.raises(RuntimeError, match="R1 batch visible copy generation failed"):
+        cg.generate_listing_copy(
+            _sample_preprocessed(),
+            _sample_policy(),
+            language="English",
+            artifact_dir=str(artifact_dir),
+            model_overrides={"title": "deepseek-reasoner", "bullets": "deepseek-reasoner"},
+        )
+
+    batch_artifact = json.loads((artifact_dir / "visible_copy_batch.json").read_text())
+    debug_context = batch_artifact.get("llm_debug_context") or {}
+    assert debug_context.get("request_payload", {}).get("field") == "visible_copy_batch"
+    assert "system_prompt" in debug_context
+    assert "error" in debug_context
 
 def test_generate_listing_copy_raises_when_pure_r1_batch_times_out(monkeypatch):
     client = _FakeLiveReasonerClient(

@@ -18,7 +18,7 @@ from modules.listing_status import RUN_FAILED
 from modules.operations_panel import build_prelaunch_checklist, build_thirty_day_iteration_panel
 from modules import report_generator
 
-from app.services.workspace_service import snapshot_run_outputs
+from app.services.workspace_service import infer_run_generation_status, snapshot_run_outputs
 
 
 def _timestamp() -> str:
@@ -56,6 +56,7 @@ def _run_single_workflow(
         "generated_copy": _load_json(run_dir / "generated_copy.json"),
         "scoring_results": _load_json(run_dir / "scoring_results.json"),
         "bullet_blueprint": _load_json(run_dir / "bullet_blueprint.json"),
+        "execution_summary": _load_json(run_dir / "execution_summary.json"),
     }
 
 
@@ -97,6 +98,8 @@ def run_workspace_workflow(
                     version_a={
                         "generated_copy": version_a["generated_copy"],
                         "scoring_results": version_a["scoring_results"],
+                        "generation_status": infer_run_generation_status(version_a_dir, version_a["generated_copy"]),
+                        "execution_summary": version_a["execution_summary"],
                         "blueprint_model": (version_a["bullet_blueprint"] or {}).get("llm_model") or "deepseek-chat",
                         "visible_copy_model": "deepseek-chat",
                         "elapsed_seconds": 0,
@@ -104,6 +107,8 @@ def run_workspace_workflow(
                     version_b={
                         "generated_copy": version_b["generated_copy"],
                         "scoring_results": version_b["scoring_results"],
+                        "generation_status": infer_run_generation_status(version_b_dir, version_b["generated_copy"]),
+                        "execution_summary": version_b["execution_summary"],
                         "blueprint_model": (version_b["bullet_blueprint"] or {}).get("llm_model") or "deepseek-reasoner",
                         "visible_copy_model": "deepseek-reasoner (title+bullets)",
                         "elapsed_seconds": 0,
@@ -125,12 +130,12 @@ def run_workspace_workflow(
                         "version_a": {
                             "generated_copy": version_a["generated_copy"],
                             "scoring_results": version_a["scoring_results"],
-                            "generation_status": ((version_a["generated_copy"].get("metadata") or {}).get("generation_status") or ""),
+                            "generation_status": infer_run_generation_status(version_a_dir, version_a["generated_copy"]),
                         },
                         "version_b": {
                             "generated_copy": version_b["generated_copy"],
                             "scoring_results": version_b["scoring_results"],
-                            "generation_status": ((version_b["generated_copy"].get("metadata") or {}).get("generation_status") or ""),
+                            "generation_status": infer_run_generation_status(version_b_dir, version_b["generated_copy"]),
                         },
                     },
                 }

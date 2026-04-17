@@ -688,7 +688,7 @@ def _build_natural_title_candidate(
     if primary_category and _normalize_keyword_text(primary_category) not in normalized_lead and max_length >= 120:
         lead_parts.append(primary_category)
     lead = " ".join(part for part in lead_parts if part).strip()
-    clean_differentiators = _clean_title_phrases(differentiators)[:2]
+    clean_differentiators = _clean_title_phrases(differentiators)[:3]
     scene_code = next((item for item in (payload.get("scene_priority") or []) if item), "")
     scene_phrase = _format_scene_label(scene_code, payload.get("target_language") or "English") if scene_code else ""
     if scene_phrase and payload.get("target_language") == "English":
@@ -706,24 +706,40 @@ def _build_natural_title_candidate(
     diff_long = " and ".join(clean_differentiators[:2]).strip()
     diff_short = clean_differentiators[0] if clean_differentiators else ""
     diff_compact = " ".join(clean_differentiators[:2]).strip()
+    diff_rich = ""
+    if len(clean_differentiators) >= 3:
+        diff_rich = f"{clean_differentiators[0]}, {clean_differentiators[1]}, and {clean_differentiators[2]}"
+    else:
+        diff_rich = diff_long
+    second_scene_code = next((item for item in (payload.get("scene_priority") or [])[1:] if item), "")
+    second_scene_phrase = _format_scene_label(second_scene_code, payload.get("target_language") or "English") if second_scene_code else ""
+    if second_scene_phrase and payload.get("target_language") == "English":
+        second_scene_phrase = second_scene_phrase.title()
     templates: List[str] = []
     for support_phrase in support_phrases:
         templates.extend([
             f"{lead} {diff_compact} for {support_phrase}" if lead and diff_compact and support_phrase else "",
-            f"{lead} with {diff_short}, built for {support_phrase}" if lead and diff_short and support_phrase else "",
-            f"{lead} with {diff_long}, built for {support_phrase}" if lead and diff_long and support_phrase else "",
-            f"{lead} built for {support_phrase} with {diff_short}" if lead and support_phrase and diff_short else "",
-            f"{lead} built for {support_phrase}" if lead and support_phrase else "",
-            f"{lead} with {diff_long} for {scene_phrase}, built for {support_phrase}" if lead and diff_long and scene_phrase and support_phrase else "",
-            f"{lead} with {diff_short} for {scene_phrase}, built for {support_phrase}" if lead and diff_short and scene_phrase and support_phrase else "",
-            f"{lead} for {scene_phrase} with {diff_short}, built for {support_phrase}" if lead and diff_short and scene_phrase and support_phrase else "",
+            f"{lead} with {diff_short}, designed for {support_phrase}" if lead and diff_short and support_phrase else "",
+            f"{lead} with {diff_long}, designed for {support_phrase}" if lead and diff_long and support_phrase else "",
+            f"{lead} with {diff_rich}, designed for {support_phrase}" if lead and diff_rich and support_phrase and max_length >= 185 else "",
+            f"{lead} designed for {support_phrase} with {diff_short}" if lead and support_phrase and diff_short else "",
+            f"{lead} designed for {support_phrase}" if lead and support_phrase else "",
+            f"{lead} with {diff_long} for {scene_phrase}, designed for {support_phrase}" if lead and diff_long and scene_phrase and support_phrase else "",
+            f"{lead} with {diff_rich} for {scene_phrase}, designed for {support_phrase}" if lead and diff_rich and scene_phrase and support_phrase and max_length >= 185 else "",
+            f"{lead} with {diff_short} for {scene_phrase}, designed for {support_phrase}" if lead and diff_short and scene_phrase and support_phrase else "",
+            f"{lead} for {scene_phrase} with {diff_short}, designed for {support_phrase}" if lead and diff_short and scene_phrase and support_phrase else "",
+            f"{lead} with {diff_long} for {scene_phrase} and {second_scene_phrase}, designed for {support_phrase}" if lead and diff_long and scene_phrase and second_scene_phrase and support_phrase else "",
+            f"{lead} with {diff_rich} for {scene_phrase} and {second_scene_phrase}, designed for {support_phrase}" if lead and diff_rich and scene_phrase and second_scene_phrase and support_phrase and max_length >= 185 else "",
+            f"{lead} with {diff_short} for {scene_phrase} and {second_scene_phrase}, designed for {support_phrase}" if lead and diff_short and scene_phrase and second_scene_phrase and support_phrase else "",
         ])
     templates.extend([
         f"{lead} with {diff_long} for {scene_phrase}" if lead and diff_long and scene_phrase else "",
+        f"{lead} with {diff_long} for {scene_phrase} and {second_scene_phrase}" if lead and diff_long and scene_phrase and second_scene_phrase else "",
         f"{lead} with {diff_short} for {scene_phrase}" if lead and diff_short and scene_phrase else "",
         f"{lead} with {diff_short}" if lead and diff_short else "",
         lead,
     ])
+    valid_candidates: List[str] = []
     for template in templates:
         candidate = re.sub(r"\s+", " ", template).strip(" ,")
         if not candidate:
@@ -737,7 +753,43 @@ def _build_natural_title_candidate(
             and not _title_has_bare_parameter_brackets(candidate)
             and not _title_has_broken_tail(candidate)
         ):
-            return candidate
+            valid_candidates.append(candidate)
+    if valid_candidates:
+        target_min = int(payload.get("target_min_length") or LENGTH_RULES["title"]["target_min"])
+        target_max = int(payload.get("target_max_length") or LENGTH_RULES["title"]["target_max"])
+        preferred = [candidate for candidate in valid_candidates if target_min <= len(candidate) <= max_length]
+        pool = preferred or valid_candidates
+        best = max(
+            pool,
+            key=lambda candidate: (
+                min(len(candidate), target_max),
+                len(candidate),
+            ),
+        )
+        soft_warning = int(payload.get("soft_warning_length") or LENGTH_RULES["title"]["soft_warning"])
+        if len(best) < soft_warning and max_length >= soft_warning:
+            fallback_usage_phrase = "everyday content creation" if (payload.get("target_language") or "English").strip().lower() == "english" else ""
+            extension_parts = [part for part in [*clean_differentiators, second_scene_phrase, scene_phrase, fallback_usage_phrase] if part]
+            normalized_best = _normalize_keyword_text(best)
+            for extra in extension_parts:
+                normalized_extra = _normalize_keyword_text(extra)
+                if normalized_extra and normalized_extra in normalized_best:
+                    continue
+                joiner = " with " if any(token in normalized_extra for token in ("runtime", "lens", "1080p", "4k", "wifi", "battery")) else " for "
+                expanded = _trim_to_word_boundary(f"{best}{joiner}{extra}", max_length)
+                expanded = _dewater_title_text(expanded, payload.get("exact_match_keywords") or [])
+                if (
+                    expanded
+                    and len(expanded) > len(best)
+                    and not _title_is_keyword_dump(expanded)
+                    and not _title_has_bare_parameter_brackets(expanded)
+                    and not _title_has_broken_tail(expanded)
+                ):
+                    best = expanded
+                    normalized_best = _normalize_keyword_text(best)
+                    if len(best) >= soft_warning:
+                        break
+        return best
     return _trim_to_word_boundary(re.sub(r"\s+", " ", lead).strip(), max_length)
 
 
@@ -751,6 +803,110 @@ def _build_title_budget(required_keywords: Sequence[str], max_length: int) -> Di
         "remaining_character_budget": remaining,
         "max_length": int(max_length),
     }
+
+
+def _title_is_below_target_length(text: str, payload: Dict[str, Any]) -> bool:
+    candidate = re.sub(r"\s+", " ", str(text or "")).strip()
+    if not candidate:
+        return True
+    max_length = int(payload.get("max_length") or LENGTH_RULES["title"]["hard_ceiling"])
+    target_min = int(payload.get("target_min_length") or LENGTH_RULES["title"]["target_min"])
+    soft_warning = int(payload.get("soft_warning_length") or LENGTH_RULES["title"]["soft_warning"])
+    if max_length < soft_warning:
+        return False
+    if len(candidate) >= target_min:
+        return False
+    differentiators = _clean_title_phrases(
+        [payload.get("core_capability")] + list(_flatten_tokens(payload.get("numeric_specs") or []))
+    )
+    available_detail = bool(
+        differentiators
+        or (payload.get("scene_priority") or [])
+        or (payload.get("assigned_keywords") or [])
+        or (payload.get("required_keywords") or [])
+    )
+    return available_detail and len(candidate) < soft_warning
+
+
+def _rule_repair_title_length(
+    title: str,
+    payload: Dict[str, Any],
+    audit_log: Optional[List[Dict[str, Any]]] = None,
+    target_min: int = 190,
+    target_max: int = 198,
+    hard_ceiling: int = 200,
+) -> str:
+    candidate = re.sub(r"\s+", " ", (title or "")).strip(" ,")
+    length = len(candidate)
+
+    if length > hard_ceiling:
+        trimmed = _trim_to_word_boundary(candidate, target_max)
+        if audit_log is not None:
+            _log_action(audit_log, "title", "rule_repair_trim", {
+                "before_len": length,
+                "after_len": len(trimmed),
+                "reason": "exceeded_hard_ceiling",
+            })
+        return trimmed
+
+    if target_min <= length <= target_max:
+        return candidate
+
+    if target_max < length <= hard_ceiling:
+        trimmed = _trim_to_word_boundary(candidate, target_max)
+        if audit_log is not None:
+            _log_action(audit_log, "title", "rule_repair_trim", {
+                "before_len": length,
+                "after_len": len(trimmed),
+                "reason": "above_target_max",
+            })
+        return trimmed
+
+    pool = _dedupe_keyword_sequence(
+        list(payload.get("exact_match_keywords") or [])
+        + list(payload.get("l1_keywords") or [])
+        + list(payload.get("assigned_keywords") or [])
+    )
+
+    repaired = candidate
+    appended: List[str] = []
+
+    for kw in pool:
+        if len(repaired) >= target_min:
+            break
+        kw_clean = str(kw or "").strip()
+        if not kw_clean:
+            continue
+        if _normalize_keyword_text(kw_clean) in _normalize_keyword_text(repaired):
+            continue
+
+        joiners = [", ", " for ", " with "] if len(repaired) < target_min - 20 else [", "]
+        chosen = None
+        for joiner in joiners:
+            candidate_append = f"{repaired}{joiner}{kw_clean}"
+            if len(candidate_append) <= hard_ceiling:
+                chosen = candidate_append
+                break
+        if not chosen:
+            continue
+        repaired = chosen
+        appended.append(kw_clean)
+
+    if audit_log is not None and appended:
+        _log_action(audit_log, "title", "rule_repair_extend", {
+            "before_len": length,
+            "after_len": len(repaired),
+            "appended_keywords": appended,
+            "reason": "below_target_min",
+        })
+
+    if len(repaired) > hard_ceiling:
+        repaired = _trim_to_word_boundary(repaired, target_max)
+
+    if target_max < len(repaired) <= hard_ceiling:
+        repaired = _trim_to_word_boundary(repaired, target_max)
+
+    return repaired
 
 
 def _build_deterministic_title_candidate(
@@ -770,7 +926,7 @@ def _build_deterministic_title_candidate(
         + ([primary_category] if primary_category else [])
     )
     lead_keyword = next((kw for kw in ordered_keywords if kw), primary_category or "camera")
-    differentiators = _clean_title_phrases(list(_flatten_tokens(numeric_specs)) + [payload.get("core_capability")])
+    differentiators = _clean_title_phrases([payload.get("core_capability")] + list(_flatten_tokens(numeric_specs)))
     support_keywords = [
         keyword for keyword in ordered_keywords
         if _normalize_keyword_text(keyword) not in _normalize_keyword_text(lead_keyword)
@@ -1386,7 +1542,7 @@ def _compose_exact_match_title(payload: Dict[str, Any]) -> str:
     scene_payload["scene_priority"] = remaining_scenes
     scene_payload["scene_priority"] = remaining_scenes or (payload.get("scene_priority") or [])
     lead = " ".join(part for part in [brand, lead_exact] if part).strip()
-    support_keywords = _dedupe_keyword_sequence(formatted_secondary_exact + other_exact)
+    support_keywords = _dedupe_keyword_sequence(formatted_secondary_exact or other_exact)
     differentiators = _dedupe_keyword_sequence(specs[:2])
 
     candidate = _build_natural_title_candidate(
@@ -1400,7 +1556,12 @@ def _compose_exact_match_title(payload: Dict[str, Any]) -> str:
     candidate = _dedupe_comma_sections(candidate)
     candidate = _dewater_title_text(candidate, exact_keywords)
     candidate = _trim_to_word_boundary(candidate, max_length)
-    if all(_normalize_keyword_text(keyword) in _normalize_keyword_text(candidate) for keyword in exact_keywords):
+    candidate_normalized = _normalize_keyword_text(candidate)
+    secondary_exact_fully_preserved = all(
+        _normalize_keyword_text(keyword) in candidate_normalized
+        for keyword in formatted_secondary_exact
+    )
+    if all(_normalize_keyword_text(keyword) in candidate_normalized for keyword in exact_keywords) and secondary_exact_fully_preserved:
         return candidate
 
     exact_scene_clause = " and ".join(formatted_secondary_exact[:2]).strip()
@@ -3927,12 +4088,13 @@ def _llm_generate_title(payload: Dict[str, Any]) -> str:
         "4. The title must read like a natural English product name phrase, not a comma-stacked keyword list.\n"
         "5. Use Title Case for the major words. Never output a crude lowercase keyword dump.\n"
         f"6. Target {LENGTH_RULES['title']['target_min']}-{LENGTH_RULES['title']['target_max']} characters and never exceed {max_length} characters.\n"
-        "7. Do not use slash-joined synonyms, do not keyword-stuff, and do not sound generic or cheap.\n"
-        "8. Tone must feel Professional, Premium, Persuasive, and Action-oriented.\n"
-        "9. Translate specs into human value and never sound like an internal parameter dump.\n"
-        f"10. The first 80 characters MUST contain the core category keyword '{core_category_keyword}'.\n"
-        "11. FORBIDDEN: pure comma-separated keyword lists or bare technical parameter brackets.\n"
-        "12. Output ONLY the raw title string, no quotes, no explanations.\n"
+        "7. Prefer a fuller natural product-name phrase that uses the available evidence; do not stop too early with a short skeletal title.\n"
+        "8. Do not use slash-joined synonyms, do not keyword-stuff, and do not sound generic or cheap.\n"
+        "9. Tone must feel Professional, Premium, Persuasive, and Action-oriented.\n"
+        "10. Translate specs into human value and never sound like an internal parameter dump.\n"
+        f"11. The first 80 characters MUST contain the core category keyword '{core_category_keyword}'.\n"
+        "12. FORBIDDEN: pure comma-separated keyword lists or bare technical parameter brackets.\n"
+        "13. Output ONLY the raw title string, no quotes, no explanations.\n"
         f"{required_keyword_rule}"
         f"{budget_rule}"
         f"{repair_rule}"
@@ -3961,6 +4123,7 @@ def _generate_and_audit_title(
     required_keywords: Sequence[str],
     max_retries: int = 3,
 ) -> str:
+    prefetched_candidates = list(payload.get("_prefetched_title_candidates") or [])
     brand = (payload.get("brand_name") or "").strip()
     brand_lower = brand.lower()
     numeric_specs = payload.get("numeric_specs") or []
@@ -3977,7 +4140,10 @@ def _generate_and_audit_title(
                 **payload,
                 **_build_title_budget(required_keywords, payload.get("max_length", LENGTH_RULES["title"]["hard_ceiling"])),
             }
-            candidate = _llm_generate_title(attempt_payload)
+            if prefetched_candidates:
+                candidate = str(prefetched_candidates.pop(0) or "")
+            else:
+                candidate = _llm_generate_title(attempt_payload)
         except LLMClientUnavailable as exc:
             if _log_retryable_llm_exception(audit_log, "title", exc, attempt):
                 continue
@@ -4012,6 +4178,19 @@ def _generate_and_audit_title(
         if _title_has_bare_parameter_brackets(normalized):
             _log_action(audit_log, "title", "llm_retry", {"attempt": attempt, "reason": "bare_parameter_brackets"})
             continue
+        if _title_is_below_target_length(normalized, payload):
+            _log_action(
+                audit_log,
+                "title",
+                "llm_retry",
+                {
+                    "attempt": attempt,
+                    "reason": "below_target_length",
+                    "length": len(normalized),
+                    "target_min": int(payload.get("target_min_length") or LENGTH_RULES["title"]["target_min"]),
+                },
+            )
+            continue
         connector_hits = _title_connector_overuse(normalized, exact_match_keywords, weak_connectors)
         if len(connector_hits) >= 2:
             _log_action(
@@ -4036,7 +4215,7 @@ def _generate_and_audit_title(
                 payload.get("max_length", LENGTH_RULES["title"]["hard_ceiling"]),
             )
             repassed, repaired_reason, _ = _validate_field_text(trimmed_candidate, required_keywords, numeric_specs)
-            if repassed and not _title_is_keyword_dump(trimmed_candidate) and not _title_has_bare_parameter_brackets(trimmed_candidate) and len(trimmed_candidate) <= payload.get("max_length", LENGTH_RULES["title"]["hard_ceiling"]):
+            if repassed and not _title_is_keyword_dump(trimmed_candidate) and not _title_has_bare_parameter_brackets(trimmed_candidate) and len(trimmed_candidate) <= payload.get("max_length", LENGTH_RULES["title"]["hard_ceiling"]) and not _title_is_below_target_length(trimmed_candidate, payload):
                 _log_action(
                     audit_log,
                     "title",
@@ -4070,7 +4249,7 @@ def _generate_and_audit_title(
                 )
                 repaired_candidate = _trim_to_word_boundary(repaired_candidate, payload.get("max_length", LENGTH_RULES["title"]["hard_ceiling"]))
                 repassed, repaired_reason, _ = _validate_field_text(repaired_candidate, required_keywords, numeric_specs)
-                if repassed and not _title_is_keyword_dump(repaired_candidate) and not _title_has_bare_parameter_brackets(repaired_candidate) and len(repaired_candidate) <= payload.get("max_length", LENGTH_RULES["title"]["hard_ceiling"]):
+                if repassed and not _title_is_keyword_dump(repaired_candidate) and not _title_has_bare_parameter_brackets(repaired_candidate) and len(repaired_candidate) <= payload.get("max_length", LENGTH_RULES["title"]["hard_ceiling"]) and not _title_is_below_target_length(repaired_candidate, payload):
                     _log_action(audit_log, "title", "llm_success", {"attempt": "coordinated_repair", "source_attempt": attempt})
                     _record_repair_event(
                         payload.get("_artifact_dir"),
@@ -4097,7 +4276,7 @@ def _generate_and_audit_title(
                 )
                 if patched != normalized:
                     repassed, repaired_reason, _ = _validate_field_text(patched, required_keywords, numeric_specs)
-                    if repassed and not _title_is_keyword_dump(patched) and not _title_has_bare_parameter_brackets(patched):
+                    if repassed and not _title_is_keyword_dump(patched) and not _title_has_bare_parameter_brackets(patched) and not _title_is_below_target_length(patched, payload):
                         _log_action(
                             audit_log,
                             "title",
@@ -4135,7 +4314,7 @@ def _generate_and_audit_title(
                     )
                     repaired_candidate = _trim_to_word_boundary(repaired_candidate, payload.get("max_length", LENGTH_RULES["title"]["hard_ceiling"]))
                     repassed, repaired_reason, _ = _validate_field_text(repaired_candidate, required_keywords, numeric_specs)
-                    if repassed and not _title_is_keyword_dump(repaired_candidate) and not _title_has_bare_parameter_brackets(repaired_candidate) and len(repaired_candidate) <= payload.get("max_length", LENGTH_RULES["title"]["hard_ceiling"]):
+                    if repassed and not _title_is_keyword_dump(repaired_candidate) and not _title_has_bare_parameter_brackets(repaired_candidate) and len(repaired_candidate) <= payload.get("max_length", LENGTH_RULES["title"]["hard_ceiling"]) and not _title_is_below_target_length(repaired_candidate, payload):
                         _log_action(audit_log, "title", "llm_success", {"attempt": "coordinated_repair", "source_attempt": attempt})
                         _record_repair_event(
                             payload.get("_artifact_dir"),
@@ -4153,10 +4332,18 @@ def _generate_and_audit_title(
             reason["attempt"] = attempt
             _log_action(audit_log, "title", "llm_retry", reason)
             continue
-        _log_action(audit_log, "title", "llm_success", {"attempt": attempt})
-        if assignment_tracker and required_keywords:
-            assignment_tracker.record("title", required_keywords)
-        return normalized
+        if not _title_is_below_target_length(normalized, payload):
+            _log_action(audit_log, "title", "llm_success", {"attempt": attempt})
+            if assignment_tracker and required_keywords:
+                assignment_tracker.record("title", required_keywords)
+            return normalized
+        _log_action(
+            audit_log,
+            "title",
+            "llm_retry",
+            {"attempt": attempt, "reason": "below_target_length", "length": len(normalized), "target_min": int(payload.get("target_min_length") or LENGTH_RULES["title"]["target_min"])},
+        )
+        continue
     if last_candidate:
         max_length = payload.get("max_length", LENGTH_RULES["title"]["hard_ceiling"])
         repaired_title = _patch_title_missing_keywords(
@@ -4176,7 +4363,7 @@ def _generate_and_audit_title(
         repaired_title = _apply_title_core_category_frontload(repaired_title, payload, max_length)
         repaired_title = _trim_to_word_boundary(repaired_title, max_length)
         repassed, repaired_reason, _ = _validate_field_text(repaired_title, required_keywords, numeric_specs)
-        if repassed and not _title_is_keyword_dump(repaired_title) and not _title_has_bare_parameter_brackets(repaired_title):
+        if repassed and not _title_is_keyword_dump(repaired_title) and not _title_has_bare_parameter_brackets(repaired_title) and not _title_is_below_target_length(repaired_title, payload):
             _log_action(
                 audit_log,
                 "title",
@@ -4202,6 +4389,8 @@ def _generate_and_audit_title(
                 "llm_retry",
                 {"attempt": "post_retry_patch", "reason": repaired_reason},
             )
+    if payload.get("_disable_fallback"):
+        raise RuntimeError("title_validation_failed_after_retry")
     fallback = last_candidate or _fallback_text_for_field("title", payload, numeric_specs)
     if brand and not fallback.lower().startswith(brand_lower):
         fallback = f"{brand} {fallback}".strip()
@@ -4258,7 +4447,7 @@ def _generate_and_audit_title(
     deterministic_candidate = _apply_title_core_category_frontload(deterministic_candidate, payload, max_length)
     deterministic_candidate = _trim_to_word_boundary(deterministic_candidate, max_length)
     repassed, _, _ = _validate_field_text(deterministic_candidate, required_keywords, numeric_specs)
-    if repassed and not _title_is_keyword_dump(deterministic_candidate) and not _title_has_bare_parameter_brackets(deterministic_candidate):
+    if repassed and not _title_is_keyword_dump(deterministic_candidate) and not _title_has_bare_parameter_brackets(deterministic_candidate) and not _title_is_below_target_length(deterministic_candidate, payload):
         _log_action(
             audit_log,
             "title",
@@ -6813,6 +7002,56 @@ def _build_r1_batch_bullet_trace(
     return trace
 
 
+
+def _r1_batch_repair_title(
+    client: Any,
+    raw_title: str,
+    *,
+    brand_name: str,
+    primary_category: str,
+    core_keywords: Sequence[str],
+    differentiators: Sequence[str],
+    target_language: str,
+) -> str:
+    target_min = LENGTH_RULES["title"]["target_min"]
+    target_max = LENGTH_RULES["title"]["target_max"]
+    max_length = LENGTH_RULES["title"]["hard_ceiling"]
+    repair_prompt = (
+        "You are repairing only the title from an R1 visible-copy batch.\n"
+        "Return exactly one JSON object: {\"title\":\"...\"}.\n"
+        "Rules:\n"
+        "1. Keep the same product intent and supported claims.\n"
+        "2. Start with the brand name.\n"
+        "3. Write a natural product name phrase, not a keyword list.\n"
+        f"4. Target {target_min}-{target_max} characters. Hard ceiling: {max_length} characters.\n"
+        "5. Do not finalize a short skeletal title. If the current title is too short, expand it with natural differentiators and valid keyword coverage.\n"
+        "6. If the current title is too long, compress it without losing the core category, runtime, and main keyword intent.\n"
+        "7. Include at least 3 core keywords naturally when provided.\n"
+        "8. Output valid JSON only.\n"
+    )
+    payload = {
+        "field": "visible_copy_batch_title_repair",
+        "brand_name": brand_name,
+        "primary_category": primary_category,
+        "target_language": target_language,
+        "current_title": raw_title,
+        "core_keywords": list(core_keywords or []),
+        "top_differentiators": list(differentiators or []),
+        "target_min_length": target_min,
+        "target_max_length": target_max,
+        "max_length": max_length,
+    }
+    repaired_text = client.generate_text(
+        repair_prompt,
+        payload,
+        temperature=0.2,
+        override_model="deepseek-reasoner",
+    )
+    repaired = _extract_embedded_json_payload(repaired_text or "")
+    if isinstance(repaired, dict):
+        return str(repaired.get("title") or "").strip()
+    return ""
+
 def _r1_batch_generate_listing(
     preprocessed_data: PreprocessedData,
     writing_policy: Dict[str, Any],
@@ -6876,15 +7115,19 @@ def _r1_batch_generate_listing(
         '{\"title\":\"...\",\"bullets\":[\"B1 text\",\"B2 text\",\"B3 text\",\"B4 text\",\"B5 text\"]}\n'
         "Hard rules:\n"
         "1. Output valid JSON only. No markdown, no commentary, no code fences.\n"
-        "2. title must start with the brand name, read naturally, and stay under 200 characters.\n"
-        "3. title must naturally include at least 3 core keywords when provided; never produce a comma-stacked keyword dump.\n"
-        "4. Write exactly 5 bullets in the requested slot order.\n"
-        "5. Each bullet must use the format HEADER — body.\n"
-        "6. Each bullet must feel distinct in audience or feature angle; do not write 3 or more commute/on-the-go bullets.\n"
-        "7. Keep each bullet under 500 characters.\n"
-        "8. Use the Audience Allocation Plan and Bullet Plan as binding instructions.\n"
-        "9. Do not invent unsupported specs or accessories.\n"
-        "10. Do not use fallback wording like ready to share, every clip feels ready, or generic keyword stuffing.\n"
+        "2. Title must start with the brand name.\n"
+        "3. Title must read like a natural product name phrase, not a keyword list.\n"
+        "4. Title must naturally include at least 3 core keywords when provided; never produce a comma-stacked keyword dump.\n"
+        "5. Title must naturally embed the top differentiators when available.\n"
+        "6. Title target length is 190-198 characters. Hard ceiling: 200 characters.\n"
+        "7. Do not finalize a short skeletal title. If the title is below 190 characters, expand it before finalizing.\n"
+        "8. Write exactly 5 bullets in the requested slot order.\n"
+        "9. Each bullet must use the format HEADER — body.\n"
+        "10. Each bullet must feel distinct in audience or feature angle; do not write 3 or more commute/on-the-go bullets.\n"
+        "11. Keep each bullet under 500 characters.\n"
+        "12. Use the Audience Allocation Plan and Bullet Plan as binding instructions.\n"
+        "13. Do not invent unsupported specs or accessories.\n"
+        "14. Do not use fallback wording like ready to share, every clip feels ready, or generic keyword stuffing.\n"
     )
     payload = {
         "field": "visible_copy_batch",
@@ -6903,24 +7146,82 @@ def _r1_batch_generate_listing(
         "_request_timeout_seconds": _r1_batch_timeout_seconds(),
         "_disable_fallback": True,
     }
-    text = client.generate_text(
-        system_prompt,
-        payload,
-        temperature=0.2,
-        override_model="deepseek-reasoner",
-    )
+    try:
+        text = client.generate_text(
+            system_prompt,
+            payload,
+            temperature=0.2,
+            override_model="deepseek-reasoner",
+        )
+    except Exception as exc:
+        setattr(
+            exc,
+            "debug_context",
+            {
+                "stage": "visible_copy_batch",
+                "system_prompt": system_prompt,
+                "request_payload": payload,
+                "llm_response_meta": deepcopy(getattr(client, "response_metadata", {}) or {}),
+                "error": str(exc),
+            },
+        )
+        raise
     parsed = _extract_embedded_json_payload(text or "")
     if not isinstance(parsed, dict):
         raise RuntimeError("R1 batch returned non-JSON payload")
-    title = str(parsed.get("title") or "").strip()
+    raw_title = str(parsed.get("title") or "").strip()
     bullets = parsed.get("bullets") or []
-    if not title:
+    if not raw_title:
         raise RuntimeError("R1 batch returned empty title")
+    title_target_min = LENGTH_RULES["title"]["target_min"]
+    title_target_max = LENGTH_RULES["title"]["target_max"]
+    if len(raw_title) < title_target_min or len(raw_title) > title_target_max:
+        title_repair_payload = {
+            "exact_match_keywords": exact_keywords[:3],
+            "l1_keywords": exact_keywords[:2],
+            "assigned_keywords": list(tiered_keywords.get("l2", []) or [])[:1],
+        }
+        raw_title = _rule_repair_title_length(
+            raw_title,
+            title_repair_payload,
+            audit_log=audit_log,
+            target_min=title_target_min,
+            target_max=title_target_max,
+            hard_ceiling=LENGTH_RULES["title"]["hard_ceiling"],
+        )
     if not isinstance(bullets, list) or len(bullets) != 5:
         raise RuntimeError("R1 batch must return exactly 5 bullets")
     cleaned_bullets = [str(item or "").strip() for item in bullets]
     if any(not item for item in cleaned_bullets):
         raise RuntimeError("R1 batch returned empty bullet")
+    title_payload = {
+        "field": "title",
+        "brand_name": getattr(getattr(preprocessed_data, "run_config", None), "brand_name", "TOSBARRFT"),
+        "product_name": getattr(getattr(preprocessed_data, "run_config", None), "product_name", ""),
+        "primary_category": getattr(getattr(preprocessed_data, "run_config", None), "category", "camera"),
+        "l1_keywords": exact_keywords[:2],
+        "assigned_keywords": list(tiered_keywords.get("l2", []) or [])[:1],
+        "core_capability": core_capabilities[0] if core_capabilities else "",
+        "scene_priority": list(writing_policy.get("scene_priority") or [])[:3],
+        "numeric_specs": numeric_specs[:2],
+        "target_language": target_language,
+        "max_length": LENGTH_RULES["title"]["hard_ceiling"],
+        "exact_match_keywords": exact_keywords[:3],
+        "copy_contracts": writing_policy.get("copy_contracts", {}),
+        "_llm_override_model": "deepseek-reasoner",
+        "_disable_fallback": True,
+        "_prefetched_title_candidates": [raw_title],
+    }
+    required_title_keywords = _dedupe_keyword_sequence(
+        list(title_payload.get("exact_match_keywords") or []) + list(title_payload.get("assigned_keywords") or [])
+    )
+    title = _generate_and_audit_title(
+        title_payload,
+        audit_log,
+        assignment_tracker=None,
+        required_keywords=required_title_keywords,
+        max_retries=2,
+    )
     if _title_is_keyword_dump(title):
         raise RuntimeError("R1 batch title is still a keyword dump")
     if len(title) > LENGTH_RULES["title"]["hard_ceiling"]:
@@ -7189,6 +7490,7 @@ def generate_multilingual_copy(preprocessed_data: PreprocessedData,
             )
         except Exception as exc:
             llm_meta = deepcopy(getattr(llm_client, "response_metadata", {}) or {})
+            llm_debug_context = deepcopy(getattr(exc, "debug_context", {}) or {})
             duration_ms = int((time.time() - started) * 1000)
             _save_stage_artifact(
                 artifact_dir,
@@ -7204,11 +7506,13 @@ def generate_multilingual_copy(preprocessed_data: PreprocessedData,
                             "duration_ms": duration_ms,
                             "error": str(exc),
                             "llm_response_meta": llm_meta,
+                            "llm_debug_context": llm_debug_context,
                         }
                     ],
                     "error": str(exc),
                     "audit_entries": audit_log,
                     "keyword_assignments": keyword_assignment_tracker.as_list(),
+                    "llm_debug_context": llm_debug_context,
                 },
             )
             field_generation_trace["visible_copy_batch"] = {
@@ -7217,6 +7521,7 @@ def generate_multilingual_copy(preprocessed_data: PreprocessedData,
                 "duration_ms": duration_ms,
                 "error": str(exc),
                 "llm_response_meta": llm_meta,
+                "llm_debug_context": llm_debug_context,
             }
             _write_partial_generation_artifact(artifact_dir, partial_copy, field_generation_trace)
             raise RuntimeError(f"R1 batch visible copy generation failed: {exc}") from exc

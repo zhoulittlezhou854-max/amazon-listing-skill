@@ -344,10 +344,10 @@ FAQ_ONLY_CAPABILITIES = [
 
 LENGTH_RULES = {
     "title": {
-        "target_min": 160,
-        "target_max": 190,
+        "target_min": 190,
+        "target_max": 198,
         "hard_ceiling": 200,
-        "soft_warning": 150,
+        "soft_warning": 185,
     },
     "bullet": {
         "target_min": 200,
@@ -446,7 +446,7 @@ TITLE_SLOT_BLUEPRINT = [
 FIELD_ROLE_SUMMARY = {
     "title": {
         "requirements": [
-            "Target 160-190 characters, hard ceiling 200 characters, brand + L1 + hero scene within front 70 chars",
+            "Target 190-198 characters, hard ceiling 200 characters, brand + L1 + hero scene within front 70 chars",
             "Include one quantified spec (minutes, 4K, depth) only if verified",
             "No promo words, competitor names, or duplicate nouns"
         ],

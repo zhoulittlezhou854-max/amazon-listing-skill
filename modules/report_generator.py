@@ -1896,11 +1896,29 @@ def generate_dual_version_report(
     version_a: Dict[str, Any],
     version_b: Dict[str, Any],
 ) -> str:
-    def _listing_block(generated_copy: Dict[str, Any]) -> list[str]:
+    def _failure_reason(version: Dict[str, Any]) -> str:
+        return (
+            str(version.get("failure_reason") or "").strip()
+            or str(((version.get("execution_summary") or {}).get("results") or {}).get("step_5", {}).get("error") or "").strip()
+            or str(((version.get("execution_summary") or {}).get("results") or {}).get("step_6", {}).get("error") or "").strip()
+        )
+
+    def _listing_block(version: Dict[str, Any]) -> list[str]:
+        generated_copy = version.get("generated_copy") or {}
+        generation_status = str(version.get("generation_status") or "").strip()
+        if generation_status.startswith("FAILED_AT_") or generation_status == "FAILED":
+            return [
+                "### Listing",
+                f"- Generation Status: {generation_status}",
+                f"- Failure Reason: {_failure_reason(version) or 'unknown'}",
+                "- Visible Copy: not generated",
+                "",
+            ]
         bullets = generated_copy.get("bullets") or []
         search_terms = generated_copy.get("search_terms") or []
         return [
             "### Listing",
+            f"- Generation Status: {generation_status or ((generated_copy.get('metadata') or {}).get('generation_status') or '')}",
             f"- Title: {generated_copy.get('title') or ''}",
             "- Bullets:",
             *[f"  - B{idx}: {bullet}" for idx, bullet in enumerate(bullets, start=1)],
@@ -1929,13 +1947,13 @@ def generate_dual_version_report(
         "",
         "## Version A：V3 全链路（主链路基线）",
         "",
-        *_listing_block(version_a.get("generated_copy") or {}),
+        *_listing_block(version_a),
         *_scoring_block(version_a.get("scoring_results") or {}),
         "---",
         "",
         "## Version B：R1 Title + Bullets + V3 Remaining Fields（实验版）",
         "",
-        *_listing_block(version_b.get("generated_copy") or {}),
+        *_listing_block(version_b),
         *_scoring_block(version_b.get("scoring_results") or {}),
         "---",
         "",
@@ -1947,6 +1965,7 @@ def generate_dual_version_report(
         f"| COSMO | {_summary_row(version_a, 'content')} | {_summary_row(version_b, 'content')} |",
         f"| Rufus | {_summary_row(version_a, 'conversion')} | {_summary_row(version_b, 'conversion')} |",
         f"| Fluency | {_summary_row(version_a, 'readability')} | {_summary_row(version_b, 'readability')} |",
+        f"| generation_status | {version_a.get('generation_status', '')} | {version_b.get('generation_status', '')} |",
         f"| listing_status | {(version_a.get('scoring_results') or {}).get('listing_status', '')} | {(version_b.get('scoring_results') or {}).get('listing_status', '')} |",
         f"| Blueprint 来源 | {version_a.get('blueprint_model', 'deepseek-chat')} | {version_b.get('blueprint_model', 'deepseek-reasoner')} |",
         f"| 可见文案来源 | {version_a.get('visible_copy_model', 'deepseek-chat')} | {version_b.get('visible_copy_model', 'deepseek-reasoner (title+bullets)')} |",

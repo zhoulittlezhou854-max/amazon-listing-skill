@@ -176,6 +176,97 @@ def test_run_workspace_workflow_dual_version_returns_dual_report(tmp_path: Path,
     }
 
 
+def test_run_workspace_workflow_dual_version_surfaces_version_b_failure_status(tmp_path: Path, monkeypatch):
+    workspace = tmp_path / "workspace" / "H91LITE_US"
+    workspace.mkdir(parents=True)
+    run_config = workspace / "run_config.json"
+    run_config.write_text(
+        json.dumps({"product_code": "H91lite", "target_country": "US"}),
+        encoding="utf-8",
+    )
+
+    def _fake_run(
+        config_path,
+        output_dir,
+        steps=None,
+        blueprint_model_override=None,
+        title_model_override=None,
+        bullet_model_override=None,
+    ):
+        out = Path(output_dir)
+        out.mkdir(parents=True, exist_ok=True)
+        if blueprint_model_override:
+            (out / "execution_summary.json").write_text(
+                json.dumps(
+                    {
+                        "workflow_status": "failed",
+                        "results": {
+                            "step_5": {
+                                "status": "error",
+                                "error": "experimental_version_b_blueprint_failed: timeout",
+                            }
+                        },
+                    }
+                ),
+                encoding="utf-8",
+            )
+            return {
+                "summary": {"workflow_status": "failed", "results": {"step_5": {"status": "error"}}},
+                "generated_copy": {},
+                "risk_report": {},
+                "scoring_results": {},
+                "writing_policy": {},
+                "preprocessed_data": None,
+            }
+        (out / "generated_copy.json").write_text(
+            json.dumps(
+                {
+                    "title": "Demo",
+                    "bullets": ["B1", "B2", "B3", "B4", "B5"],
+                    "description": "Desc",
+                    "search_terms": ["t1"],
+                    "metadata": {"generation_status": "live_success"},
+                }
+            ),
+            encoding="utf-8",
+        )
+        (out / "scoring_results.json").write_text(
+            json.dumps(
+                {
+                    "listing_status": "READY_FOR_LISTING",
+                    "dimensions": {
+                        "traffic": {"score": 100},
+                        "content": {"score": 100},
+                        "conversion": {"score": 90},
+                        "readability": {"score": 30},
+                    },
+                }
+            ),
+            encoding="utf-8",
+        )
+        return {
+            "summary": {"workflow_status": "success"},
+            "generated_copy": {},
+            "risk_report": {},
+            "scoring_results": {},
+            "writing_policy": {},
+            "preprocessed_data": None,
+        }
+
+    monkeypatch.setattr(run_service, "run_generator_workflow", _fake_run)
+    monkeypatch.setattr(run_service, "snapshot_run_outputs", lambda *_args, **_kwargs: {})
+
+    result = run_service.run_workspace_workflow(
+        str(run_config),
+        str(workspace),
+        steps=[0, 5, 6, 7, 8, 9],
+        dual_version=True,
+    )
+
+    assert result["dual_version"]["version_b"]["generation_status"] == "FAILED_AT_BLUEPRINT"
+    assert "experimental_version_b_blueprint_failed: timeout" in result["dual_report_text"]
+
+
 def test_attach_intent_weight_snapshot_updates_run_config(tmp_path: Path):
     workspace = workspace_service.initialize_workspace(
         product_code="T70",
