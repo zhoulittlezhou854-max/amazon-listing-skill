@@ -1155,6 +1155,45 @@ def _truth_consistency_section(risk_report: Dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
+def _hybrid_launch_report_block(generated_copy: Dict[str, Any], scoring_results: Dict[str, Any]) -> List[str]:
+    metadata = generated_copy.get("metadata") or {}
+    if str(metadata.get("visible_copy_mode") or "").strip() != "hybrid_postselect":
+        return []
+
+    launch_decision = metadata.get("launch_decision") or {}
+    repairs = metadata.get("hybrid_repairs") or []
+    source_trace = generated_copy.get("source_trace") or {}
+    dimensions = scoring_results.get("dimensions") or {}
+
+    lines = ["## Hybrid Launch Report"]
+    lines.append(f"- launch_decision: {launch_decision.get('recommended_output', 'unknown')}")
+    reason_list = launch_decision.get("reasons") or []
+    lines.append(f"- gate_reasons: {', '.join(reason_list) if reason_list else 'none'}")
+    lines.append(f"- source_split: {metadata.get('hybrid_sources') or {}}")
+    if source_trace.get("bullets"):
+        bullet_summary = ", ".join(
+            f"{row.get('slot')}->{row.get('source_version')} ({row.get('selection_reason')})"
+            for row in source_trace.get("bullets") or []
+        )
+        lines.append(f"- bullet_slots: {bullet_summary}")
+    if repairs:
+        repair_summary = ", ".join(
+            f"{row.get('slot')}:{row.get('keyword')} [{row.get('action')}]" for row in repairs
+        )
+        lines.append(f"- repair_actions: {repair_summary}")
+    else:
+        lines.append("- repair_actions: none")
+    lines.append(
+        "- gate_scores: "
+        f"A10={((dimensions.get('traffic') or {}).get('score')) or 0}, "
+        f"COSMO={((dimensions.get('content') or {}).get('score')) or ((dimensions.get('conversion') or {}).get('score')) or 0}, "
+        f"Rufus={((dimensions.get('conversion') or {}).get('score')) or ((dimensions.get('answerability') or {}).get('score')) or 0}, "
+        f"Fluency={((dimensions.get('readability') or {}).get('score')) or 0}"
+    )
+    lines.append("")
+    return lines
+
+
 def _traffic_retention_section(risk_report: Dict[str, Any]) -> str:
     retention = (risk_report or {}).get("traffic_retention", {}) or {}
     if not retention.get("enabled"):
@@ -1847,6 +1886,7 @@ def generate_report(
     )
     lines.extend(confidence_lines)
     lines.append("")
+    lines.extend(_hybrid_launch_report_block(generated_copy, scoring_results))
     lines.extend(_operations_payload_block(generated_copy))
     lines.extend(_operations_strategy_summary(generated_copy, writing_policy, scoring_results))
     lines.append("")
