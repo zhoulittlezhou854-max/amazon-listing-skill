@@ -7,7 +7,11 @@ from pathlib import Path
 from typing import Any, Dict, Optional
 
 from modules import report_builder, report_generator, risk_check, scoring
-from modules.hybrid_optimizer import collect_missing_l2_keywords, repair_hybrid_bullets_for_l2
+from modules.hybrid_optimizer import (
+    LISTING_L2_COVERAGE_THRESHOLD,
+    analyze_listing_l2_coverage,
+    repair_hybrid_bullets_for_l2,
+)
 
 
 DEFAULT_HYBRID_SELECTION_POLICY: Dict[str, str] = {
@@ -136,6 +140,7 @@ def select_source_for_bullet_slot(
     fallback_b = _extract_fallback_bullet_slots(meta_b)
 
     disqualified = []
+    soft_signals: list[str] = []
     eligible = {}
     for version, bullet, blocked, fallback in (
         ("version_a", bullet_a, blocked_a, fallback_a),
@@ -156,6 +161,7 @@ def select_source_for_bullet_slot(
             "source_version": None,
             "selection_reason": "no_eligible_source",
             "disqualified": disqualified,
+            "soft_signals": soft_signals,
         }
     if eligible.get("version_a") and not eligible.get("version_b"):
         reason = next((row["reason"] for row in disqualified if row["version"] == "version_b"), "single_eligible_source")
@@ -163,6 +169,7 @@ def select_source_for_bullet_slot(
             "source_version": "version_a",
             "selection_reason": "version_b_fallback_marked" if reason.startswith("fallback_marked:") else "version_b_risk_blocked",
             "disqualified": disqualified,
+            "soft_signals": soft_signals,
         }
     if eligible.get("version_b") and not eligible.get("version_a"):
         reason = next((row["reason"] for row in disqualified if row["version"] == "version_a"), "single_eligible_source")
@@ -170,26 +177,25 @@ def select_source_for_bullet_slot(
             "source_version": "version_b",
             "selection_reason": "version_a_fallback_marked" if reason.startswith("fallback_marked:") else "version_a_risk_blocked",
             "disqualified": disqualified,
+            "soft_signals": soft_signals,
         }
 
     a_has_l2 = _bullet_has_slot_targets(bullet_a, slot_l2_targets)
     b_has_l2 = _bullet_has_slot_targets(bullet_b, slot_l2_targets)
     if a_has_l2 and not b_has_l2:
-        return {
-            "source_version": "version_a",
-            "selection_reason": "version_b_missing_l2",
-            "disqualified": disqualified,
-        }
+        soft_signals.append("version_b_missing_l2")
     if b_has_l2 and not a_has_l2:
         return {
             "source_version": "version_b",
             "selection_reason": "slot_default_preference",
             "disqualified": disqualified,
+            "soft_signals": soft_signals,
         }
     return {
         "source_version": "version_b",
         "selection_reason": "slot_default_preference",
         "disqualified": disqualified,
+        "soft_signals": soft_signals,
     }
 
 
@@ -355,6 +361,7 @@ def compose_hybrid_listing(
                 "source_version": bullet_source,
                 "selection_reason": decision["selection_reason"],
                 "disqualified": deepcopy(decision["disqualified"]),
+                "soft_signals": deepcopy(decision.get("soft_signals") or []),
             }
         )
 
@@ -494,6 +501,59 @@ def _collect_hybrid_l2_keywords(hybrid_copy: Dict[str, Any]) -> list[str]:
     return keywords
 
 
+def _build_hybrid_l2_slot_targets(hybrid_copy: Dict[str, Any]) -> dict[str, list[str]]:
+    slot_targets: dict[str, list[str]] = {}
+    rows = ((hybrid_copy.get("decision_trace") or {}).get("keyword_assignments") or [])
+    for row in rows:
+        if str(row.get("tier") or "").upper() != "L2":
+            continue
+        keyword = str(row.get("keyword") or "").strip()
+        if not keyword:
+            continue
+        for field in row.get("assigned_fields") or []:
+            normalized = _normalize_assigned_field(field)
+            if normalized.startswith("B") and normalized[1:].isdigit():
+                bucket = slot_targets.setdefault(normalized, [])
+                if keyword not in bucket:
+                    bucket.append(keyword)
+    return slot_targets
+
+
+def _record_hybrid_repair_keyword_assignments(
+    hybrid_copy: Dict[str, Any],
+    repair_actions: list[Dict[str, Any]],
+) -> None:
+    decision_trace = hybrid_copy.setdefault("decision_trace", {})
+    rows = decision_trace.setdefault("keyword_assignments", [])
+    for action in repair_actions or []:
+        keyword = str(action.get("keyword") or "").strip()
+        slot = str(action.get("slot") or "").upper().strip()
+        if not keyword or not slot.startswith("B") or not slot[1:].isdigit():
+            continue
+        alias = f"bullet_b{slot[1:]}"
+        existing = next(
+            (
+                row for row in rows
+                if str(row.get("keyword") or "").strip().lower() == keyword.lower()
+                and str(row.get("source_version") or "").strip() == "hybrid_repair"
+            ),
+            None,
+        )
+        if existing is None:
+            existing = {
+                "keyword": keyword,
+                "tier": "L2",
+                "source_type": "hybrid_repair",
+                "search_volume": None,
+                "assigned_fields": [],
+                "source_version": "hybrid_repair",
+            }
+            rows.append(existing)
+        for field in (slot, alias):
+            if field not in existing["assigned_fields"]:
+                existing["assigned_fields"].append(field)
+
+
 def build_hybrid_launch_decision(
     *,
     risk_report: Dict[str, Any],
@@ -560,16 +620,37 @@ def finalize_hybrid_outputs(
         payload = version_a if source_version == "version_a" else version_b
         hybrid_copy["audit_trail"].extend(deepcopy(payload.get("audit_trail") or []))
 
-    assigned_l2 = _collect_hybrid_l2_keywords(hybrid_copy)
-    missing_l2 = collect_missing_l2_keywords(hybrid_copy.get("bullets") or [], assigned_l2)
-    repaired_bullets, repair_actions = repair_hybrid_bullets_for_l2(
+    slot_targets = _build_slot_l2_targets(version_a, version_b)
+    coverage = analyze_listing_l2_coverage(
         hybrid_copy.get("bullets") or [],
-        missing_keywords=missing_l2,
-        max_repairs=2,
+        slot_targets,
+        threshold=LISTING_L2_COVERAGE_THRESHOLD,
     )
-    if repair_actions:
-        hybrid_copy["bullets"] = repaired_bullets
-        metadata["hybrid_repairs"] = repair_actions
+    metadata["hybrid_l2_coverage"] = {
+        "covered_slots": coverage["covered_slots"],
+        "coverage_count": coverage["coverage_count"],
+        "threshold": coverage["threshold"],
+    }
+    if not coverage["meets_threshold"]:
+        repaired_bullets, repair_actions = repair_hybrid_bullets_for_l2(
+            hybrid_copy.get("bullets") or [],
+            missing_keywords=coverage["missing_keywords"],
+            max_repairs=2,
+        )
+        if repair_actions:
+            hybrid_copy["bullets"] = repaired_bullets
+            _record_hybrid_repair_keyword_assignments(hybrid_copy, repair_actions)
+            repaired_coverage = analyze_listing_l2_coverage(
+                hybrid_copy.get("bullets") or [],
+                slot_targets,
+                threshold=LISTING_L2_COVERAGE_THRESHOLD,
+            )
+            metadata["hybrid_l2_coverage"] = {
+                "covered_slots": repaired_coverage["covered_slots"],
+                "coverage_count": repaired_coverage["coverage_count"],
+                "threshold": repaired_coverage["threshold"],
+            }
+            metadata["hybrid_repairs"] = repair_actions
 
     risk_report = risk_check.perform_risk_check(
         hybrid_copy,

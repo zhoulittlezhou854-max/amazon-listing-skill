@@ -221,7 +221,7 @@ def test_hybrid_rebuild_normalizes_legacy_bullet_field_aliases(tmp_path):
         "faq": [],
         "search_terms": [],
         "aplus_content": "",
-        "metadata": {},
+        "metadata": {"visible_llm_fallback_fields": ["bullet_b1", "bullet_b2"]},
         "decision_trace": {"keyword_assignments": []},
     }
 
@@ -370,6 +370,223 @@ def test_hybrid_finalize_records_repair_trace_when_l2_is_missing(tmp_path):
     assert repairs
     assert repairs[0]["action"] == "l2_backfill"
     assert any("mini camera" in bullet.lower() for bullet in persisted["bullets"])
+
+
+def test_hybrid_finalize_skips_repair_when_listing_l2_threshold_is_already_met(tmp_path):
+    preprocessed = _sample_preprocessed()
+    writing_policy = {"market_pack": {"locale": "US"}, "target_language": "English"}
+    version_a = {
+        "title": "TOSBARRFT action camera for travel",
+        "bullets": [
+            "A1 travel camera coverage.",
+            "A2 body camera with audio evidence capture.",
+            "A3 thumb camera support.",
+            "A4 guidance.",
+            "A5 kit.",
+        ],
+        "description": "Portable camera for daily recording.",
+        "faq": [],
+        "search_terms": ["travel cam"],
+        "aplus_content": "word " * 520,
+        "metadata": {"generation_status": "live_success", "target_language": "English"},
+        "decision_trace": {
+            "keyword_assignments": [
+                {"keyword": "travel camera", "tier": "L2", "assigned_fields": ["B1"]},
+                {"keyword": "body camera with audio", "tier": "L2", "assigned_fields": ["B2"]},
+                {"keyword": "thumb camera", "tier": "L2", "assigned_fields": ["B3"]},
+            ],
+            "search_terms_trace": {"byte_length": 100, "max_bytes": 249},
+        },
+        "audit_trail": [],
+        "compute_tier_map": {},
+        "evidence_bundle": {"claim_support_matrix": [], "rufus_readiness": {"score": 0.0}},
+    }
+    version_b = {
+        "title": "TOSBARRFT body camera",
+        "bullets": [
+            "B1 travel camera commute coverage.",
+            "B2 body camera with audio evidence capture.",
+            "B3 thumb camera support.",
+            "B4 guidance.",
+            "B5 kit.",
+        ],
+        "description": "R1 desc",
+        "faq": [],
+        "search_terms": [],
+        "aplus_content": "word " * 520,
+        "metadata": {"generation_status": "live_success", "target_language": "English"},
+        "decision_trace": {
+            "keyword_assignments": [
+                {"keyword": "travel camera", "tier": "L2", "assigned_fields": ["B1"]},
+                {"keyword": "body camera with audio", "tier": "L2", "assigned_fields": ["B2"]},
+                {"keyword": "thumb camera", "tier": "L2", "assigned_fields": ["B3"]},
+            ],
+            "bullet_trace": [{"slot": f"B{i}", "audience_group": "general"} for i in range(1, 6)],
+        },
+        "audit_trail": [],
+        "compute_tier_map": {},
+        "evidence_bundle": {"claim_support_matrix": [], "rufus_readiness": {"score": 0.0}},
+    }
+    hybrid = compose_hybrid_listing(version_a, version_b, tmp_path / "hybrid", DEFAULT_HYBRID_SELECTION_POLICY)
+
+    finalize_hybrid_outputs(
+        hybrid_copy=hybrid,
+        version_a=version_a,
+        version_b=version_b,
+        writing_policy=writing_policy,
+        preprocessed_data=preprocessed,
+        output_dir=tmp_path / "hybrid",
+        language="English",
+        intent_graph=None,
+    )
+
+    persisted = json.loads((tmp_path / "hybrid" / "generated_copy.json").read_text(encoding="utf-8"))
+    repairs = persisted["metadata"].get("hybrid_repairs") or []
+    assert repairs == []
+
+
+def test_hybrid_finalize_uses_union_slot_targets_to_trigger_repair_for_b_selected_bullets(tmp_path):
+    preprocessed = _sample_preprocessed()
+    writing_policy = {"market_pack": {"locale": "US"}, "target_language": "English"}
+    version_a = {
+        "title": "TOSBARRFT action camera for travel",
+        "bullets": [
+            "A1 travel camera coverage.",
+            "A2 body camera with audio evidence capture.",
+            "A3 thumb camera support.",
+            "A4 guidance.",
+            "A5 kit.",
+        ],
+        "description": "Portable camera for daily recording.",
+        "faq": [],
+        "search_terms": ["travel cam"],
+        "aplus_content": "word " * 520,
+        "metadata": {"generation_status": "live_success", "target_language": "English"},
+        "decision_trace": {
+            "keyword_assignments": [
+                {"keyword": "travel camera", "tier": "L2", "assigned_fields": ["B1"]},
+                {"keyword": "body camera with audio", "tier": "L2", "assigned_fields": ["B2"]},
+                {"keyword": "thumb camera", "tier": "L2", "assigned_fields": ["B3"]},
+            ],
+            "search_terms_trace": {"byte_length": 100, "max_bytes": 249},
+        },
+        "audit_trail": [],
+        "compute_tier_map": {},
+        "evidence_bundle": {"claim_support_matrix": [], "rufus_readiness": {"score": 0.0}},
+    }
+    version_b = {
+        "title": "TOSBARRFT body camera",
+        "bullets": [
+            "B1 commute recording with magnetic clip.",
+            "B2 evidence capture for security professionals.",
+            "B3 creative POV filming for rides.",
+            "B4 guidance.",
+            "B5 kit.",
+        ],
+        "description": "R1 desc",
+        "faq": [],
+        "search_terms": [],
+        "aplus_content": "word " * 520,
+        "metadata": {"generation_status": "live_success", "target_language": "English"},
+        "decision_trace": {
+            "keyword_assignments": [],
+            "bullet_trace": [{"slot": f"B{i}", "audience_group": "general"} for i in range(1, 6)],
+        },
+        "audit_trail": [],
+        "compute_tier_map": {},
+        "evidence_bundle": {"claim_support_matrix": [], "rufus_readiness": {"score": 0.0}},
+    }
+    hybrid = compose_hybrid_listing(version_a, version_b, tmp_path / "hybrid", DEFAULT_HYBRID_SELECTION_POLICY)
+
+    finalize_hybrid_outputs(
+        hybrid_copy=hybrid,
+        version_a=version_a,
+        version_b=version_b,
+        writing_policy=writing_policy,
+        preprocessed_data=preprocessed,
+        output_dir=tmp_path / "hybrid",
+        language="English",
+        intent_graph=None,
+    )
+
+    persisted = json.loads((tmp_path / "hybrid" / "generated_copy.json").read_text(encoding="utf-8"))
+    assert persisted["metadata"]["hybrid_l2_coverage"]["coverage_count"] == 2
+    repairs = persisted["metadata"].get("hybrid_repairs") or []
+    assert repairs
+
+
+def test_hybrid_finalize_records_repaired_l2_assignments_into_decision_trace(tmp_path):
+    preprocessed = _sample_preprocessed()
+    writing_policy = {"market_pack": {"locale": "US"}, "target_language": "English"}
+    version_a = {
+        "title": "TOSBARRFT action camera for travel",
+        "bullets": [
+            "A1 travel camera coverage.",
+            "A2 body camera with audio evidence capture.",
+            "A3 thumb camera support.",
+            "A4 guidance.",
+            "A5 kit.",
+        ],
+        "description": "Portable camera for daily recording.",
+        "faq": [],
+        "search_terms": ["travel cam"],
+        "aplus_content": "word " * 520,
+        "metadata": {"generation_status": "live_success", "target_language": "English"},
+        "decision_trace": {
+            "keyword_assignments": [
+                {"keyword": "travel camera", "tier": "L2", "assigned_fields": ["B1"]},
+                {"keyword": "body camera with audio", "tier": "L2", "assigned_fields": ["B2"]},
+                {"keyword": "thumb camera", "tier": "L2", "assigned_fields": ["B3"]},
+            ],
+            "search_terms_trace": {"byte_length": 100, "max_bytes": 249},
+        },
+        "audit_trail": [],
+        "compute_tier_map": {},
+        "evidence_bundle": {"claim_support_matrix": [], "rufus_readiness": {"score": 0.0}},
+    }
+    version_b = {
+        "title": "TOSBARRFT body camera",
+        "bullets": [
+            "Extended-session wearable recording with magnetic clip support and lightweight hands-free capture across daily commutes and walking scenes, ideal for content creators and adventurers.",
+            "Evidence-ready design with 1080P video and AAC audio for reliable incident documentation during full shifts.",
+            "Thumb-sized commuting companion for cyclists and urban commuters in steady-paced scenes.",
+            "Guidance for stable walking tours and clipped scenes.",
+            "Complete kit with USB Type-C cable and storage support.",
+        ],
+        "description": "R1 desc",
+        "faq": [],
+        "search_terms": [],
+        "aplus_content": "word " * 520,
+        "metadata": {"generation_status": "live_success", "target_language": "English"},
+        "decision_trace": {
+            "keyword_assignments": [],
+            "bullet_trace": [{"slot": f"B{i}", "audience_group": "general"} for i in range(1, 6)],
+        },
+        "audit_trail": [],
+        "compute_tier_map": {},
+        "evidence_bundle": {"claim_support_matrix": [], "rufus_readiness": {"score": 0.0}},
+    }
+    hybrid = compose_hybrid_listing(version_a, version_b, tmp_path / "hybrid", DEFAULT_HYBRID_SELECTION_POLICY)
+
+    finalize_hybrid_outputs(
+        hybrid_copy=hybrid,
+        version_a=version_a,
+        version_b=version_b,
+        writing_policy=writing_policy,
+        preprocessed_data=preprocessed,
+        output_dir=tmp_path / "hybrid",
+        language="English",
+        intent_graph=None,
+    )
+
+    persisted = json.loads((tmp_path / "hybrid" / "generated_copy.json").read_text(encoding="utf-8"))
+    assignments = persisted["decision_trace"]["keyword_assignments"]
+    repaired_assignment = next(
+        row for row in assignments
+        if row["keyword"] == "travel camera" and "B1" in row["assigned_fields"]
+    )
+
+    assert repaired_assignment["source_version"] == "hybrid_repair"
 
 
 def test_dual_report_can_include_hybrid_appendix():
@@ -554,7 +771,7 @@ def test_generate_report_includes_hybrid_launch_report():
     assert "l2_backfill" in report
 
 
-def test_select_source_for_bullet_slot_falls_back_to_a_when_b_misses_slot_l2():
+def test_select_source_for_bullet_slot_keeps_but_records_soft_signal_when_b_misses_slot_l2():
     from modules.hybrid_composer import select_source_for_bullet_slot
 
     decision = select_source_for_bullet_slot(
@@ -568,8 +785,9 @@ def test_select_source_for_bullet_slot_falls_back_to_a_when_b_misses_slot_l2():
         slot_l2_targets=["body camera"],
     )
 
-    assert decision["source_version"] == "version_a"
-    assert decision["selection_reason"] == "version_b_missing_l2"
+    assert decision["source_version"] == "version_b"
+    assert decision["selection_reason"] == "slot_default_preference"
+    assert "version_b_missing_l2" in decision["soft_signals"]
 
 
 def test_compose_hybrid_listing_records_per_slot_bullet_sources(tmp_path):
@@ -619,12 +837,13 @@ def test_compose_hybrid_listing_records_per_slot_bullet_sources(tmp_path):
 
     hybrid = compose_hybrid_listing(version_a, version_b, tmp_path / "hybrid", DEFAULT_HYBRID_SELECTION_POLICY)
 
-    assert hybrid["bullets"][1] == "A2 body camera coverage"
+    assert hybrid["bullets"][1] == "B2 security evidence coverage"
     assert hybrid["bullets"][2] == "B3 helmet camera support"
-    assert hybrid["source_trace"]["bullets"][1]["source_version"] == "version_a"
-    assert hybrid["source_trace"]["bullets"][1]["selection_reason"] == "version_b_missing_l2"
+    assert hybrid["source_trace"]["bullets"][1]["source_version"] == "version_b"
+    assert hybrid["source_trace"]["bullets"][1]["selection_reason"] == "slot_default_preference"
+    assert "version_b_missing_l2" in hybrid["source_trace"]["bullets"][1]["soft_signals"]
     assert hybrid["source_trace"]["bullets"][2]["source_version"] == "version_b"
-    assert hybrid["metadata"]["hybrid_sources"]["bullets"] == "mixed"
+    assert hybrid["metadata"]["hybrid_sources"]["bullets"] == "version_b"
 
 
 def test_compose_hybrid_listing_understands_legacy_bullet_slot_aliases(tmp_path):
@@ -643,7 +862,7 @@ def test_compose_hybrid_listing_understands_legacy_bullet_slot_aliases(tmp_path)
     version_b = {
         "title": "B title",
         "bullets": ["B1 commuting capture", "B2 security evidence coverage", "B3 thumb camera", "B4 guidance", "B5 kit"],
-        "metadata": {},
+        "metadata": {"visible_llm_fallback_fields": ["bullet_b1", "bullet_b2"]},
         "risk_report": {},
         "decision_trace": {"keyword_assignments": [], "bullet_trace": [{"slot": f"B{i}"} for i in range(1, 6)]},
     }
