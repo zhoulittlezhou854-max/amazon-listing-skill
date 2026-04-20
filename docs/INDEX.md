@@ -8,7 +8,11 @@
 docs/
 ├── INDEX.md (此文件)
 ├── prd/                 # 产品需求文档
+├── superpowers/         # 计划文档与执行计划
 ├── knowledge-base/      # 知识库和技术文档
+├── progress/            # 进度记录
+├── audits/              # 审计与分析
+├── summaries/           # 阶段总结
 └── input_tables_spec.md # 输入表规范
 ```
 
@@ -16,7 +20,11 @@ docs/
 | 目录 | 说明 | 文件数量 |
 |------|------|----------|
 | prd/ | 产品需求文档 | 多文件 |
+| superpowers/ | 实施计划与专项修复计划 | 多文件 |
 | knowledge-base/ | 技术知识和技能文档 | 多文件 |
+| progress/ | 项目进度与 rollout 记录 | 多文件 |
+| audits/ | 结构、规则、历史分析 | 多文件 |
+| summaries/ | 阶段总结与评估结果 | 多文件 |
 | input_tables_spec.md | 线上运行输入表规范 | 1 |
 
 ## 使用指南
@@ -39,3 +47,4 @@ docs/
 
 ## 最后更新
 2026-04-03: 初始创建，文档文件重组
+2026-04-20: 补充 superpowers、progress、audits、summaries 目录说明
