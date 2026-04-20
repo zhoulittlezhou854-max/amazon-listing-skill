@@ -93,6 +93,138 @@ def _run_single_version(
     }
 
 
+def _resolve_listing_status(risk_report: dict, scoring_results: dict) -> str:
+    return (
+        ((risk_report.get("listing_status") or {}).get("status"))
+        or scoring_results.get("listing_status")
+        or "UNKNOWN"
+    )
+
+
+def _launch_gate_scores(scoring_results: dict, launch_decision: dict) -> dict:
+    if launch_decision.get("scores"):
+        return dict(launch_decision.get("scores") or {})
+    dimensions = scoring_results.get("dimensions") or {}
+    return {
+        "A10": ((dimensions.get("traffic") or {}).get("score")) or 0,
+        "COSMO": ((dimensions.get("content") or {}).get("score")) or 0,
+        "Rufus": ((dimensions.get("conversion") or {}).get("score")) or 0,
+        "Fluency": ((dimensions.get("readability") or {}).get("score")) or 0,
+    }
+
+
+def _build_final_readiness_verdict(
+    *,
+    run_id: str,
+    output_dir: Path,
+    version_a: dict,
+    hybrid_bundle: dict,
+    hybrid_copy: dict,
+) -> dict:
+    hybrid_generated_copy = hybrid_bundle.get("generated_copy") or hybrid_copy or {}
+    hybrid_risk_report = hybrid_bundle.get("risk_report") or {}
+    hybrid_scoring_results = hybrid_bundle.get("scoring_results") or {}
+    launch_decision = ((hybrid_generated_copy.get("metadata") or {}).get("launch_decision") or {})
+    recommended_output = str(launch_decision.get("recommended_output") or "version_a")
+
+    version_a_generated_copy_path = output_dir / "version_a" / "generated_copy.json"
+    hybrid_generated_copy_path = output_dir / "hybrid" / "generated_copy.json"
+    recommended_generated_copy_path = hybrid_generated_copy_path if recommended_output == "hybrid" else version_a_generated_copy_path
+
+    if recommended_output == "hybrid":
+        listing_status = _resolve_listing_status(hybrid_risk_report, hybrid_scoring_results)
+    else:
+        listing_status = _resolve_listing_status(version_a.get("risk_report") or {}, version_a.get("scoring_results") or {})
+
+    verdict = {
+        "run_id": run_id,
+        "recommended_output": recommended_output,
+        "listing_status": listing_status,
+        "launch_gate": {
+            "passed": bool(launch_decision.get("passed")),
+            "scores": _launch_gate_scores(hybrid_scoring_results, launch_decision),
+            "thresholds": dict(launch_decision.get("thresholds") or {"A10": 80, "COSMO": 90, "Rufus": 90, "Fluency": 24}),
+        },
+        "reasons": list(launch_decision.get("reasons") or []),
+        "artifact_paths": {
+            "recommended_generated_copy": str(recommended_generated_copy_path),
+            "version_a_generated_copy": str(version_a_generated_copy_path),
+            "hybrid_generated_copy": str(hybrid_generated_copy_path),
+        },
+    }
+    return verdict
+
+
+def _write_listing_ready(output_dir: Path, final_verdict: dict) -> Path:
+    recommended_path = Path((final_verdict.get("artifact_paths") or {}).get("recommended_generated_copy") or "")
+    payload = _load_json(recommended_path) if recommended_path.exists() else {}
+    bullets = list(payload.get("bullets") or [])
+    description = str(payload.get("description") or "")
+    search_terms = payload.get("search_terms") or []
+    search_terms_text = ", ".join(search_terms) if isinstance(search_terms, list) else str(search_terms or "")
+    lines = [
+        "# Listing Ready",
+        "",
+        "## Recommended Source",
+        f"- Output: `{final_verdict.get('recommended_output') or 'unknown'}`",
+        f"- Status: `{final_verdict.get('listing_status') or 'UNKNOWN'}`",
+        f"- Source File: `{recommended_path}`",
+        "",
+        "## Amazon Backend Paste Blocks",
+        "",
+        "按后台粘贴顺序提供，下面每个代码块都可单独复制。",
+        "",
+        "### Title",
+        "```text",
+        str(payload.get("title") or ""),
+        "```",
+        "",
+        "### Bullet 1",
+        "```text",
+        bullets[0] if len(bullets) > 0 else "",
+        "```",
+        "",
+        "### Bullet 2",
+        "```text",
+        bullets[1] if len(bullets) > 1 else "",
+        "```",
+        "",
+        "### Bullet 3",
+        "```text",
+        bullets[2] if len(bullets) > 2 else "",
+        "```",
+        "",
+        "### Bullet 4",
+        "```text",
+        bullets[3] if len(bullets) > 3 else "",
+        "```",
+        "",
+        "### Bullet 5",
+        "```text",
+        bullets[4] if len(bullets) > 4 else "",
+        "```",
+        "",
+        "### Product Description",
+        "```text",
+        description,
+        "```",
+        "",
+        "### Search Terms",
+        "```text",
+        search_terms_text,
+        "```",
+        "",
+        "## Quick Scan",
+    ]
+    lines.append(f"- Title length: {len(str(payload.get('title') or ''))}")
+    lines.append(f"- Bullet count: {len(bullets)}")
+    lines.append(f"- Description length: {len(description)}")
+    lines.append(f"- Search terms count: {len(search_terms) if isinstance(search_terms, list) else (1 if search_terms_text else 0)}")
+    listing_ready_path = output_dir / "LISTING_READY.md"
+    listing_ready_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    return listing_ready_path
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Convenience wrapper for real product pipeline runs.")
     parser.add_argument("--product", required=True, help="Product code, e.g. H91lite")
@@ -158,6 +290,19 @@ def main() -> None:
             language=((version_a["generated_copy"].get("metadata") or {}).get("target_language") or "English"),
             intent_graph=_load_json(version_a_dir / "intent_graph.json"),
         )
+    final_readiness_verdict = _build_final_readiness_verdict(
+        run_id=args.run_id,
+        output_dir=output_dir,
+        version_a=version_a,
+        hybrid_bundle=hybrid_bundle,
+        hybrid_copy=hybrid_copy,
+    )
+    final_readiness_verdict_path = output_dir / "final_readiness_verdict.json"
+    final_readiness_verdict_path.write_text(
+        json.dumps(final_readiness_verdict, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+    listing_ready_path = _write_listing_ready(output_dir, final_readiness_verdict)
     dual_report = report_generator.generate_dual_version_report(
         sku=args.product,
         market=args.market.upper(),
@@ -184,6 +329,7 @@ def main() -> None:
             "generated_copy": hybrid_bundle.get("generated_copy") or hybrid_copy,
             "scoring_results": hybrid_bundle.get("scoring_results") or {},
             "generation_status": ((hybrid_bundle.get("generated_copy") or hybrid_copy).get("metadata") or {}).get("hybrid_generation_status", "composed"),
+            "final_readiness_verdict": final_readiness_verdict,
         },
     )
     dual_report_path = output_dir / "dual_version_report.md"
@@ -200,6 +346,8 @@ def main() -> None:
     print(f"Hybrid output: {hybrid_dir / 'generated_copy.json'}")
     print(f"Hybrid title source: {(hybrid_copy.get('metadata') or {}).get('hybrid_sources', {}).get('title', '')}")
     print(f"Dual report: {dual_report_path}")
+    print(f"Final verdict: {final_readiness_verdict_path}")
+    print(f"Listing ready: {listing_ready_path}")
 
 
 if __name__ == "__main__":

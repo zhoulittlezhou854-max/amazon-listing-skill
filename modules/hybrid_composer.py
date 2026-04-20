@@ -81,6 +81,25 @@ def _extract_fallback_bullet_slots(version_metadata: Dict[str, Any]) -> set[str]
     return slots
 
 
+def _extract_scrub_integrity_bullet_slots(audit_trail: Any) -> set[str]:
+    slots: set[str] = set()
+    for entry in audit_trail or []:
+        if not isinstance(entry, dict):
+            continue
+        field = str(entry.get("field") or "").strip().lower()
+        if not field.startswith("bullet_b"):
+            continue
+        reason = str(entry.get("reason") or "").strip().lower()
+        action = str(entry.get("action") or "").strip().lower()
+        if not field.removeprefix("bullet_b").isdigit():
+            continue
+        if reason.startswith("forbidden_visible_terms") or (
+            action == "delete" and reason == "forbidden_visible_terms_scrub"
+        ):
+            slots.add(f"B{field.removeprefix('bullet_b')}")
+    return slots
+
+
 def _build_slot_l2_targets(*payloads: Dict[str, Any]) -> Dict[str, list[str]]:
     slot_targets: Dict[str, list[str]] = {}
     for payload in payloads:
@@ -132,12 +151,16 @@ def select_source_for_bullet_slot(
     meta_b: Dict[str, Any],
     risk_b: Dict[str, Any],
     slot_l2_targets: list[str],
+    audit_a: Optional[Any] = None,
+    audit_b: Optional[Any] = None,
 ) -> Dict[str, Any]:
     slot = str(slot).upper()
     blocked_a = _extract_blocked_bullet_slots(risk_a)
     blocked_b = _extract_blocked_bullet_slots(risk_b)
     fallback_a = _extract_fallback_bullet_slots(meta_a)
     fallback_b = _extract_fallback_bullet_slots(meta_b)
+    scrubbed_a = _extract_scrub_integrity_bullet_slots(audit_a)
+    scrubbed_b = _extract_scrub_integrity_bullet_slots(audit_b)
 
     disqualified = []
     soft_signals: list[str] = []
@@ -176,6 +199,23 @@ def select_source_for_bullet_slot(
         return {
             "source_version": "version_b",
             "selection_reason": "version_a_fallback_marked" if reason.startswith("fallback_marked:") else "version_a_risk_blocked",
+            "disqualified": disqualified,
+            "soft_signals": soft_signals,
+        }
+
+    if slot in scrubbed_b and slot not in scrubbed_a:
+        soft_signals.append("version_b_scrub_integrity_flag")
+        return {
+            "source_version": "version_a",
+            "selection_reason": "version_b_scrub_integrity_flag",
+            "disqualified": disqualified,
+            "soft_signals": soft_signals,
+        }
+    if slot in scrubbed_a and slot not in scrubbed_b:
+        soft_signals.append("version_a_scrub_integrity_flag")
+        return {
+            "source_version": "version_b",
+            "selection_reason": "version_a_scrub_integrity_flag",
             "disqualified": disqualified,
             "soft_signals": soft_signals,
         }
@@ -322,6 +362,7 @@ def compose_hybrid_listing(
     field_decisions: Dict[str, Dict[str, Any]] = {}
     field_values: Dict[str, Any] = {}
     no_eligible_source: list[str] = []
+    degraded_reasons: list[str] = []
     for field_name in DEFAULT_HYBRID_SELECTION_POLICY:
         decision = select_source_for_field(field_name, meta_a, risk_a, meta_b, risk_b)
         field_decisions[field_name] = decision
@@ -351,10 +392,29 @@ def compose_hybrid_listing(
             meta_b=meta_b,
             risk_b=risk_b,
             slot_l2_targets=slot_l2_targets.get(slot, []),
+            audit_a=version_a.get("audit_trail"),
+            audit_b=version_b.get("audit_trail"),
         )
         bullet_source = decision["source_version"] or policy.get("bullets", "version_b")
-        chosen_bullet = bullets_a[idx] if bullet_source == "version_a" else bullets_b[idx]
-        selected_bullets.append(deepcopy(chosen_bullet))
+        chosen_bullet = None
+        if bullet_source == "version_a":
+            if idx < len(bullets_a):
+                chosen_bullet = bullets_a[idx]
+            elif idx < len(bullets_b):
+                chosen_bullet = bullets_b[idx]
+                bullet_source = "version_b"
+                decision = {**decision, "selection_reason": "degraded_fallback_to_b", "degraded_mode": True}
+                degraded_reasons.append(f"B{idx + 1}:degraded_fallback_to_b")
+        else:
+            if idx < len(bullets_b):
+                chosen_bullet = bullets_b[idx]
+            elif idx < len(bullets_a):
+                chosen_bullet = bullets_a[idx]
+                bullet_source = "version_a"
+                decision = {**decision, "selection_reason": "degraded_fallback_to_a", "degraded_mode": True}
+                degraded_reasons.append(f"B{idx + 1}:degraded_fallback_to_a")
+        if chosen_bullet is not None:
+            selected_bullets.append(deepcopy(chosen_bullet))
         bullet_decisions.append(
             {
                 "slot": slot,
@@ -362,6 +422,7 @@ def compose_hybrid_listing(
                 "selection_reason": decision["selection_reason"],
                 "disqualified": deepcopy(decision["disqualified"]),
                 "soft_signals": deepcopy(decision.get("soft_signals") or []),
+                "degraded_mode": bool(decision.get("degraded_mode")),
             }
         )
 
@@ -387,6 +448,8 @@ def compose_hybrid_listing(
             "visible_copy_status": "hybrid_mixed",
             "hybrid_sources": field_sources,
             "visible_llm_fallback_fields": recomputed_visible_fallbacks,
+            "degraded_mode": bool(degraded_reasons),
+            "degraded_reasons": degraded_reasons,
         },
     }
     if no_eligible_source:
@@ -563,30 +626,46 @@ def build_hybrid_launch_decision(
     reasons: list[str] = []
     listing_status = ((risk_report.get("listing_status") or {}).get("status")) or ""
     if listing_status != "READY_FOR_LISTING":
-        reasons.append("listing not ready")
+        reasons.append("listing_not_ready")
 
     dimensions = scoring_results.get("dimensions") or {}
     a10 = ((dimensions.get("traffic") or {}).get("score")) or 0
-    cosmo = ((dimensions.get("content") or {}).get("score")) or ((dimensions.get("conversion") or {}).get("score")) or 0
-    rufus = ((dimensions.get("conversion") or {}).get("score")) or ((dimensions.get("answerability") or {}).get("score")) or 0
+    cosmo = ((dimensions.get("content") or {}).get("score")) or 0
+    rufus = ((dimensions.get("conversion") or {}).get("score")) or 0
     fluency = ((dimensions.get("readability") or {}).get("score")) or 0
+    scores = {
+        "A10": a10,
+        "COSMO": cosmo,
+        "Rufus": rufus,
+        "Fluency": fluency,
+    }
+    thresholds = {
+        "A10": 80,
+        "COSMO": 90,
+        "Rufus": 90,
+        "Fluency": 24,
+    }
     if a10 < 80:
-        reasons.append("A10 below threshold")
+        reasons.append("a10_below_threshold")
     if cosmo < 90:
-        reasons.append("COSMO below threshold")
+        reasons.append("cosmo_below_threshold")
     if rufus < 90:
-        reasons.append("Rufus below threshold")
+        reasons.append("rufus_below_threshold")
     if fluency < 24:
-        reasons.append("Fluency below threshold")
+        reasons.append("fluency_below_threshold")
 
     metadata = hybrid_copy.get("metadata") or {}
     if metadata.get("visible_llm_fallback_fields"):
-        reasons.append("visible fallback present")
+        reasons.append("visible_fallback_present")
     if hybrid_copy.get("_no_eligible_source"):
-        reasons.append("no eligible source present")
+        reasons.append("no_eligible_source_present")
 
+    passed = not reasons
     return {
-        "recommended_output": "hybrid" if not reasons else "version_a",
+        "passed": passed,
+        "recommended_output": "hybrid" if passed else "version_a",
+        "scores": scores,
+        "thresholds": thresholds,
         "reasons": reasons,
     }
 

@@ -1310,6 +1310,55 @@ def test_generate_and_audit_bullet_uses_payload_scaffold_when_llm_contains_forbi
     )
 
 
+def test_scrub_visible_field_repairs_leading_negative_fragment_after_forbidden_term_removal():
+    audit_log = []
+    cleaned = cg._scrub_visible_field(
+        "Professional Evidence Capture — Discreet thumb-sized body camera records clear 1080P video with audio. "
+        "Note: No image stabilization, best for stable professional scenes.",
+        "bullet_b2",
+        audit_log,
+        forbidden_terms=["stabilization"],
+    )
+
+    assert "stabilization" not in cleaned.lower()
+    assert "no image" not in cleaned.lower()
+    assert "best for stable professional scenes" in cleaned.lower()
+    assert any(
+        entry.get("field") == "bullet_b2"
+        and entry.get("action") == "rewrite"
+        and entry.get("reason") == "forbidden_visible_terms_fragment_repair"
+        for entry in audit_log
+    )
+
+
+def test_scrub_visible_field_repairs_trailing_negative_fragment_after_forbidden_term_removal():
+    cleaned = cg._scrub_visible_field(
+        "Optimal Use Guidance — For best video quality, use in stable or moderately active scenes like walking or clipped to a bag. "
+        "Not suitable for high-vibration environments such as motorcycles, as it lacks image stabilization.",
+        "bullet_b4",
+        [],
+        forbidden_terms=["stabilization"],
+    )
+
+    assert "stabilization" not in cleaned.lower()
+    assert "lacks image" not in cleaned.lower()
+    assert "not suitable for high-vibration environments such as motorcycles" in cleaned.lower()
+
+
+def test_scrub_visible_field_repairs_mid_sentence_lacks_image_clause_after_forbidden_term_removal():
+    cleaned = cg._scrub_visible_field(
+        "ideal-Use Guidance — For optimal results, use in stable scenarios like walking tours or clipped on a bag. "
+        "Note: Lacks image stabilization and is not suitable for high-vibration environments like motorcycles.",
+        "bullet_b4",
+        [],
+        forbidden_terms=["stabilization"],
+    )
+
+    assert "stabilization" not in cleaned.lower()
+    assert "lacks image" not in cleaned.lower()
+    assert "not suitable for high-vibration environments like motorcycles" in cleaned.lower()
+
+
 class _FakeOfflineClient:
     active_model = "offline"
     provider_label = "offline"

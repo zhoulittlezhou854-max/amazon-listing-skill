@@ -197,3 +197,53 @@ def test_repair_hybrid_bullets_can_replace_generic_tail_on_overlong_real_run_bul
     assert actions[0]["slot"] == "B1"
     assert "travel camera" in repaired[0].lower()
     assert len(repaired[0]) <= 255
+
+
+def test_repair_hybrid_bullets_does_not_glue_keyword_tail_without_spacing():
+    bullets = [
+        "Evidence-Ready Body Camera — Designed for professionals, this discreet, thumb-sized camera offers 1080P video with audio for clear evidence capture.",
+        "Daily Commuting Companion — Clip this thumb-sized camera onto your clothing for versatile POV capture.",
+    ]
+
+    repaired, actions = repair_hybrid_bullets_for_l2(
+        bullets,
+        missing_keywords=["body camera with audio"],
+        max_repairs=1,
+    )
+
+    assert actions[0]["slot"] == "B1"
+    assert ".a practical" not in repaired[0].lower()
+    assert "capture. A practical body camera with audio option." in repaired[0]
+
+
+def test_repair_hybrid_bullets_uses_clean_tail_variant_for_travel_camera():
+    bullets = [
+        "Daily Commuting Companion — Clip this thumb-sized camera onto your clothing for versatile POV capture. With a rotating lens via the accessory mount, you can adjust angles for front or back views.",
+    ]
+
+    repaired, actions = repair_hybrid_bullets_for_l2(
+        bullets,
+        missing_keywords=["travel camera"],
+        max_repairs=1,
+    )
+
+    assert actions[0]["slot"] == "B1"
+    assert "ideal for travel camera." not in repaired[0].lower()
+    assert "travel camera" in repaired[0].lower()
+
+
+def test_repair_hybrid_bullets_replaces_inline_ideal_phrase_without_comma_glue():
+    bullets = [
+        "150-Minute Runtime — Capture up to 2.5 hours of continuous 1080P HD video, ideal for hands-free travel vlogging and long recording sessions on a single charge.",
+    ]
+
+    repaired, actions = repair_hybrid_bullets_for_l2(
+        bullets,
+        missing_keywords=["travel camera"],
+        max_repairs=1,
+    )
+
+    assert actions[0]["slot"] == "B1"
+    assert ", A practical" not in repaired[0]
+    assert ", ideal for" not in repaired[0].lower()
+    assert "travel camera" in repaired[0].lower()

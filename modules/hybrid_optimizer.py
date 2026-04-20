@@ -82,10 +82,21 @@ def _append_keyword_phrase(bullet: str, keyword: str) -> str:
     keyword = str(keyword or "").strip()
     if not bullet or not keyword:
         return bullet
-    suffix = f" ideal for {keyword} use."
-    if bullet.endswith("."):
-        return f"{bullet[:-1]}{suffix}"
-    return f"{bullet}{suffix}"
+    suffix = f"A practical {keyword} option."
+    if bullet.endswith((".", "!", "?")):
+        return f"{bullet} {suffix}"
+    return f"{bullet}. {suffix}"
+
+
+def _replace_tail_sentence(bullet: str, replacement: str) -> str:
+    bullet = str(bullet or "").strip()
+    replacement = str(replacement or "").strip()
+    if not bullet or not replacement:
+        return bullet
+    candidate = re.sub(r"[^.?!]+[.?!]?$", replacement, bullet).strip()
+    candidate = re.sub(r"([.?!])([A-Z])", r"\1 \2", candidate)
+    candidate = re.sub(r"\s+", " ", candidate).strip()
+    return candidate
 
 
 def _candidate_keyword_injections(bullet: str, keyword: str) -> list[str]:
@@ -96,20 +107,31 @@ def _candidate_keyword_injections(bullet: str, keyword: str) -> list[str]:
 
     candidates: list[str] = []
     tail_variants = [
-        f"ideal for {keyword}.",
-        f"{keyword} support.",
-        f"{keyword}.",
+        f"A practical {keyword} option.",
+        f"Built for {keyword} use.",
+        f"Ideal for {keyword} use.",
     ]
-    if re.search(r"ideal for [^.]+\.$", bullet, flags=re.IGNORECASE):
+    if re.search(r"(?:,\s*)?ideal for [^.]+\.$", bullet, flags=re.IGNORECASE):
+        inline_variants = [
+            f"as a practical {keyword} option.",
+            f"for dependable {keyword} use.",
+            f"for {keyword} shoppers.",
+        ]
+        for variant in inline_variants:
+            candidate = re.sub(r"(?:,\s*)?ideal for [^.]+\.$", f" {variant}", bullet, flags=re.IGNORECASE)
+            candidate = re.sub(r"\s+", " ", candidate).strip()
+            if candidate not in candidates:
+                candidates.append(candidate)
         for variant in tail_variants:
-            candidate = re.sub(r"ideal for [^.]+\.$", variant, bullet, flags=re.IGNORECASE)
+            candidate = re.sub(r"(?:,\s*)?ideal for [^.]+\.$", f" {variant}", bullet, flags=re.IGNORECASE)
+            candidate = re.sub(r"\s+", " ", candidate).strip()
             if candidate not in candidates:
                 candidates.append(candidate)
 
     can_swap_tail_sentence = len(bullet) >= (_MAX_BULLET_CHARS - 10) and bool(re.search(r"[.?!]", bullet))
     if can_swap_tail_sentence:
         for variant in tail_variants:
-            sentence_swap = re.sub(r"[^.?!]+[.?!]?$", variant, bullet).strip()
+            sentence_swap = _replace_tail_sentence(bullet, variant)
             if sentence_swap and sentence_swap not in candidates:
                 candidates.append(sentence_swap)
 

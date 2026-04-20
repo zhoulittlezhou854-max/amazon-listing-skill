@@ -226,6 +226,57 @@ def _format_scene_label(scene_code: Optional[str], language: str) -> str:
     return display if display else canonical
 
 
+_NEGATIVE_FRAGMENT_PREFIX_RE = re.compile(
+    r"(?i)^(?:(?:explicit\s+)?note:\s*)?(?:(?:it|this camera|the camera|machine)\s+)?(?:has\s+no|no|without)\s+\w+(?:\s+\w+){0,2}\s*[,;:\.-]?\s*"
+)
+_NEGATIVE_FRAGMENT_SUFFIX_RE = re.compile(
+    r"(?i)\s*[,;:-]?\s*(?:as\s+it\s+)?(?:lacks|has\s+no|without)\s+\w+(?:\s+\w+){0,2}\s*\.?\s*$"
+)
+_NEGATIVE_FRAGMENT_ONLY_RE = re.compile(
+    r"(?i)^(?:(?:explicit\s+)?note:\s*)?(?:(?:it|this camera|the camera|machine)\s+)?(?:lacks|has\s+no|no|without)\s+\w+(?:\s+\w+){0,2}\s*\.?$"
+)
+_MID_SENTENCE_NEGATIVE_REPAIRS = [
+    (
+        re.compile(r"(?i)(?:,\s*)?(?:note:\s*)?(?:(?:it|this camera|the camera|machine)\s+)?lacks image\s+and\s+"),
+        ", ",
+    ),
+    (
+        re.compile(r"(?i)(?:,\s*)?(?:note:\s*)?(?:(?:it|this camera|the camera|machine)\s+)?(?:has\s+no|no)\s+image\s+and\s+"),
+        ", ",
+    ),
+]
+
+
+def _repair_scrubbed_visible_fragments(text: str) -> tuple[str, bool]:
+    changed = False
+    cleaned_text = str(text or "").strip()
+    for pattern, replacement in _MID_SENTENCE_NEGATIVE_REPAIRS:
+        updated = pattern.sub(replacement, cleaned_text)
+        if updated != cleaned_text:
+            cleaned_text = updated
+            changed = True
+    repaired_segments: List[str] = []
+    for segment in re.split(r"(?<=[.!?])\s+", cleaned_text):
+        segment = segment.strip()
+        if not segment:
+            continue
+        original = segment
+        segment = _NEGATIVE_FRAGMENT_PREFIX_RE.sub("", segment)
+        segment = _NEGATIVE_FRAGMENT_SUFFIX_RE.sub("", segment)
+        segment = re.sub(r"\s+", " ", segment).strip(" ,;:-")
+        if not segment or _NEGATIVE_FRAGMENT_ONLY_RE.fullmatch(segment):
+            changed = True
+            continue
+        if segment != original:
+            changed = True
+            if repaired_segments and segment[:1].islower():
+                segment = segment[:1].upper() + segment[1:]
+        repaired_segments.append(segment)
+    repaired = " ".join(repaired_segments) if (changed or repaired_segments) else str(text or "").strip()
+    repaired = re.sub(r"\s+", " ", repaired).strip(" ,;:-")
+    return repaired, changed
+
+
 def _scrub_visible_field(
     text: str,
     field: str,
@@ -243,6 +294,7 @@ def _scrub_visible_field(
         if pattern.search(cleaned):
             cleaned = pattern.sub(" ", cleaned)
             removed_terms.append(candidate)
+    cleaned, repaired_fragments = _repair_scrubbed_visible_fragments(cleaned)
     cleaned = re.sub(r"\s+", " ", cleaned).strip(" ,;|-")
     if removed_terms and audit_log is not None:
         _log_action(
@@ -250,6 +302,13 @@ def _scrub_visible_field(
             field,
             "delete",
             {"terms": sorted(set(removed_terms)), "reason": "forbidden_visible_terms_scrub"},
+        )
+    if repaired_fragments and audit_log is not None:
+        _log_action(
+            audit_log,
+            field,
+            "rewrite",
+            {"reason": "forbidden_visible_terms_fragment_repair"},
         )
     terms = find_blocklisted_terms(text)
     if not terms:

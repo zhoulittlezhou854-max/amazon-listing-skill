@@ -44,6 +44,27 @@ SUPPRESSED_CAPABILITY_TERMS = {
     "stabilization_supported": ["stabilization", "stabilized", "eis"],
 }
 
+_NEGATIVE_PREFIX_RE = re.compile(
+    r"(?i)^(?:(?:explicit\s+)?note:\s*)?(?:(?:it|this camera|the camera|machine)\s+)?(?:has\s+no|no|without)\s+\w+(?:\s+\w+){0,2}\s*[,;:\.-]?\s*"
+)
+_NEGATIVE_SUFFIX_RE = re.compile(
+    r"(?i)\s*[,;:-]?\s*(?:as\s+it\s+)?(?:lacks|has\s+no|without)\s+\w+(?:\s+\w+){0,2}\s*\.?\s*$"
+)
+_NEGATIVE_ONLY_RE = re.compile(
+    r"(?i)^(?:(?:explicit\s+)?note:\s*)?(?:(?:it|this camera|the camera|machine)\s+)?(?:lacks|has\s+no|no|without)\s+\w+(?:\s+\w+){0,2}\s*\.?$"
+)
+_GUIDANCE_HINT_RE = re.compile(r"(?i)\b(guidance|warning|boundary|best[- ]use|first-time|informed buyer|not suitable)\b")
+_MID_SENTENCE_NEGATIVE_REPAIRS = [
+    (
+        re.compile(r"(?i)(?:,\s*)?(?:note:\s*)?(?:(?:it|this camera|the camera|machine)\s+)?lacks image\s+and\s+"),
+        ", ",
+    ),
+    (
+        re.compile(r"(?i)(?:,\s*)?(?:note:\s*)?(?:(?:it|this camera|the camera|machine)\s+)?(?:has\s+no|no)\s+image\s+and\s+"),
+        ", ",
+    ),
+]
+
 
 def _summarize_attributes(attr_data: Any) -> Dict[str, Any]:
     raw = getattr(attr_data, "data", None)
@@ -113,12 +134,126 @@ def _clean_suppressed_text(text: str, blocked_terms: Sequence[str]) -> str:
     cleaned = str(text or "")
     for term in blocked_terms:
         cleaned = re.sub(re.escape(term), "", cleaned, flags=re.IGNORECASE)
+    for pattern, replacement in _MID_SENTENCE_NEGATIVE_REPAIRS:
+        cleaned = pattern.sub(replacement, cleaned)
+    changed = False
+    repaired_segments: List[str] = []
+    for segment in re.split(r"(?<=[.!?])\s+", cleaned.strip()):
+        segment = segment.strip()
+        if not segment:
+            continue
+        original = segment
+        segment = _NEGATIVE_PREFIX_RE.sub("", segment)
+        segment = _NEGATIVE_SUFFIX_RE.sub("", segment)
+        segment = re.sub(r"\s+", " ", segment).strip(" ,;:-")
+        if not segment or _NEGATIVE_ONLY_RE.fullmatch(segment):
+            changed = True
+            continue
+        if segment != original:
+            changed = True
+        if repaired_segments and segment[:1].islower():
+            segment = segment[:1].upper() + segment[1:]
+        repaired_segments.append(segment)
+    cleaned = " ".join(repaired_segments) if (changed or repaired_segments) else cleaned
     cleaned = re.sub(r"\s+", " ", cleaned)
     cleaned = re.sub(r"\s+([,;:])", r"\1", cleaned)
     cleaned = re.sub(r"([,;:]){2,}", r"\1", cleaned)
     cleaned = re.sub(r"\b(and|or)\b\s*$", "", cleaned, flags=re.IGNORECASE)
     cleaned = re.sub(r"^[,;:\-\s]+|[,;:\-\s]+$", "", cleaned)
     return cleaned.strip()
+
+
+def _entry_mentions_blocked_terms(entry: Dict[str, Any], blocked_terms: Sequence[str]) -> bool:
+    values: List[str] = []
+    for field in ("theme", "proof_angle", "slot_directive"):
+        values.append(str(entry.get(field) or ""))
+    for list_field in ("mandatory_elements", "capabilities"):
+        values.extend(str(item or "") for item in (entry.get(list_field) or []))
+    lowered = " || ".join(values).lower()
+    return any(str(term or "").strip().lower() in lowered for term in blocked_terms if str(term or "").strip())
+
+
+def _negative_constraint_slot_score(entry: Dict[str, Any]) -> tuple[int, int]:
+    index = int(entry.get("bullet_index") or 0)
+    text = " ".join(
+        [
+            str(entry.get("theme") or ""),
+            str(entry.get("persona") or ""),
+            str(entry.get("pain_point") or ""),
+            str(entry.get("buying_trigger") or ""),
+            str(entry.get("proof_angle") or ""),
+            str(entry.get("slot_directive") or ""),
+        ]
+    )
+    score = 0
+    if index == 4:
+        score += 5
+    if _GUIDANCE_HINT_RE.search(text):
+        score += 3
+    return score, -index
+
+
+def _prune_duplicate_negative_constraint(
+    entry: Dict[str, Any],
+    blocked_terms: Sequence[str],
+) -> Dict[str, Any]:
+    pruned = deepcopy(entry)
+    for field in ("theme", "proof_angle", "slot_directive"):
+        pruned[field] = _clean_suppressed_text(pruned.get(field, ""), blocked_terms)
+    mandatory_values: List[str] = []
+    for item in pruned.get("mandatory_elements") or []:
+        original = str(item or "").strip()
+        if not original:
+            continue
+        lowered = original.lower()
+        if any(term.lower() in lowered for term in blocked_terms):
+            continue
+        mandatory_values.append(original)
+    pruned["mandatory_elements"] = mandatory_values
+    capabilities = []
+    for item in pruned.get("capabilities") or []:
+        original = str(item or "").strip()
+        if not original:
+            continue
+        lowered = original.lower()
+        if any(term.lower() in lowered for term in blocked_terms):
+            continue
+        capabilities.append(original)
+    pruned["capabilities"] = capabilities
+    return pruned
+
+
+def _dedupe_negative_constraint_blueprint_content(
+    blueprint: Dict[str, Any],
+    suppressed_capabilities: Sequence[str],
+) -> Dict[str, Any]:
+    suppressed = {str(item or "").strip().lower() for item in (suppressed_capabilities or []) if str(item or "").strip()}
+    if not suppressed:
+        return blueprint
+
+    deduped = deepcopy(blueprint)
+    bullets = deduped.get("bullets") or []
+    if not isinstance(bullets, list):
+        return deduped
+
+    for capability_key in suppressed:
+        blocked_terms = SUPPRESSED_CAPABILITY_TERMS.get(capability_key, [])
+        if not blocked_terms:
+            continue
+        matching_indexes = [
+            idx
+            for idx, entry in enumerate(bullets)
+            if isinstance(entry, dict) and _entry_mentions_blocked_terms(entry, blocked_terms)
+        ]
+        if len(matching_indexes) <= 1:
+            continue
+        keep_index = max(matching_indexes, key=lambda idx: _negative_constraint_slot_score(bullets[idx]))
+        for idx in matching_indexes:
+            if idx == keep_index:
+                continue
+            bullets[idx] = _prune_duplicate_negative_constraint(bullets[idx], blocked_terms)
+    deduped["bullets"] = bullets
+    return deduped
 
 
 def _scrub_suppressed_blueprint_content(
@@ -364,6 +499,8 @@ def _generate_bullet_blueprint_impl(
         "Rules:\n"
         "1. You have many insights but ONLY 5 bullets. Bundle related specs + accessories into cohesive themes.\n"
         "2. Every high-importance trade-off or warning from raw_human_insights MUST be explicitly assigned to a bullet.\n"
+        "2b. Unsupported or negative capability facts (for example no stabilization / not waterproof) may appear in ONLY ONE bullet slot. "
+        "Choose the single best-fit slot for each such limitation, usually B4 guidance, and do not repeat the same limitation elsewhere.\n"
         "3. Reserve traffic head terms for the Title. Bullets should prioritize conversion-intent L2 terms and buying triggers.\n"
         "4. Map each bullet to concrete mandatory elements (facts, trade-offs, accessories, personas, proof angles) so downstream writers cannot ignore them.\n"
         "5. Every bullet must name a persona, pain point, buying_trigger, and proof_angle.\n"
@@ -412,7 +549,10 @@ def _generate_bullet_blueprint_impl(
                 configured_model=configured_model,
             )
         blueprint = _scrub_suppressed_blueprint_content(
-            _parse_llm_blueprint(response or ""),
+            _dedupe_negative_constraint_blueprint_content(
+                _parse_llm_blueprint(response or ""),
+                suppressed_capabilities,
+            ),
             suppressed_capabilities,
         )
     except (LLMClientUnavailable, ValueError, json.JSONDecodeError) as exc:

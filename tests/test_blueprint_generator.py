@@ -1,3 +1,4 @@
+import json
 from types import SimpleNamespace
 
 import pytest
@@ -314,3 +315,93 @@ def test_waterproof_false_scrubs_underwater_terms():
     assert "waterproof" not in entry["theme"].lower()
     assert "underwater" not in entry["theme"].lower()
     assert not any(any(token in item.lower() for token in ("waterproof", "underwater")) for item in entry["mandatory_elements"])
+
+
+def test_stabilization_false_scrubs_without_leaving_no_image_fragment():
+    blueprint = {
+        "bullets": [
+            {
+                "bullet_index": 2,
+                "theme": "Professional Evidence Capture",
+                "assigned_l2_keywords": ["body camera with audio"],
+                "mandatory_elements": [
+                    "1080P HD video with audio recording (AAC format)",
+                    "explicit note: NO image stabilization",
+                    "best for stable professional scenes",
+                ],
+                "scenes": ["commuting_capture"],
+                "capabilities": ["lightweight design"],
+                "accessories": [],
+                "persona": "Security Guard / Service Professional",
+                "pain_point": "",
+                "buying_trigger": "",
+                "proof_angle": "No image stabilization, best for stable professional scenes.",
+                "priority": "P1",
+                "slot_directive": "Must include the limitation (no stabilization) framed as a condition for best use.",
+            }
+        ]
+    }
+
+    scrubbed = blueprint_generator._scrub_suppressed_blueprint_content(
+        blueprint,
+        suppressed_capabilities={"stabilization_supported"},
+    )
+    entry = scrubbed["bullets"][0]
+
+    assert not any("no image" in item.lower() for item in entry["mandatory_elements"])
+    assert "no image" not in entry["proof_angle"].lower()
+    assert "no image" not in entry["slot_directive"].lower()
+    assert "stable professional scenes" in entry["proof_angle"].lower()
+
+
+def test_dedupe_negative_constraint_blueprint_content_keeps_single_slot():
+    blueprint = {
+        "bullets": [
+            {
+                "bullet_index": 2,
+                "theme": "Professional Evidence Capture",
+                "assigned_l2_keywords": ["body camera with audio"],
+                "mandatory_elements": ["explicit note: NO image stabilization", "loop recording"],
+                "scenes": ["commuting_capture"],
+                "capabilities": ["lightweight design"],
+                "accessories": [],
+                "persona": "Security Guard / Service Professional",
+                "pain_point": "",
+                "buying_trigger": "",
+                "proof_angle": "No image stabilization for stable professional scenes.",
+                "priority": "P1",
+                "slot_directive": "Must include the limitation (no stabilization) framed as a condition for best use.",
+            },
+            {
+                "bullet_index": 4,
+                "theme": "Best-Use Guidance for Optimal Video Quality",
+                "assigned_l2_keywords": [],
+                "mandatory_elements": [
+                    "Clear statement: Machine has no image stabilization.",
+                    "Warning: Not suitable for high-vibration environments (e.g., on a motorcycle).",
+                ],
+                "scenes": [],
+                "capabilities": [],
+                "accessories": [],
+                "persona": "Informed Buyer / First-Time User",
+                "pain_point": "",
+                "buying_trigger": "",
+                "proof_angle": "Transparent best-use guidance about no stabilization.",
+                "priority": "P1",
+                "slot_directive": "Express the critical limitation from raw_human_insights as warm, positive guidance.",
+            },
+        ]
+    }
+
+    deduped = blueprint_generator._dedupe_negative_constraint_blueprint_content(
+        blueprint,
+        suppressed_capabilities={"stabilization_supported"},
+    )
+
+    bullet_2 = deduped["bullets"][0]
+    bullet_4 = deduped["bullets"][1]
+    bullet_2_text = json.dumps(bullet_2, ensure_ascii=False).lower()
+    bullet_4_text = json.dumps(bullet_4, ensure_ascii=False).lower()
+
+    assert "stabilization" not in bullet_2_text
+    assert "stabilization" in bullet_4_text

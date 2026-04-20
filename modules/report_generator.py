@@ -1163,33 +1163,43 @@ def _hybrid_launch_report_block(generated_copy: Dict[str, Any], scoring_results:
     launch_decision = metadata.get("launch_decision") or {}
     repairs = metadata.get("hybrid_repairs") or []
     source_trace = generated_copy.get("source_trace") or {}
-    dimensions = scoring_results.get("dimensions") or {}
+    scores = launch_decision.get("scores") or {
+        "A10": ((scoring_results.get("dimensions") or {}).get("traffic") or {}).get("score", 0),
+        "COSMO": ((scoring_results.get("dimensions") or {}).get("content") or {}).get("score", 0),
+        "Rufus": ((scoring_results.get("dimensions") or {}).get("conversion") or {}).get("score", 0),
+        "Fluency": ((scoring_results.get("dimensions") or {}).get("readability") or {}).get("score", 0),
+    }
+    thresholds = launch_decision.get("thresholds") or {"A10": 80, "COSMO": 90, "Rufus": 90, "Fluency": 24}
 
-    lines = ["## Hybrid Launch Report"]
-    lines.append(f"- launch_decision: {launch_decision.get('recommended_output', 'unknown')}")
+    lines = ["## Hybrid Launch Decision"]
+    lines.append(f"- Recommended Output: `{launch_decision.get('recommended_output', 'unknown')}`")
+    lines.append(f"- Hybrid Gate: {'passed' if launch_decision.get('passed') else 'failed'}")
     reason_list = launch_decision.get("reasons") or []
-    lines.append(f"- gate_reasons: {', '.join(reason_list) if reason_list else 'none'}")
-    lines.append(f"- source_split: {metadata.get('hybrid_sources') or {}}")
+    lines.append(f"- Blocking Reasons: {', '.join(reason_list) if reason_list else 'none'}")
+    lines.append(
+        "- Scores: "
+        f"A10 {scores.get('A10', 0)} / COSMO {scores.get('COSMO', 0)} / "
+        f"Rufus {scores.get('Rufus', 0)} / Fluency {scores.get('Fluency', 0)}"
+    )
+    lines.append(
+        "- Thresholds: "
+        f"A10 {thresholds.get('A10', 80)} / COSMO {thresholds.get('COSMO', 90)} / "
+        f"Rufus {thresholds.get('Rufus', 90)} / Fluency {thresholds.get('Fluency', 24)}"
+    )
+    lines.append(f"- Source Split: {metadata.get('hybrid_sources') or {}}")
     if source_trace.get("bullets"):
         bullet_summary = ", ".join(
             f"{row.get('slot')}->{row.get('source_version')} ({row.get('selection_reason')})"
             for row in source_trace.get("bullets") or []
         )
-        lines.append(f"- bullet_slots: {bullet_summary}")
+        lines.append(f"- Bullet Slots: {bullet_summary}")
     if repairs:
         repair_summary = ", ".join(
             f"{row.get('slot')}:{row.get('keyword')} [{row.get('action')}]" for row in repairs
         )
-        lines.append(f"- repair_actions: {repair_summary}")
+        lines.append(f"- Repair Actions: {repair_summary}")
     else:
-        lines.append("- repair_actions: none")
-    lines.append(
-        "- gate_scores: "
-        f"A10={((dimensions.get('traffic') or {}).get('score')) or 0}, "
-        f"COSMO={((dimensions.get('content') or {}).get('score')) or ((dimensions.get('conversion') or {}).get('score')) or 0}, "
-        f"Rufus={((dimensions.get('conversion') or {}).get('score')) or ((dimensions.get('answerability') or {}).get('score')) or 0}, "
-        f"Fluency={((dimensions.get('readability') or {}).get('score')) or 0}"
-    )
+        lines.append("- Repair Actions: none")
     lines.append("")
     return lines
 
@@ -2014,6 +2024,10 @@ def generate_dual_version_report(
         "",
     ]
     if hybrid:
+        final_verdict = hybrid.get("final_readiness_verdict") or {}
+        launch_gate = final_verdict.get("launch_gate") or {}
+        scores = launch_gate.get("scores") or {}
+        thresholds = launch_gate.get("thresholds") or {}
         lines.extend(
             [
                 "## Hybrid Recommendation",
@@ -2021,6 +2035,19 @@ def generate_dual_version_report(
                 *_listing_block(hybrid),
                 *_scoring_block(hybrid.get("scoring_results") or {}),
                 f"- Source Split: {((hybrid.get('generated_copy') or {}).get('metadata') or {}).get('hybrid_sources') or {}}",
+                "",
+                "## Hybrid Launch Decision",
+                "",
+                f"- Recommended Output: `{final_verdict.get('recommended_output') or (((hybrid.get('generated_copy') or {}).get('metadata') or {}).get('launch_decision', {}) or {}).get('recommended_output', 'unknown')}`",
+                f"- Hybrid Gate: {'passed' if launch_gate.get('passed') else 'failed'}",
+                f"- Blocking Reasons: {', '.join(final_verdict.get('reasons') or []) or 'none'}",
+                "- Scores: "
+                f"A10 {scores.get('A10', '')} / COSMO {scores.get('COSMO', '')} / "
+                f"Rufus {scores.get('Rufus', '')} / Fluency {scores.get('Fluency', '')}",
+                "- Thresholds: "
+                f"A10 {thresholds.get('A10', '')} / COSMO {thresholds.get('COSMO', '')} / "
+                f"Rufus {thresholds.get('Rufus', '')} / Fluency {thresholds.get('Fluency', '')}",
+                f"- Launch Copy Source: `{((final_verdict.get('artifact_paths') or {}).get('recommended_generated_copy') or '')}`",
                 "",
             ]
         )

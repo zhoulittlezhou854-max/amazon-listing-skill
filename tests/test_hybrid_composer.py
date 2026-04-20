@@ -693,8 +693,8 @@ def test_hybrid_launch_gate_recommends_hybrid_when_thresholds_pass():
         scoring_results={
             "dimensions": {
                 "traffic": {"score": 85},
-                "conversion": {"score": 92},
-                "answerability": {"score": 95},
+                "content": {"score": 92},
+                "conversion": {"score": 95},
                 "readability": {"score": 30},
             }
         },
@@ -703,6 +703,9 @@ def test_hybrid_launch_gate_recommends_hybrid_when_thresholds_pass():
 
     assert decision["recommended_output"] == "hybrid"
     assert decision["reasons"] == []
+    assert decision["passed"] is True
+    assert decision["scores"] == {"A10": 85, "COSMO": 92, "Rufus": 95, "Fluency": 30}
+    assert decision["thresholds"] == {"A10": 80, "COSMO": 90, "Rufus": 90, "Fluency": 24}
 
 
 def test_hybrid_launch_gate_falls_back_to_version_a_when_thresholds_fail():
@@ -711,8 +714,8 @@ def test_hybrid_launch_gate_falls_back_to_version_a_when_thresholds_fail():
         scoring_results={
             "dimensions": {
                 "traffic": {"score": 70},
-                "conversion": {"score": 80},
-                "answerability": {"score": 100},
+                "content": {"score": 80},
+                "conversion": {"score": 100},
                 "readability": {"score": 30},
             }
         },
@@ -720,10 +723,44 @@ def test_hybrid_launch_gate_falls_back_to_version_a_when_thresholds_fail():
     )
 
     assert decision["recommended_output"] == "version_a"
-    assert "A10 below threshold" in decision["reasons"]
+    assert decision["passed"] is False
+    assert "a10_below_threshold" in decision["reasons"]
+    assert "cosmo_below_threshold" in decision["reasons"]
 
 
-def test_generate_report_includes_hybrid_launch_report():
+def test_compose_hybrid_listing_degrades_to_version_a_when_version_b_bullets_missing(tmp_path):
+    version_a = {
+        "title": "A title",
+        "bullets": ["A1", "A2", "A3", "A4", "A5"],
+        "description": "A desc",
+        "faq": [],
+        "search_terms": ["k1"],
+        "aplus_content": "A+",
+        "metadata": {"generation_status": "live_success"},
+        "risk_report": {},
+        "decision_trace": {},
+    }
+    version_b = {
+        "title": "B title",
+        "bullets": [],
+        "description": "B desc",
+        "faq": [],
+        "search_terms": ["k2"],
+        "aplus_content": "B+",
+        "metadata": {"generation_status": "FAILED_AT_BLUEPRINT"},
+        "risk_report": {},
+        "decision_trace": {},
+    }
+
+    hybrid = compose_hybrid_listing(version_a, version_b, tmp_path / "hybrid", DEFAULT_HYBRID_SELECTION_POLICY)
+
+    assert hybrid["bullets"] == ["A1", "A2", "A3", "A4", "A5"]
+    assert hybrid["source_trace"]["bullets"][0]["source_version"] == "version_a"
+    assert hybrid["source_trace"]["bullets"][0]["selection_reason"] == "degraded_fallback_to_a"
+    assert hybrid["source_trace"]["bullets"][0]["degraded_mode"] is True
+
+
+def test_generate_report_includes_hybrid_launch_decision():
     report = generate_report(
         preprocessed_data=_sample_preprocessed(),
         generated_copy={
@@ -736,7 +773,10 @@ def test_generate_report_includes_hybrid_launch_report():
             "metadata": {
                 "visible_copy_mode": "hybrid_postselect",
                 "launch_decision": {
+                    "passed": True,
                     "recommended_output": "hybrid",
+                    "scores": {"A10": 85, "COSMO": 92, "Rufus": 95, "Fluency": 30},
+                    "thresholds": {"A10": 80, "COSMO": 90, "Rufus": 90, "Fluency": 24},
                     "reasons": [],
                 },
                 "hybrid_repairs": [{"action": "l2_backfill", "slot": "B2", "keyword": "body camera"}],
@@ -756,8 +796,8 @@ def test_generate_report_includes_hybrid_launch_report():
         scoring_results={
             "dimensions": {
                 "traffic": {"score": 85, "label": "A10", "status": "pass"},
-                "conversion": {"score": 92, "label": "COSMO", "status": "pass"},
-                "answerability": {"score": 95, "label": "Rufus", "status": "pass"},
+                "content": {"score": 92, "label": "COSMO", "status": "pass"},
+                "conversion": {"score": 95, "label": "Rufus", "status": "pass"},
                 "readability": {"score": 30, "label": "Fluency", "status": "pass"},
             },
             "production_readiness": {"generation_status": "live_success", "returned_model": "deepseek-chat", "authenticity_score": 8, "penalty": 0, "advisory": "ok"},
@@ -766,8 +806,8 @@ def test_generate_report_includes_hybrid_launch_report():
         intent_graph=None,
     )
 
-    assert "## Hybrid Launch Report" in report
-    assert "hybrid" in report
+    assert "## Hybrid Launch Decision" in report
+    assert "Recommended Output: `hybrid`" in report
     assert "l2_backfill" in report
 
 
@@ -788,6 +828,34 @@ def test_select_source_for_bullet_slot_keeps_but_records_soft_signal_when_b_miss
     assert decision["source_version"] == "version_b"
     assert decision["selection_reason"] == "slot_default_preference"
     assert "version_b_missing_l2" in decision["soft_signals"]
+
+
+def test_select_source_for_bullet_slot_prefers_other_version_when_bullet_was_scrub_rewritten():
+    from modules.hybrid_composer import select_source_for_bullet_slot
+
+    decision = select_source_for_bullet_slot(
+        slot="B2",
+        bullet_a="Reliable body camera evidence capture for security shifts.",
+        bullet_b="Reliable evidence capture for security shifts.",
+        meta_a={"visible_llm_fallback_fields": []},
+        risk_a={"blocking_fields": []},
+        meta_b={"visible_llm_fallback_fields": []},
+        risk_b={"blocking_fields": []},
+        slot_l2_targets=["body camera"],
+        audit_a=[],
+        audit_b=[
+            {
+                "field": "bullet_b2",
+                "action": "delete",
+                "reason": "forbidden_visible_terms_scrub",
+                "terms": ["stabilization"],
+            }
+        ],
+    )
+
+    assert decision["source_version"] == "version_a"
+    assert decision["selection_reason"] == "version_b_scrub_integrity_flag"
+    assert "version_b_scrub_integrity_flag" in decision["soft_signals"]
 
 
 def test_compose_hybrid_listing_records_per_slot_bullet_sources(tmp_path):
@@ -844,6 +912,44 @@ def test_compose_hybrid_listing_records_per_slot_bullet_sources(tmp_path):
     assert "version_b_missing_l2" in hybrid["source_trace"]["bullets"][1]["soft_signals"]
     assert hybrid["source_trace"]["bullets"][2]["source_version"] == "version_b"
     assert hybrid["metadata"]["hybrid_sources"]["bullets"] == "version_b"
+
+
+def test_compose_hybrid_listing_avoids_version_b_bullet_with_scrub_damage(tmp_path):
+    version_a = {
+        "title": "A title",
+        "bullets": ["A1", "A2 clean body camera coverage", "A3", "A4", "A5"],
+        "metadata": {},
+        "risk_report": {},
+        "audit_trail": [],
+        "decision_trace": {
+            "keyword_assignments": [{"keyword": "body camera", "tier": "L2", "assigned_fields": ["B2"]}],
+            "bullet_trace": [{"slot": f"B{i}"} for i in range(1, 6)],
+        },
+    }
+    version_b = {
+        "title": "B title",
+        "bullets": ["B1", "B2 scrubbed body camera coverage", "B3", "B4", "B5"],
+        "metadata": {},
+        "risk_report": {},
+        "audit_trail": [
+            {
+                "field": "bullet_b2",
+                "action": "delete",
+                "reason": "forbidden_visible_terms_scrub",
+                "terms": ["stabilization"],
+            }
+        ],
+        "decision_trace": {
+            "keyword_assignments": [{"keyword": "body camera", "tier": "L2", "assigned_fields": ["B2"]}],
+            "bullet_trace": [{"slot": f"B{i}"} for i in range(1, 6)],
+        },
+    }
+
+    hybrid = compose_hybrid_listing(version_a, version_b, tmp_path / "hybrid", DEFAULT_HYBRID_SELECTION_POLICY)
+
+    assert hybrid["bullets"][1] == "A2 clean body camera coverage"
+    assert hybrid["source_trace"]["bullets"][1]["source_version"] == "version_a"
+    assert hybrid["source_trace"]["bullets"][1]["selection_reason"] == "version_b_scrub_integrity_flag"
 
 
 def test_compose_hybrid_listing_understands_legacy_bullet_slot_aliases(tmp_path):
