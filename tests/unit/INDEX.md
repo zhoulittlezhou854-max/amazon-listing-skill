@@ -7,8 +7,13 @@
 ```
 unit/
 ├── INDEX.md (此文件)
-└── (暂无测试文件)
+└── test_streamlit_launcher.py
 ```
+
+## 文件说明
+| 文件 | 说明 | 最后更新 |
+|------|------|----------|
+| test_streamlit_launcher.py | 验证本地 Streamlit 启动器的命令拼装、PID 解析与僵尸 PID 清理 | 2026-04-21 |
 
 ## 测试规范
 ### 文件命名
@@ -51,3 +56,4 @@ def test_function_error_case():
 
 ## 最后更新
 2026-04-03: 初始创建
+2026-04-21: 新增 Streamlit 启动器单元测试索引

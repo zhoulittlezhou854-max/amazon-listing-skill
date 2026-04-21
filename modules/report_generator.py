@@ -1994,7 +1994,7 @@ def generate_dual_version_report(
         return str(((version.get("scoring_results") or {}).get("dimensions") or {}).get(dimension, {}).get("score", ""))
 
     lines = [
-        f"# Listing Dual Version Report — {sku} {market} {run_id}",
+        f"# Listing All Report Compare — {sku} {market} {run_id}",
         "",
         "## Version A：V3 全链路（主链路基线）",
         "",

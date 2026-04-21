@@ -1,5 +1,6 @@
 import json
 from pathlib import Path
+from types import SimpleNamespace
 
 from app.services import run_service, workspace_service
 
@@ -82,6 +83,10 @@ def test_run_workspace_workflow_returns_failure_payload_when_runner_raises(tmp_p
     result = run_service.run_workspace_workflow("config.json", str(workspace), steps=[0])
     assert result["status"] == "RUN_FAILED"
     assert "runner failed" in result["error"]
+    execution_summary = json.loads(Path(result["run_dir"]).joinpath("execution_summary.json").read_text(encoding="utf-8"))
+    assert execution_summary["workflow_status"] == "failed"
+    assert execution_summary["error"] == "runner failed"
+    assert execution_summary["results"]["service_wrapper"]["status"] == "error"
 
 
 def test_run_workspace_workflow_dual_version_returns_dual_report(tmp_path: Path, monkeypatch):
@@ -145,6 +150,12 @@ def test_run_workspace_workflow_dual_version_returns_dual_report(tmp_path: Path,
                 json.dumps({"llm_model": model}),
                 encoding="utf-8",
             )
+        else:
+            (out / "preprocessed_data.json").write_text(
+                json.dumps({"preprocessed_data": {"processed_at": "2026-04-21"}}),
+                encoding="utf-8",
+            )
+            (out / "writing_policy.json").write_text("{}", encoding="utf-8")
         return {
             "summary": {"workflow_status": "success"},
             "generated_copy": {},
@@ -154,8 +165,62 @@ def test_run_workspace_workflow_dual_version_returns_dual_report(tmp_path: Path,
             "preprocessed_data": None,
         }
 
+    def _fake_finalize_hybrid_outputs(**kwargs):
+        hybrid_output = Path(kwargs["output_dir"])
+        hybrid_output.mkdir(parents=True, exist_ok=True)
+        generated_copy = {
+            "title": "Hybrid Title",
+            "bullets": ["H1", "H2", "H3", "H4", "H5"],
+            "description": "Hybrid Desc",
+            "search_terms": ["hk1"],
+            "metadata": {
+                "hybrid_generation_status": "reaudited",
+                "visible_copy_mode": "hybrid_postselect",
+                "launch_decision": {
+                    "passed": False,
+                    "recommended_output": "version_a",
+                    "scores": {"A10": 70, "COSMO": 92, "Rufus": 100, "Fluency": 30},
+                    "thresholds": {"A10": 80, "COSMO": 90, "Rufus": 90, "Fluency": 24},
+                    "reasons": ["a10_below_threshold"],
+                },
+            },
+        }
+        scoring_results = {
+            "listing_status": "NOT_READY_FOR_LISTING",
+            "dimensions": {
+                "traffic": {"score": 70},
+                "content": {"score": 92},
+                "conversion": {"score": 100},
+                "readability": {"score": 30},
+            },
+        }
+        risk_report = {"listing_status": {"status": "READY_FOR_LISTING", "blocking_reasons": []}}
+        (hybrid_output / "generated_copy.json").write_text(json.dumps(generated_copy), encoding="utf-8")
+        (hybrid_output / "scoring_results.json").write_text(json.dumps(scoring_results), encoding="utf-8")
+        (hybrid_output / "risk_report.json").write_text(json.dumps(risk_report), encoding="utf-8")
+        return {
+            "generated_copy": generated_copy,
+            "risk_report": risk_report,
+            "scoring_results": scoring_results,
+        }
+
     monkeypatch.setattr(run_service, "run_generator_workflow", _fake_run)
     monkeypatch.setattr(run_service, "snapshot_run_outputs", lambda *_args, **_kwargs: {})
+    monkeypatch.setattr(
+        run_service,
+        "hybrid_composer",
+        SimpleNamespace(
+            compose_hybrid_listing=lambda **kwargs: {
+                "title": "Hybrid Title",
+                "bullets": ["H1", "H2", "H3", "H4", "H5"],
+                "description": "Hybrid Desc",
+                "search_terms": ["hk1"],
+                "metadata": {"hybrid_sources": {"title": "version_a"}, "visible_copy_mode": "hybrid_postselect"},
+            },
+            finalize_hybrid_outputs=lambda **kwargs: _fake_finalize_hybrid_outputs(**kwargs),
+        ),
+        raising=False,
+    )
 
     result = run_service.run_workspace_workflow(
         str(run_config),
@@ -165,9 +230,14 @@ def test_run_workspace_workflow_dual_version_returns_dual_report(tmp_path: Path,
     )
 
     assert result["status"] == "success"
-    assert "Listing Dual Version Report" in result["dual_report_text"]
+    assert "Listing All Report Compare" in result["dual_report_text"]
     assert "version_a" in result["dual_version"]["version_a_dir"]
     assert "version_b" in result["dual_version"]["version_b_dir"]
+    assert "Hybrid Launch Decision" in result["dual_report_text"]
+    run_dir = Path(result["run_dir"])
+    assert (run_dir / "hybrid" / "generated_copy.json").exists()
+    assert (run_dir / "final_readiness_verdict.json").exists()
+    assert (run_dir / "LISTING_READY.md").exists()
     assert captured[0] == {"blueprint": None, "title": None, "bullets": None}
     assert captured[1] == {
         "blueprint": "deepseek-reasoner",
@@ -347,6 +417,7 @@ def test_list_workspace_runs_returns_single_and_dual_payloads(tmp_path: Path):
     single_run.mkdir(parents=True)
     (dual_run / "version_a").mkdir(parents=True)
     (dual_run / "version_b").mkdir(parents=True)
+    (dual_run / "hybrid").mkdir(parents=True)
 
     (single_run / "generated_copy.json").write_text(
         json.dumps({"title": "Single Title", "bullets": ["B1"], "description": "Desc", "search_terms": ["kw"], "metadata": {"generation_status": "live_success"}}),
@@ -366,6 +437,7 @@ def test_list_workspace_runs_returns_single_and_dual_payloads(tmp_path: Path):
     for path, title in [
         (dual_run / "version_a", "Version A Title"),
         (dual_run / "version_b", "Version B Title"),
+        (dual_run / "hybrid", "Hybrid Title"),
     ]:
         (path / "generated_copy.json").write_text(
             json.dumps({"title": title, "bullets": ["B1"], "description": "Desc", "search_terms": ["kw"], "metadata": {"generation_status": "live_success"}}),
@@ -382,7 +454,21 @@ def test_list_workspace_runs_returns_single_and_dual_payloads(tmp_path: Path):
         (path / "listing_report.md").write_text(f"# {title} Report", encoding="utf-8")
         (path / "readiness_summary.md").write_text(f"# {title} Summary", encoding="utf-8")
 
-    (dual_run / "dual_version_report.md").write_text("# Dual Version Report", encoding="utf-8")
+    (dual_run / "all_report_compare.md").write_text("# All Report Compare", encoding="utf-8")
+    (dual_run / "final_readiness_verdict.json").write_text(
+        json.dumps(
+            {
+                "recommended_output": "hybrid",
+                "listing_status": "READY_FOR_LISTING",
+                "launch_gate": {"scores": {"A10": 90, "COSMO": 92, "Rufus": 100, "Fluency": 30}},
+                "artifact_paths": {
+                    "recommended_generated_copy": str((dual_run / "hybrid" / "generated_copy.json").resolve()),
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    (dual_run / "LISTING_READY.md").write_text("# Listing Ready", encoding="utf-8")
 
     runs = workspace_service.list_workspace_runs(str(workspace))
 
@@ -390,7 +476,64 @@ def test_list_workspace_runs_returns_single_and_dual_payloads(tmp_path: Path):
     assert runs[0]["is_dual_version"] is True
     assert runs[0]["version_a"]["generated_copy"]["title"] == "Version A Title"
     assert runs[0]["version_b"]["generated_copy"]["title"] == "Version B Title"
-    assert "Dual Version Report" in runs[0]["dual_report_text"]
+    assert runs[0]["hybrid"]["generated_copy"]["title"] == "Hybrid Title"
+    assert runs[0]["recommended_output"] == "hybrid"
+    assert runs[0]["listing_status"] == "READY_FOR_LISTING"
+    assert runs[0]["scores"] == {"A10": 90, "COSMO": 92, "Rufus": 100, "Fluency": 30}
+    assert "Listing Ready" in runs[0]["listing_ready_text"]
+    assert "All Report Compare" in runs[0]["dual_report_text"]
     assert runs[1]["is_dual_version"] is False
     assert runs[1]["generated_copy"]["title"] == "Single Title"
     assert "Single Summary" in runs[1]["readiness_summary_text"]
+
+
+def test_snapshot_run_outputs_dual_version_captures_verdict_and_reports(tmp_path: Path):
+    workspace = tmp_path / "workspace" / "H91LITE_US"
+    run_dir = workspace / "runs" / "20260421_120000"
+    (run_dir / "version_a").mkdir(parents=True)
+    (run_dir / "hybrid").mkdir(parents=True)
+    (run_dir / "all_report_compare.md").write_text("# All Report Compare", encoding="utf-8")
+    (run_dir / "final_readiness_verdict.json").write_text('{"recommended_output":"hybrid"}', encoding="utf-8")
+    (run_dir / "LISTING_READY.md").write_text("# Ready", encoding="utf-8")
+    (run_dir / "hybrid" / "listing_report.md").write_text("# Hybrid Report", encoding="utf-8")
+    (run_dir / "version_a" / "generated_copy.json").write_text("{}", encoding="utf-8")
+
+    captured = workspace_service.snapshot_run_outputs(str(workspace), str(run_dir))
+
+    assert "all_report_compare.md" in captured
+    assert "final_readiness_verdict.json" in captured
+    assert "LISTING_READY.md" in captured
+    assert "hybrid_listing_report.md" in captured
+    assert Path(captured["all_report_compare.md"]).exists()
+
+
+def test_list_product_code_options_filters_by_site_and_deduplicates(tmp_path: Path):
+    workspace_root = tmp_path / "workspace"
+    entries = [
+        ("H91", "US", "2026-04-16T11:38:49+00:00"),
+        ("H91lit", "US", "2026-04-16T07:25:02+00:00"),
+        ("H91", "US", "2026-04-15T07:25:02+00:00"),
+        ("T70", "DE", "2026-04-17T07:25:02+00:00"),
+    ]
+    for index, (product_code, site, created_at) in enumerate(entries):
+        workspace = workspace_root / f"workspace_{index}"
+        workspace.mkdir(parents=True)
+        (workspace / "product_config.json").write_text(
+            json.dumps(
+                {
+                    "product_code": product_code,
+                    "site": site,
+                    "workspace_dir": str(workspace.resolve()),
+                    "run_config_path": str((workspace / "run_config.json").resolve()),
+                    "created_at": created_at,
+                }
+            ),
+            encoding="utf-8",
+        )
+
+    assert workspace_service.list_product_code_options("US", workspace_root=str(workspace_root)) == ["H91", "H91lit"]
+    assert workspace_service.list_product_code_options("DE", workspace_root=str(workspace_root)) == ["T70"]
+
+
+def test_list_product_code_options_returns_empty_without_history(tmp_path: Path):
+    assert workspace_service.list_product_code_options("US", workspace_root=str(tmp_path / "workspace")) == []

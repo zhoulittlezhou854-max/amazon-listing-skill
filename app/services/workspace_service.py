@@ -159,6 +159,29 @@ def list_workspaces(workspace_root: str = "workspace") -> List[Dict[str, Any]]:
     return workspaces
 
 
+def list_product_code_options(site: str, workspace_root: str = "workspace") -> List[str]:
+    target_site = (site or "").strip().upper()
+    seen: set[str] = set()
+    ordered: List[str] = []
+    workspaces = sorted(
+        list_workspaces(workspace_root),
+        key=lambda item: str(item.get("created_at") or ""),
+        reverse=True,
+    )
+    for workspace in workspaces:
+        if target_site and str(workspace.get("site") or "").strip().upper() != target_site:
+            continue
+        product_code = str(workspace.get("product_code") or "").strip()
+        if not product_code:
+            continue
+        dedupe_key = product_code.upper()
+        if dedupe_key in seen:
+            continue
+        seen.add(dedupe_key)
+        ordered.append(product_code)
+    return ordered
+
+
 def _load_json(path: Path) -> Dict[str, Any]:
     if not path.exists():
         return {}
@@ -234,6 +257,24 @@ def _load_run_version(run_dir: Path) -> Dict[str, Any]:
     }
 
 
+def _recommended_generation_status(recommended_output: str, version_a: Dict[str, Any], version_b: Dict[str, Any], hybrid: Dict[str, Any]) -> str:
+    source_map = {
+        "version_a": version_a,
+        "version_b": version_b,
+        "hybrid": hybrid,
+    }
+    payload = source_map.get(recommended_output) or {}
+    return str(payload.get("generation_status") or version_a.get("generation_status") or "")
+
+
+def _resolve_compare_report(run_dir: Path) -> Path | None:
+    for name in ["all_report_compare.md", "dual_version_report.md"]:
+        candidate = run_dir / name
+        if candidate.exists():
+            return candidate
+    return None
+
+
 def list_workspace_runs(workspace_dir: str) -> List[Dict[str, Any]]:
     root = Path(workspace_dir) / "runs"
     if not root.exists():
@@ -241,23 +282,32 @@ def list_workspace_runs(workspace_dir: str) -> List[Dict[str, Any]]:
 
     records: List[Dict[str, Any]] = []
     for run_dir in sorted([path for path in root.iterdir() if path.is_dir()], key=lambda path: path.name, reverse=True):
-        dual_report = run_dir / "dual_version_report.md"
-        if dual_report.exists():
+        dual_report = _resolve_compare_report(run_dir)
+        if dual_report is not None:
             version_a = _load_run_version(run_dir / "version_a")
             version_b = _load_run_version(run_dir / "version_b")
+            hybrid = _load_run_version(run_dir / "hybrid") if (run_dir / "hybrid").exists() else {}
+            final_readiness_verdict = _load_json(run_dir / "final_readiness_verdict.json")
+            launch_gate = final_readiness_verdict.get("launch_gate") or {}
+            recommended_output = str(final_readiness_verdict.get("recommended_output") or "version_a")
             records.append(
                 {
                     "run_id": run_dir.name,
                     "created_at": _run_created_at(run_dir),
                     "run_dir": str(run_dir.resolve()),
                     "is_dual_version": True,
-                    "generation_status": version_a.get("generation_status", ""),
-                    "listing_status": version_a.get("listing_status", ""),
-                    "scores": version_a.get("scores", {}),
+                    "generation_status": _recommended_generation_status(recommended_output, version_a, version_b, hybrid),
+                    "listing_status": str(final_readiness_verdict.get("listing_status") or version_a.get("listing_status") or ""),
+                    "scores": dict(launch_gate.get("scores") or version_a.get("scores") or {}),
+                    "recommended_output": recommended_output,
                     "version_a": version_a,
                     "version_b": version_b,
+                    "hybrid": hybrid,
                     "dual_report_path": str(dual_report.resolve()),
                     "dual_report_text": _load_text(dual_report),
+                    "final_readiness_verdict": final_readiness_verdict,
+                    "listing_ready_path": str((run_dir / "LISTING_READY.md").resolve()) if (run_dir / "LISTING_READY.md").exists() else "",
+                    "listing_ready_text": _load_text(run_dir / "LISTING_READY.md"),
                 }
             )
             continue
@@ -300,6 +350,27 @@ def snapshot_run_outputs(workspace_dir: str, run_dir: str) -> Dict[str, str]:
     snapshots.mkdir(parents=True, exist_ok=True)
     run_path = Path(run_dir)
     captured: Dict[str, str] = {}
+    compare_report = _resolve_compare_report(run_path)
+    if compare_report is not None:
+        for name in [compare_report.name, "final_readiness_verdict.json", "LISTING_READY.md"]:
+            source = run_path / name
+            if not source.exists():
+                continue
+            target = snapshots / f"latest_{name}"
+            target.write_bytes(source.read_bytes())
+            captured[name] = str(target.resolve())
+        for version_name in ["version_a", "version_b", "hybrid"]:
+            version_dir = run_path / version_name
+            if not version_dir.exists():
+                continue
+            for artifact_name in ["generated_copy.json", "risk_report.json", "scoring_results.json", "listing_report.md"]:
+                source = version_dir / artifact_name
+                if not source.exists():
+                    continue
+                target = snapshots / f"latest_{version_name}_{artifact_name}"
+                target.write_bytes(source.read_bytes())
+                captured[f"{version_name}_{artifact_name}"] = str(target.resolve())
+        return captured
     for name in ["generated_copy.json", "risk_report.json", "scoring_results.json", "listing_report.md"]:
         source = run_path / name
         if not source.exists():

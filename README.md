@@ -45,8 +45,20 @@ amazon-listing-skill/
 
 4. **启动本地控制台**
    ```bash
-   streamlit run app/streamlit_app.py
+   .venv/bin/python tools/streamlit_launcher.py start
    ```
+   - 推荐用这个启动器，而不是直接手敲 `streamlit run`，它会把进程放到后台并固定日志/PID 文件
+   - 默认地址：`http://127.0.0.1:8501`
+   - 如果你更习惯双击启动，可直接在 Finder 里双击：
+     - `tools/launch_streamlit_console.command`
+   - 查看状态：
+     ```bash
+     .venv/bin/python tools/streamlit_launcher.py status
+     ```
+   - 停止服务：
+     ```bash
+     .venv/bin/python tools/streamlit_launcher.py stop
+     ```
    - Tab 1：新品上架，上传 4 张核心表并直接生成报告
    - Tab 2：老品数据反补，导入 SellerSprite/PPC 词表后做人机共审并重构 Listing
 

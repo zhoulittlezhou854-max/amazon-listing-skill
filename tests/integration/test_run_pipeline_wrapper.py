@@ -127,8 +127,8 @@ def test_main_dual_version_writes_versioned_outputs_and_report(tmp_path: Path, m
     assert calls[1]["bullet_override"] == "deepseek-reasoner"
     assert (output_dir / "version_a" / "generated_copy.json").exists()
     assert (output_dir / "version_b" / "generated_copy.json").exists()
-    dual_report = (output_dir / "dual_version_report.md").read_text(encoding="utf-8")
-    assert "Listing Dual Version Report" in dual_report
+    dual_report = (output_dir / "all_report_compare.md").read_text(encoding="utf-8")
+    assert "Listing All Report Compare" in dual_report
     assert "Version A：V3 全链路" in dual_report
     assert "Version B：R1 Title + Bullets + V3 Remaining Fields" in dual_report
 
@@ -185,7 +185,7 @@ def test_main_dual_version_reports_explicit_version_b_failure(tmp_path: Path, mo
 
     stdout = capsys.readouterr().out
     assert "Version B generation status: FAILED_AT_BLUEPRINT" in stdout
-    dual_report = (output_dir / "dual_version_report.md").read_text(encoding="utf-8")
+    dual_report = (output_dir / "all_report_compare.md").read_text(encoding="utf-8")
     assert "Generation Status: FAILED_AT_BLUEPRINT" in dual_report
     assert "experimental_version_b_blueprint_failed: timeout" in dual_report
 
@@ -285,6 +285,6 @@ def test_main_dual_version_writes_final_verdict_and_listing_ready(tmp_path: Path
     assert "### Search Terms" in ready_text
     assert "Version A title" in ready_text
     assert "A1" in ready_text
-    dual_report = (output_dir / "dual_version_report.md").read_text(encoding="utf-8")
+    dual_report = (output_dir / "all_report_compare.md").read_text(encoding="utf-8")
     assert "## Hybrid Launch Decision" in dual_report
     assert "Recommended Output: `version_a`" in dual_report

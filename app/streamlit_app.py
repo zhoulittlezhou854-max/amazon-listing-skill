@@ -18,6 +18,7 @@ from app.services.workspace_service import (
     attach_feedback_snapshot,
     attach_intent_weight_snapshot,
     initialize_workspace,
+    list_product_code_options,
     list_workspace_runs,
     list_workspaces,
 )
@@ -26,6 +27,168 @@ from modules.feedback_loop import save_feedback_snapshot
 from modules.intent_weights import save_intent_weight_snapshot
 
 DEFAULT_STEPS = [0, 2, 4, 5, 6, 7, 8, 9]
+MANUAL_PRODUCT_CODE_OPTION = "__manual_product_code__"
+VERSION_EXPLANATIONS = {
+    "version_a": "version_a：V3 基线版，当前最稳定、最保守的主链路版本。",
+    "version_b": "version_b：R1 Title/Bullets 实验版，主要测试新的标题与五点生成方式。",
+    "hybrid": "hybrid：融合版，从多个版本里挑选更优字段后形成的最终候选。",
+}
+LAUNCH_GATE_METRICS = [
+    (
+        "A10",
+        "A10（流量覆盖）",
+        "看关键词覆盖和流量抓取能力；越高说明高价值搜索词覆盖越完整。",
+    ),
+    (
+        "COSMO",
+        "COSMO（内容匹配）",
+        "看文案是否贴合用户关注点、卖点结构和竞品预期。",
+    ),
+    (
+        "Rufus",
+        "Rufus（转化说服）",
+        "看文案是否把购买理由说清楚，是否能推动用户下单。",
+    ),
+    (
+        "Fluency",
+        "Fluency（语句自然度）",
+        "看句子是否自然顺畅、像人写的，不会突兀或拼接感太强。",
+    ),
+]
+
+
+def summarize_run_failure(result: dict) -> dict | None:
+    error = str(result.get("error") or "").strip()
+    if not error:
+        return None
+    run_dir = str(result.get("run_dir") or "").strip() or "-"
+    return {
+        "headline": f"运行失败：{error}",
+        "detail": (
+            "这次任务已经结束，没有在后台继续运行。"
+            f" 当前失败 run 位于：`{run_dir}`。"
+            " 如果需要排查，请先查看展开的系统过程数据。"
+        ),
+    }
+
+
+def build_result_display_state(result: dict) -> dict:
+    verdict = result.get("final_readiness_verdict") or {}
+    recommended_output = str(verdict.get("recommended_output") or "").strip()
+    dual_version = result.get("dual_version") or {}
+    source_map = {
+        "version_a": dual_version.get("version_a") or {},
+        "version_b": dual_version.get("version_b") or {},
+        "hybrid": result.get("hybrid") or {},
+    }
+    selected = source_map.get(recommended_output) or {}
+    scoring_results = selected.get("scoring_results") or result.get("scoring_results") or {}
+    risk_report = selected.get("risk_report") or result.get("risk_report") or {}
+    blocking_reasons = list(verdict.get("reasons") or (risk_report.get("listing_status") or {}).get("blocking_reasons") or scoring_results.get("blocking_reasons") or [])
+    primary_report_path = result.get("dual_report_path") or result.get("report_path") or ""
+    return {
+        "recommended_output": recommended_output or "-",
+        "listing_status": str(verdict.get("listing_status") or (risk_report.get("listing_status") or {}).get("status") or result.get("status") or "-"),
+        "total_score": scoring_results.get("total_score"),
+        "grade": scoring_results.get("grade") or "-",
+        "blocking_reasons": blocking_reasons,
+        "report_path": result.get("report_path") or "",
+        "primary_report_path": primary_report_path,
+        "final_readiness_verdict_path": result.get("final_readiness_verdict_path") or "",
+        "listing_ready_path": result.get("listing_ready_path") or "",
+    }
+
+
+def build_score_explanation_rows(result: dict) -> list[dict]:
+    launch_gate = ((result.get("final_readiness_verdict") or {}).get("launch_gate") or {})
+    scores = launch_gate.get("scores") or {}
+    thresholds = launch_gate.get("thresholds") or {}
+    rows: list[dict] = []
+    for key, label, explanation in LAUNCH_GATE_METRICS:
+        current_score = scores.get(key, 0)
+        threshold = thresholds.get(key, 0)
+        passed = current_score >= threshold if threshold else False
+        rows.append(
+            {
+                "指标": label,
+                "当前分数": current_score,
+                "建议门槛": threshold,
+                "是否通过": "通过" if passed else "未通过",
+                "怎么理解": explanation,
+            }
+        )
+    return rows
+
+
+def build_result_summary_rows(result: dict) -> list[dict]:
+    display_state = build_result_display_state(result)
+    recommended_output = display_state["recommended_output"]
+    recommended_explanation = VERSION_EXPLANATIONS.get(
+        recommended_output,
+        "系统当前没有给出明确版本结论，建议先看最终判定文件再排查。",
+    )
+    return [
+        {
+            "字段": "上线状态（Listing Status）",
+            "当前值": display_state["listing_status"],
+            "怎么理解": "表示这份文案能否直接作为上线候选；READY_FOR_LISTING 通常代表可以进入人工复核或直接上架。",
+        },
+        {
+            "字段": "推荐版本（Recommended）",
+            "当前值": recommended_output,
+            "怎么理解": recommended_explanation,
+        },
+        {
+            "字段": "综合分（Total Score）",
+            "当前值": display_state["total_score"] if display_state["total_score"] is not None else "-",
+            "怎么理解": "这是当前推荐版本的综合评分，用来快速判断整体质量高低。",
+        },
+        {
+            "字段": "等级（Grade）",
+            "当前值": display_state["grade"],
+            "怎么理解": "这是系统给出的文字等级，便于不用看明细分时快速把握整体状态。",
+        },
+        {
+            "字段": "任务执行状态（Run Status）",
+            "当前值": result.get("status") or "-",
+            "怎么理解": "看这次任务本身有没有顺利跑完；success 表示流程结束且结果已落盘，RUN_FAILED 表示本次已结束且需要排查。",
+        },
+    ]
+
+
+def build_report_guide_rows(result: dict) -> list[dict]:
+    verdict = result.get("final_readiness_verdict") or {}
+    recommended_output = str(verdict.get("recommended_output") or "").strip()
+    recommended_label = VERSION_EXPLANATIONS.get(recommended_output, "最终推荐版")
+    rows: list[dict] = []
+    if result.get("listing_ready_path"):
+        rows.append(
+            {
+                "报告": "LISTING_READY.md",
+                "对应版本": f"最终推荐版（当前为 {recommended_output or '-'}）",
+                "用途": "这是可直接给运营或贴到亚马逊后台的最终文案，不是排查底层逻辑用的技术文件。",
+                "什么时候看": "当你要直接拿标题、五点、描述去上架时先看它。",
+            }
+        )
+    if result.get("final_readiness_verdict_path"):
+        rows.append(
+            {
+                "报告": "final_readiness_verdict.json",
+                "对应版本": recommended_label,
+                "用途": "这是最终裁决文件，不是文案本身；它负责说明系统最后推荐谁、为什么、卡在哪些门槛上。",
+                "什么时候看": "当你想确认到底该上 hybrid 还是回退 version_a 时看它。",
+            }
+        )
+    if result.get("dual_report_path"):
+        rows.append(
+            {
+                "报告": "all_report_compare.md",
+                "对应版本": "V3 基线版 + R1 Title/Bullets 实验版 + Hybrid 融合版",
+                "用途": "这是三版本对比总览，适合横向比较标题、五点、评分和最终推荐逻辑。",
+                "什么时候看": "当你要排查为什么推荐某个版本，或比较 3 个版本差异时看它。",
+            }
+        )
+    return rows
 
 
 def _render_metadata(metadata: dict) -> None:
@@ -41,20 +204,39 @@ def _render_metadata(metadata: dict) -> None:
 
 
 def _render_run_result(result: dict) -> None:
+    display_state = build_result_display_state(result)
     risk_report = result.get("risk_report") or {}
     scoring_results = result.get("scoring_results") or {}
     evidence_summary = result.get("evidence_summary") or {}
     compute_tier_summary = result.get("compute_tier_summary") or {}
-    listing_status = (risk_report.get("listing_status") or {}).get("status") or result.get("status") or "-"
-    total_score = scoring_results.get("total_score")
-    grade = scoring_results.get("grade") or "-"
-    blocking_reasons = (risk_report.get("listing_status") or {}).get("blocking_reasons") or scoring_results.get("blocking_reasons") or []
+    final_verdict = result.get("final_readiness_verdict") or {}
+    launch_gate = final_verdict.get("launch_gate") or {}
+    listing_status = display_state["listing_status"]
+    total_score = display_state["total_score"]
+    grade = display_state["grade"]
+    blocking_reasons = display_state["blocking_reasons"]
+
+    summary_rows = build_result_summary_rows(result)
+    score_rows = build_score_explanation_rows(result)
+    report_guide_rows = build_report_guide_rows(result)
+
+    st.markdown("### 一眼看懂这次结果")
+    st.table(pd.DataFrame(summary_rows))
+    if launch_gate:
+        gate_status = "通过" if launch_gate.get("passed") else "未通过"
+        st.caption(f"Hybrid Launch Gate：{gate_status}。如果未通过，系统会保守回退到更稳的版本。")
+    if score_rows:
+        st.markdown("### 四维评分怎么解读")
+        st.table(pd.DataFrame(score_rows))
+    if report_guide_rows:
+        st.markdown("### 这 3 份报告分别看什么")
+        st.table(pd.DataFrame(report_guide_rows))
 
     top = st.columns(4)
-    top[0].metric("Listing Status", listing_status)
-    top[1].metric("Total Score", total_score if total_score is not None else "-")
-    top[2].metric("Grade", grade)
-    top[3].metric("Run Status", result.get("status") or "-")
+    top[0].metric("推荐版本", display_state["recommended_output"])
+    top[1].metric("上线状态", listing_status)
+    top[2].metric("综合分", total_score if total_score is not None else "-")
+    top[3].metric("等级", grade)
     intent_weight_summary = result.get("intent_weight_summary") or {}
     if intent_weight_summary:
         st.caption(
@@ -79,13 +261,48 @@ def _render_run_result(result: dict) -> None:
 
     _render_metadata(result.get("metadata") or {})
     st.write(f"Run Dir: `{result.get('run_dir', '-')}`")
-    st.write(f"Report Path: `{result.get('report_path', '-')}`")
+    st.write(f"Primary Report Path: `{display_state['primary_report_path'] or '-'}`")
+    if display_state["final_readiness_verdict_path"]:
+        st.write(f"Final Verdict Path: `{display_state['final_readiness_verdict_path']}`")
+    if display_state["listing_ready_path"]:
+        st.write(f"Listing Ready Path: `{display_state['listing_ready_path']}`")
+    failure_notice = summarize_run_failure(result)
+    if failure_notice:
+        st.error(failure_notice["headline"])
+        st.info(failure_notice["detail"])
     if blocking_reasons:
         st.warning("阻断原因：" + " / ".join(str(item) for item in blocking_reasons))
+    if launch_gate:
+        st.caption(
+            "Launch Gate: "
+            f"{'passed' if launch_gate.get('passed') else 'failed'} | "
+            f"A10 {((launch_gate.get('scores') or {}).get('A10', 0))} / "
+            f"COSMO {((launch_gate.get('scores') or {}).get('COSMO', 0))} / "
+            f"Rufus {((launch_gate.get('scores') or {}).get('Rufus', 0))} / "
+            f"Fluency {((launch_gate.get('scores') or {}).get('Fluency', 0))}"
+        )
 
     report_text = result.get("report_text") or ""
     dual_report_text = result.get("dual_report_text") or ""
     dual_version = result.get("dual_version") or {}
+    listing_ready_path = result.get("listing_ready_path") or ""
+    final_verdict_path = result.get("final_readiness_verdict_path") or ""
+    if listing_ready_path and Path(listing_ready_path).exists():
+        st.download_button(
+            "📥 下载最终文案（可直接贴后台）",
+            data=Path(listing_ready_path).read_text(encoding="utf-8"),
+            file_name=Path(listing_ready_path).name,
+            mime="text/markdown",
+            use_container_width=True,
+        )
+    if final_verdict_path and Path(final_verdict_path).exists():
+        st.download_button(
+            "📥 下载最终判定说明",
+            data=Path(final_verdict_path).read_text(encoding="utf-8"),
+            file_name=Path(final_verdict_path).name,
+            mime="application/json",
+            use_container_width=True,
+        )
     if report_text:
         st.download_button(
             "📥 下载报告",
@@ -96,21 +313,26 @@ def _render_run_result(result: dict) -> None:
         )
         st.markdown(report_text)
     if dual_report_text:
-        st.info("已生成 V3 基线版 + R1 Title/Bullets 实验版，请优先查看 dual_version_report.md。")
+        st.info("已生成三版本对比报告：V3 基线版、R1 Title/Bullets 实验版、Hybrid 融合版。排查差异时先看它。")
         st.download_button(
-            "📥 下载 Dual Version Report",
+            "📥 下载三版本对比报告",
             data=dual_report_text,
-            file_name=Path(result.get("dual_report_path") or "dual_version_report.md").name,
+            file_name=Path(result.get("dual_report_path") or "all_report_compare.md").name,
             mime="text/markdown",
             use_container_width=True,
         )
-        with st.expander("Dual Version Summary"):
+        with st.expander("查看三版本对比详情"):
             st.markdown(dual_report_text)
     if dual_version:
         st.caption(
             "Dual-Version: "
             f"Version A = {((dual_version.get('version_a') or {}).get('generation_status') or '-')}, "
             f"Version B = {((dual_version.get('version_b') or {}).get('generation_status') or '-')}"
+        )
+    if result.get("hybrid"):
+        st.caption(
+            "Hybrid: "
+            f"{(((result.get('hybrid') or {}).get('generated_copy') or {}).get('metadata') or {}).get('hybrid_generation_status', '-')}"
         )
     if result.get("logs"):
         with st.expander("执行日志"):
@@ -133,6 +355,7 @@ def _render_run_result(result: dict) -> None:
                 "prelaunch_checklist": checklist,
                 "thirty_day_iteration_panel": iteration_panel,
                 "snapshots": result.get("snapshots") or {},
+                "final_readiness_verdict": final_verdict,
             }
         )
 
@@ -192,17 +415,18 @@ def render_history_tab() -> None:
             f"{run.get('generation_status') or '-'} | {run.get('listing_status') or '-'}"
         )
         with st.expander(label, expanded=False):
-            summary_cols = st.columns(6)
+            summary_cols = st.columns(7)
             summary_cols[0].metric("Generation", run.get("generation_status") or "-")
             summary_cols[1].metric("Listing", run.get("listing_status") or "-")
-            summary_cols[2].metric("A10", (run.get("scores") or {}).get("A10", 0))
-            summary_cols[3].metric("COSMO", (run.get("scores") or {}).get("COSMO", 0))
-            summary_cols[4].metric("Rufus", (run.get("scores") or {}).get("Rufus", 0))
-            summary_cols[5].metric("Fluency", (run.get("scores") or {}).get("Fluency", 0))
+            summary_cols[2].metric("Recommended", run.get("recommended_output") or "-")
+            summary_cols[3].metric("A10", (run.get("scores") or {}).get("A10", 0))
+            summary_cols[4].metric("COSMO", (run.get("scores") or {}).get("COSMO", 0))
+            summary_cols[5].metric("Rufus", (run.get("scores") or {}).get("Rufus", 0))
+            summary_cols[6].metric("Fluency", (run.get("scores") or {}).get("Fluency", 0))
             st.caption(f"Run Dir: `{run.get('run_dir')}`")
 
             if run.get("is_dual_version"):
-                col_a, col_b = st.columns(2)
+                col_a, col_b, col_h = st.columns(3)
                 with col_a:
                     st.markdown("### Version A")
                     _render_history_copy((run.get("version_a") or {}).get("generated_copy") or {})
@@ -217,6 +441,13 @@ def render_history_tab() -> None:
                         (run.get("version_b") or {}).get("scoring_results") or {},
                         (run.get("version_b") or {}).get("scores") or {},
                     )
+                with col_h:
+                    st.markdown("### Hybrid")
+                    _render_history_copy((run.get("hybrid") or {}).get("generated_copy") or {})
+                    _render_history_scoring(
+                        (run.get("hybrid") or {}).get("scoring_results") or {},
+                        (run.get("hybrid") or {}).get("scores") or {},
+                    )
             else:
                 _render_history_copy(run.get("generated_copy") or {})
                 _render_history_scoring(run.get("scoring_results") or {}, run.get("scores") or {})
@@ -229,8 +460,14 @@ def render_history_tab() -> None:
                 with st.expander("readiness_summary.md", expanded=False):
                     st.markdown(run["readiness_summary_text"])
             if run.get("dual_report_text"):
-                with st.expander("dual_version_report.md", expanded=False):
+                with st.expander("all_report_compare.md", expanded=False):
                     st.markdown(run["dual_report_text"])
+            if run.get("final_readiness_verdict"):
+                with st.expander("final_readiness_verdict.json", expanded=False):
+                    st.json(run["final_readiness_verdict"])
+            if run.get("listing_ready_text"):
+                with st.expander("LISTING_READY.md", expanded=False):
+                    st.markdown(run["listing_ready_text"])
 
 
 def render_new_product_tab() -> None:
@@ -239,7 +476,19 @@ def render_new_product_tab() -> None:
         col1, col2, col3 = st.columns(3)
         site = col1.selectbox("目标国家", ["US", "DE", "FR", "IT", "ES", "JP"], index=0)
         brand_name = col2.text_input("品牌名称", value="TOSBARRFT")
-        product_code = col3.text_input("内部产品代号", value="T70")
+        historical_product_codes = list_product_code_options(site)
+        product_code_options = historical_product_codes + [MANUAL_PRODUCT_CODE_OPTION]
+        default_product_code_index = 0 if historical_product_codes else len(product_code_options) - 1
+        selected_product_code = col3.selectbox(
+            "内部产品代号",
+            product_code_options,
+            index=default_product_code_index,
+            format_func=lambda value: "手动输入新代号" if value == MANUAL_PRODUCT_CODE_OPTION else value,
+            help="优先复用历史产品代号，避免因为手误创建新的历史产品名称。",
+        )
+        product_code = selected_product_code
+        if selected_product_code == MANUAL_PRODUCT_CODE_OPTION:
+            product_code = col3.text_input("新的内部产品代号", value="")
         attribute_table = st.file_uploader("属性表", type=["txt", "csv", "xlsx"], key="attr")
         keyword_table = st.file_uploader("关键词表", type=["csv", "xlsx"], key="kw")
         aba_merged = st.file_uploader("ABA 表", type=["csv", "xlsx"], key="aba")

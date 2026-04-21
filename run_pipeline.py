@@ -332,7 +332,7 @@ def main() -> None:
             "final_readiness_verdict": final_readiness_verdict,
         },
     )
-    dual_report_path = output_dir / "dual_version_report.md"
+    dual_report_path = output_dir / "all_report_compare.md"
     dual_report_path.write_text(dual_report, encoding="utf-8")
     print(f"Run complete: {output_dir}")
     print(
@@ -345,7 +345,7 @@ def main() -> None:
     )
     print(f"Hybrid output: {hybrid_dir / 'generated_copy.json'}")
     print(f"Hybrid title source: {(hybrid_copy.get('metadata') or {}).get('hybrid_sources', {}).get('title', '')}")
-    print(f"Dual report: {dual_report_path}")
+    print(f"All report compare: {dual_report_path}")
     print(f"Final verdict: {final_readiness_verdict_path}")
     print(f"Listing ready: {listing_ready_path}")
 
