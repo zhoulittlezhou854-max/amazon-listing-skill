@@ -1,0 +1,171 @@
+brand_name: "Tosbarrft"
+platform: "Amazon"
+version: "v0.1"
+status: "draft_usable"
+
+brand_positioning:
+  summary: "Professional and reliable outdoor recording brand for Amazon, aimed at younger and entry-level users."
+  market_position: "Above cheap generic action cameras, below premium flagship brands."
+  user_promise: "A cool, reliable first action camera for normal users."
+  target_audience:
+    - "Teen and young users"
+    - "Entry-level outdoor and sports camera buyers"
+    - "Users who want credibility without a flagship price"
+
+tone_balance:
+  youthful_cool: 0.45
+  professional_reliable: 0.55
+
+brand_keywords:
+  primary:
+    - "reliable"
+    - "outdoor-ready"
+    - "youthful"
+    - "cool but credible"
+    - "accessible performance"
+  secondary:
+    - "clean"
+    - "sharp"
+    - "energetic"
+    - "commercial"
+    - "confidence-building"
+
+amazon_rules:
+  main_image:
+    pure_or_clean_white_background: true
+    no_copy: true
+    no_badges: true
+    no_lifestyle_scene: true
+    product_must_dominate_frame: true
+  detail_images:
+    copy_should_be_short: true
+    one_core_message_per_image: true
+    avoid_poster_style: true
+    use_proof_over_hype: true
+  aplus:
+    allow_brand_story_tone: true
+    keep_commercial_clarity: true
+    avoid_overdesigned_layouts: true
+
+visual_system:
+  overall_direction:
+    - "Amazon-first ecommerce clarity"
+    - "Professional reliability with controlled youthful energy"
+    - "Outdoor-tech feeling without extreme hardcore intimidation"
+  product_presentation:
+    - "Hero product should stay sharp, centered or confidently weighted"
+    - "Show real structure and materials clearly"
+    - "Use accessories as support, not clutter"
+  scene_direction:
+    - "Outdoor and action use are welcome"
+    - "Scenes should feel achievable, not elite-only"
+    - "Emphasize first-person or close-use immersion over abstract lifestyle posing"
+  information_density:
+    - "Moderate"
+    - "Clear headline + 2-4 proof points"
+    - "Do not overfill with icons or copy blocks"
+  lighting:
+    - "Clean, crisp, contrast-friendly"
+    - "Natural daylight or controlled commercial light"
+    - "Avoid muddy, gray, low-energy scenes"
+  composition:
+    - "Strong focal product"
+    - "Simple information hierarchy"
+    - "Leave enough negative space for Amazon-style readability"
+
+color_system:
+  foundation:
+    - name: "carbon_black"
+      hex: "#111111"
+      use: "Primary product and logo grounding color"
+    - name: "pure_white"
+      hex: "#FFFFFF"
+      use: "Main background and spacing color"
+    - name: "slate_gray"
+      hex: "#5E6673"
+      use: "Neutral support color for text and UI-like accents"
+  accents:
+    - name: "electric_blue"
+      hex: "#2F80ED"
+      use: "Functional tech accent, status glow, subtle performance cue"
+    - name: "action_orange"
+      hex: "#FF7A00"
+      use: "Youthful action accent, use sparingly for energy or sport context"
+  rules:
+    - "Base layouts should remain black, white, and neutral first"
+    - "Use blue for product-tech credibility"
+    - "Use orange sparingly as an action or youth accent, not as the dominant brand base"
+
+typography_and_copy:
+  style:
+    - "Bold sans-serif headline logic"
+    - "Short, easy-to-scan supporting copy"
+    - "Minimal sentence count"
+    - "Numbers and proof points should stand out"
+  avoid:
+    - "Long paragraphs"
+    - "Soft luxury phrasing"
+    - "Cheap hype language"
+    - "Crowded mini text everywhere"
+
+do:
+  - "Keep main images clean and trustworthy"
+  - "Show product credibility through sharp product rendering and believable use"
+  - "Use outdoor or action context to signal excitement"
+  - "Make the product feel approachable to first-time action-camera buyers"
+  - "Favor commercial clarity over abstract art direction"
+
+avoid:
+  - "Cheap generic gadget look"
+  - "Messy collage layouts"
+  - "Poster-like overdesign"
+  - "Overly hardcore pro-athlete intimidation"
+  - "Excess glow, neon, or fake high-end cyber effects"
+  - "Too much text competing with the product"
+
+logo:
+  primary_variant: "black_bg_white_wordmark"
+  primary_path: "/Users/zhoulittlezhou/Desktop/产品资料/品牌/Tosbarrft/1768379972460.PNG"
+  secondary_variants:
+    - "/Users/zhoulittlezhou/Desktop/产品资料/品牌/Tosbarrft/未命名2.jpeg"
+  usage_notes:
+    - "Use the black-background white-wordmark version as the master reference."
+    - "Do not force the logo into every listing image."
+    - "Prefer logo visibility in A+ or brand-story contexts, not in main-image compliance zones."
+
+reference_inputs:
+  current_live_assets:
+    - "/Users/zhoulittlezhou/Desktop/产品资料/H88/线上图"
+    - "/Users/zhoulittlezhou/Desktop/产品资料/T70M/M 70详情图"
+    - "/Users/zhoulittlezhou/Desktop/产品资料/H91/H91pro(电池+128)/H91pro图"
+  preferred_style_refs:
+    - "/Users/zhoulittlezhou/Downloads/B0DCLRRHSP(50)-US-product-image/好B0FZS2VDKG"
+    - "/Users/zhoulittlezhou/Downloads/B0DCLRRHSP(50)-US-product-image/好B0FH215WQ3"
+    - "/Users/zhoulittlezhou/Downloads/B0DCLRRHSP(50)-US-product-image/好B0F5L6S6J5"
+    - "/Users/zhoulittlezhou/Downloads/B0DCLRRHSP(50)-US-product-image/好B0B2FF8CP4"
+  disliked_style_refs:
+    - "/Users/zhoulittlezhou/Downloads/B0DCLRRHSP(50)-US-product-image/差B0DGH11YRH"
+
+interpretation_notes:
+  observed_current_patterns:
+    - "Current live assets already lean black product plus white background."
+    - "Outdoor sports imagery is a natural fit for the brand."
+    - "Accessories and package content are important buying signals."
+  preferred_reference_takeaways:
+    - "Big, clear focal product"
+    - "Bold headline hierarchy"
+    - "Simple proof-driven layouts"
+    - "Use scenes to create momentum, not chaos"
+  negative_reference_takeaways:
+    - "Avoid cluttered collage feeling"
+    - "Avoid low-end generic gadget presentation"
+    - "Avoid weak hierarchy and cheap visual cues"
+
+master_prompt_direction:
+  summary: "Amazon-first outdoor-tech system with crisp white foundations, controlled action energy, and proof-driven layouts."
+  reusable_phrases:
+    - "professional and reliable outdoor recording brand"
+    - "youthful but credible"
+    - "clean Amazon ecommerce image"
+    - "cool but not cheap"
+    - "sharp, conversion-focused layout"
