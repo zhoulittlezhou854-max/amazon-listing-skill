@@ -1,0 +1,452 @@
+# Enhanced product brief template for messy-folder intake.
+# status values:
+# - missing: not found yet
+# - extracted: pulled from files or images
+# - inferred: guessed from context, needs review
+# - confirmed: checked and accepted by user
+
+schema_version: "2.0"
+record_type: "product_brief"
+record_status: "draft_from_messy_intake"
+
+intake_context:
+  source_folder: ""
+  intake_mode: "best_effort"
+  brand_master_ref: "/Users/zhoulittlezhou/image master/config/style_profile.yaml"
+  generated_at: ""
+  last_reviewed_at: ""
+  reviewed_by: ""
+
+product_identity:
+  product_id:
+    value: ""
+    status: "missing"
+    confidence: 0.0
+    sources:
+      - ""
+  product_name:
+    value: ""
+    status: "missing"
+    confidence: 0.0
+    sources:
+      - ""
+  brand:
+    value: "Tosbarrft"
+    status: "confirmed"
+    confidence: 1.0
+    sources:
+      - "/Users/zhoulittlezhou/image master/config/style_profile.yaml"
+  category:
+    value: ""
+    status: "missing"
+    confidence: 0.0
+    sources:
+      - ""
+  subcategory:
+    value: ""
+    status: "missing"
+    confidence: 0.0
+    sources:
+      - ""
+  marketplace:
+    value: "Amazon US"
+    status: "confirmed"
+    confidence: 1.0
+    sources:
+      - "workflow_default"
+  language:
+    value: "EN"
+    status: "confirmed"
+    confidence: 1.0
+    sources:
+      - "workflow_default"
+
+positioning:
+  target_audience:
+    items:
+      - value: ""
+        status: "missing"
+        confidence: 0.0
+        sources:
+          - ""
+  price_band:
+    value: ""
+    status: "missing"
+    confidence: 0.0
+    sources:
+      - ""
+  product_role:
+    value: ""
+    status: "missing"
+    confidence: 0.0
+    sources:
+      - ""
+  use_case_summary:
+    value: ""
+    status: "missing"
+    confidence: 0.0
+    sources:
+      - ""
+
+commerce_copy:
+  title:
+    value: ""
+    status: "missing"
+    confidence: 0.0
+    sources:
+      - ""
+  five_bullets:
+    items:
+      - value: ""
+        status: "missing"
+        confidence: 0.0
+        sources:
+          - ""
+      - value: ""
+        status: "missing"
+        confidence: 0.0
+        sources:
+          - ""
+      - value: ""
+        status: "missing"
+        confidence: 0.0
+        sources:
+          - ""
+      - value: ""
+        status: "missing"
+        confidence: 0.0
+        sources:
+          - ""
+      - value: ""
+        status: "missing"
+        confidence: 0.0
+        sources:
+          - ""
+  keywords:
+    primary:
+      items:
+        - value: ""
+          status: "missing"
+          confidence: 0.0
+          sources:
+            - ""
+    secondary:
+      items:
+        - value: ""
+          status: "missing"
+          confidence: 0.0
+          sources:
+            - ""
+    negative_or_avoid:
+      items:
+        - value: ""
+          status: "missing"
+          confidence: 0.0
+          sources:
+            - ""
+
+selling_points:
+  priority_order:
+    items:
+      - value: ""
+        status: "missing"
+        confidence: 0.0
+        sources:
+          - ""
+      - value: ""
+        status: "missing"
+        confidence: 0.0
+        sources:
+          - ""
+      - value: ""
+        status: "missing"
+        confidence: 0.0
+        sources:
+          - ""
+  items:
+    - title:
+        value: ""
+        status: "missing"
+        confidence: 0.0
+        sources:
+          - ""
+      evidence:
+        items:
+          - value: ""
+            status: "missing"
+            confidence: 0.0
+            sources:
+              - ""
+      benefit:
+        items:
+          - value: ""
+            status: "missing"
+            confidence: 0.0
+            sources:
+              - ""
+      preferred_visuals:
+        - "feature"
+        - "scene"
+      must_include:
+        items:
+          - value: ""
+            status: "missing"
+            confidence: 0.0
+            sources:
+              - ""
+      must_avoid:
+        items:
+          - value: ""
+            status: "missing"
+            confidence: 0.0
+            sources:
+              - ""
+
+product_facts:
+  materials:
+    items:
+      - value: ""
+        status: "missing"
+        confidence: 0.0
+        sources:
+          - ""
+  colors:
+    items:
+      - value: ""
+        status: "missing"
+        confidence: 0.0
+        sources:
+          - ""
+  dimensions:
+    length_mm:
+      value: null
+      status: "missing"
+      confidence: 0.0
+      sources:
+        - ""
+    width_mm:
+      value: null
+      status: "missing"
+      confidence: 0.0
+      sources:
+        - ""
+    height_mm:
+      value: null
+      status: "missing"
+      confidence: 0.0
+      sources:
+        - ""
+    weight_g:
+      value: null
+      status: "missing"
+      confidence: 0.0
+      sources:
+        - ""
+  recording_specs:
+    video:
+      value: ""
+      status: "missing"
+      confidence: 0.0
+      sources:
+        - ""
+    photo:
+      value: ""
+      status: "missing"
+      confidence: 0.0
+      sources:
+        - ""
+    stabilization:
+      value: ""
+      status: "missing"
+      confidence: 0.0
+      sources:
+        - ""
+    battery:
+      value: ""
+      status: "missing"
+      confidence: 0.0
+      sources:
+        - ""
+    waterproof:
+      value: ""
+      status: "missing"
+      confidence: 0.0
+      sources:
+        - ""
+  compatibility:
+    items:
+      - value: ""
+        status: "missing"
+        confidence: 0.0
+        sources:
+          - ""
+
+package_contents:
+  items:
+    - value: ""
+      status: "missing"
+      confidence: 0.0
+      sources:
+        - ""
+
+visual_constraints:
+  main_image:
+    white_background_required:
+      value: true
+      status: "confirmed"
+      confidence: 1.0
+      sources:
+        - "amazon_default_rule"
+    copy_allowed:
+      value: false
+      status: "confirmed"
+      confidence: 1.0
+      sources:
+        - "amazon_default_rule"
+    logo_allowed:
+      value: false
+      status: "confirmed"
+      confidence: 1.0
+      sources:
+        - "amazon_default_rule"
+    accessories_allowed:
+      value: true
+      status: "inferred"
+      confidence: 0.5
+      sources:
+        - ""
+  detail_images:
+    people_allowed:
+      value: true
+      status: "inferred"
+      confidence: 0.5
+      sources:
+        - ""
+    comparison_allowed:
+      value: true
+      status: "inferred"
+      confidence: 0.5
+      sources:
+        - ""
+    icons_allowed:
+      value: true
+      status: "inferred"
+      confidence: 0.5
+      sources:
+        - ""
+    copy_allowed:
+      value: true
+      status: "confirmed"
+      confidence: 0.9
+      sources:
+        - "amazon_detail_image_convention"
+  forbidden_elements:
+    items:
+      - value: "wrong product structure"
+        status: "confirmed"
+        confidence: 1.0
+        sources:
+          - "workflow_default"
+      - value: "wrong color"
+        status: "confirmed"
+        confidence: 1.0
+        sources:
+          - "workflow_default"
+      - value: "watermark"
+        status: "confirmed"
+        confidence: 1.0
+        sources:
+          - "workflow_default"
+      - value: "fake certification badges"
+        status: "confirmed"
+        confidence: 1.0
+        sources:
+          - "workflow_default"
+
+asset_inputs:
+  raw_images_path:
+    value: ""
+    status: "missing"
+    confidence: 0.0
+    sources:
+      - ""
+  manufacturer_refs:
+    items:
+      - value: ""
+        status: "missing"
+        confidence: 0.0
+        sources:
+          - ""
+  competitor_refs:
+    items:
+      - value: ""
+        status: "missing"
+        confidence: 0.0
+        sources:
+          - ""
+  brand_refs:
+    items:
+      - value: "/Users/zhoulittlezhou/image master/config/style_profile.yaml"
+        status: "confirmed"
+        confidence: 1.0
+        sources:
+          - "workflow_default"
+  extracted_folders:
+    items:
+      - value: ""
+        status: "missing"
+        confidence: 0.0
+        sources:
+          - ""
+
+planning_hints:
+  required_listing_slots:
+    - "IMG01"
+    - "IMG02"
+    - "IMG03"
+    - "IMG04"
+    - "IMG05"
+  optional_listing_slots:
+    - "IMG06"
+    - "IMG07"
+  need_aplus:
+    value: false
+    status: "missing"
+    confidence: 0.0
+    sources:
+      - ""
+  anchor_first:
+    - "IMG01"
+    - "IMG02"
+
+completion_state:
+  ready_for_image_classification: false
+  ready_for_prompt_generation: false
+  ready_for_anchor_generation: false
+  blocker_count_p0: 0
+  blocker_count_p1: 0
+  blocker_count_p2: 0
+
+missing_requirements:
+  p0:
+    - field: ""
+      reason: ""
+      suggested_source: ""
+  p1:
+    - field: ""
+      reason: ""
+      suggested_source: ""
+  p2:
+    - field: ""
+      reason: ""
+      suggested_source: ""
+
+review_notes:
+  unresolved_questions:
+    - ""
+  low_confidence_fields:
+    - ""
+  internal_comments:
+    - ""
+  compliance_notes:
+    - ""
