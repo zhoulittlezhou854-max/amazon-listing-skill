@@ -1,0 +1,123 @@
+schema_name: "listing_export_schema"
+version: "v0.1"
+status: "working_draft"
+purpose: "Export listing-generation outputs in a structure that can also feed Amazon image planning, missing-info analysis, shot planning, and prompt building."
+
+export_notes:
+  - "This schema is designed to be generated together with listing outputs."
+  - "Prefer explicit enumerations over vague phrases."
+  - "Do not fabricate unsupported technical claims."
+  - "If a field is unknown, keep it empty or null instead of guessing."
+  - "Each selling point should carry evidence when possible."
+
+product_identity:
+  product_id: ""
+  sku: ""
+  product_name: ""
+  brand: ""
+  category: ""
+  subcategory: ""
+  marketplace: "Amazon US"
+  language: "EN"
+  model: ""
+  version_name: ""
+  bundle_type: ""
+  color_variants: []
+
+commerce_copy:
+  title: ""
+  five_bullets:
+    - ""
+    - ""
+    - ""
+    - ""
+    - ""
+  keywords:
+    primary: []
+    secondary: []
+    backend_search_terms: []
+  target_audience: []
+  use_case_summary: ""
+  short_selling_points: []
+
+selling_points:
+  - title: ""
+    claim: ""
+    benefit: ""
+    priority: 1
+    preferred_visuals:
+      - "feature"
+      - "scene"
+    evidence:
+      - type: "spec"
+        value: ""
+        source: ""
+        confidence: 0.0
+    prompt_hints:
+      headline: ""
+      proof_points: []
+      must_include: []
+      must_avoid: []
+
+product_facts:
+  dimensions:
+    length_mm: null
+    width_mm: null
+    height_mm: null
+    weight_g: null
+  specs:
+    video: ""
+    photo: ""
+    battery: ""
+    waterproof: ""
+    stabilization: ""
+    screen: ""
+    material: ""
+    charging_port: ""
+    storage_support: ""
+    wireless: ""
+    other_specs: []
+  compatibility:
+    supported_devices: []
+    supported_accessories: []
+    mount_standard: []
+    not_compatible_with: []
+
+package_contents:
+  included_items: []
+  not_included_items: []
+  warranty: ""
+  support_notes: ""
+
+image_planning_hints:
+  best_hero_claim: ""
+  must_show_in_images: []
+  comparison_available: false
+  scene_assets_available: false
+  package_assets_available: false
+  spec_strength: "unknown"
+  compliance_notes: []
+  forbidden_elements: []
+  fallback_preferences:
+    if_no_comparison:
+      - "usage_scene"
+      - "feature_proof"
+      - "faq_or_trust"
+    if_no_scene:
+      - "feature_proof"
+      - "package_or_trust"
+    if_weak_specs:
+      - "feature_proof"
+      - "package_or_trust"
+
+faq_and_risk_reduction:
+  common_questions: []
+  common_objections: []
+  trust_builders: []
+  return_risk_notes: []
+
+source_tracking:
+  generated_by: ""
+  generated_at: ""
+  source_files: []
+  notes: []
