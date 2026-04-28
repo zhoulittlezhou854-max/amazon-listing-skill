@@ -1,17 +1,33 @@
-# Protocol Audit (Phase 1)
+# Protocol Audit (Keyword Protocol)
+
+## Keyword Protocol Flow
+
+```text
+preprocess -> keyword_protocol -> keyword_utils/keyword_arsenal -> writing_policy -> copy_generation reconciliation -> scoring -> report_generator
+```
+
+Authoritative keyword fields:
+- `quality_status`: `qualified`, `watchlist`, `natural_only`, `rejected`, or `blocked`.
+- `traffic_tier`: country/category-relative `L1` / `L2` / `L3` for qualified keywords only.
+- `routing_role`: intended placement (`title`, `bullet`, `backend`, `residual`, `natural_only`, `rejected`).
+- `opportunity_score` and `blue_ocean_score`: demand/fit/conversion/competition weighted opportunity signals.
+- `assigned_fields`: final observed placement after title/bullets/search terms are finalized.
 
 ## Keyword Tiering Map
 | Pipeline stage | Data / fields | Alignment with scoring.py |
 | --- | --- | --- |
-| `tools.preprocess.preprocess_data` | Populates `PreprocessedData.keyword_data.keywords` from CSV and, for DE/FR, loads `real_vocab` via `load_real_country_vocab` storing top 20 rows with `keyword`, `search_volume`, `conversion_rate`. | Scoring tiers keywords straight off this structure (`keyword`/`search_term` + `search_volume`), so any normalization must land here before step 8. |
-| `modules.keyword_arsenal.build_arsenal` | Builds `reserve_keywords`. When `real_vocab` exists, mirrors those terms back onto `preprocessed_data.keyword_data.keywords` so downstream nodes and scoring use local-language keywords. | Keeps fields compatible with `scoring._tier_keywords`, but currently only copies top 20 lower-case entries and drops tiers, causing later steps to guess at tiering again. |
-| `modules.copy_generation.extract_tiered_keywords` | Recomputes L1/L2/L3 with hard-coded thresholds (>=10k, >=1k) using `real_vocab` first, fallback to `keyword_data`, else static mapping / `[SYNTH]`. Returns lowercase lists stored in-memory only. | Matches scoring thresholds, but limits each tier to 5–10 terms and lowercases them before insertion, meaning generated DE/FR text may not preserve original capitalization/orthography. |
-| `modules.copy_generation.generate_title` & `generate_bullet_points` | Title uses `l1_keywords` verbatim; bullets/B3-B4 insert `l2`/`l3` tokens into English templates before translating. Search terms intentionally collects L2/L3 + category terms. | Scoring expects L1 in Title/B1-B2, L2 anywhere, L3 in `search_terms`. Current templates do not enforce slot coverage, and translation path can drop or Anglicize DE/FR tokens before scoring sees them, causing A10.keyword_tiering deficits. |
-| `modules.scoring._score_keyword_tiering` | Builds three buckets: L1 hits from Title+Bullets, L2 hits from entire listing text, L3 hits from `search_terms`. Needs at least one hit per bucket for 30/30. | When the generated copy never embeds DE/FR tier keywords into Title/B1/B2 (or Search Terms), scoring records 0 despite `real_vocab` being loaded. |
+| `tools.preprocess.preprocess_data` | Preserves raw keyword metrics (`search_volume`, `click_share`, `ctr`, `conversion_rate`, `monthly_purchases`, `avg_cpc`, `product_count`, `title_density`) from country-specific tables. | It does not decide tiers; it preserves evidence for `modules.keyword_protocol`. |
+| `modules.keyword_protocol.build_keyword_protocol` | Applies quality gates, country-relative traffic tiering, product-fit scoring, opportunity scoring, blue-ocean scoring, and routing-role assignment. | This is the single source of truth for `quality_status`, `traffic_tier`, `routing_role`, `opportunity_score`, and `blue_ocean_score`. |
+| `modules.keyword_utils.extract_tiered_keywords` / `modules.keyword_arsenal.build_arsenal` | Consume protocol rows and expose compatibility lists (`l1`, `l2`, `l3`) plus `_metadata`. | Legacy tier lists are projections of qualified protocol rows, not independent thresholds. |
+| `modules.writing_policy` | Routes by `routing_role`: title=head traffic anchors, bullets=conversion/blue-ocean opportunities, backend=residual safe terms. | L3 no longer means "always backend"; role metadata is authoritative. |
+| `modules.copy_generation` | Generates final visible copy, then reconciles actual title/bullet/search-term placements into `assigned_fields`. | Trace records final observed placement after rerender and search terms are settled. |
+| `modules.scoring._score_a10` | Scores head traffic anchors, qualified placement, bullet conversion coverage, backend residual coverage, and rejected/blocked visible keywords. | A10 rewards correct use of qualified protocol keywords, not raw keyword stuffing. |
+| `modules.report_generator` | Renders keyword protocol decisions with traffic tier, quality status, routing role, opportunity, assigned fields, and reason. | Reports expose why a term was used, reserved, natural-only, or rejected. |
 
-**Observed issues:**
-1. `extract_tiered_keywords` returns lower-cased tokens, but `_generate_title_in_language` and translators later mix English fallback phrases (`action camera 4k`) with partially translated scene words, so DE/FR L1 keywords rarely surface.
-2. No structural hand-off ensures `writing_policy` reserves L1 slots for Title/B1/B2; templates can be satisfied with generic English terms even if DE/FR real keywords exist, leading to missing hits in the exact sections scoring checks.
+**Current invariant:**
+1. Absolute numbers such as 1,000 or 10,000 are not global tier cutoffs; different countries/categories are tiered by relative demand and keyword quality.
+2. Blue-ocean keywords must still have demand, product fit, engagement/conversion signal, and lower relative competition; "low volume" alone is not blue-ocean.
+3. `assigned_fields` is an audit trail of final observed placement; scoring decides whether that placement is good.
 
 ## Capability Scene Binding Map
 | Pipeline stage | Data / fields | Alignment with scoring.py |

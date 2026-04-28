@@ -2391,7 +2391,7 @@ def extract_tiered_keywords(preprocessed_data: Any, language: str = "Chinese", r
 
 def extract_l1_keywords(keyword_data: Any, language: str = "Chinese") -> List[str]:
     """
-    提取L1关键词（月搜索量≥10,000）- 保留兼容性接口
+    提取 L1 关键词（由 keyword_protocol 的相对分层决定）- 保留兼容性接口
     """
     tiered = extract_tiered_keywords(keyword_data, language)
     return tiered.get("l1", [])

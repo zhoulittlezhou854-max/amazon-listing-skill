@@ -148,11 +148,13 @@ python tools/preprocess.py --run-config run_config.json --output preprocessed_da
 | 月搜索量 | search_volume / 月搜索量 / volume |
 | 购买率 | conversion_rate / 购买率 / cvr |
 
-**L1/L2/L3 分级规则**：
-- L1：月搜索量 ≥ 10,000
-- L2：1,000 ≤ 月搜索量 < 10,000
-- L3：月搜索量 < 1,000 且意图明确
-- 🔥High-Conv：购买率 ≥ 1.5% 或 转化明显高于均值
+**Keyword Protocol 分级规则**：
+- 先执行 quality gate：blocked / rejected / natural_only / watchlist 不进入 L1/L2/L3。
+- 只对 `quality_status=qualified` 的词做国家/类目相对分层。
+- L1：qualified 池中 Top 20% head traffic anchors，优先进入 Title。
+- L2：qualified 池中 20%-60% 或 high-conv / blue-ocean conversion 词，优先进入 Bullets。
+- L3：qualified 池中 residual / long-tail opportunity，优先进入 backend residual 或 Search Terms。
+- 蓝海词不是低流量词；蓝海词 = 有真实需求 + 产品强匹配 + 点击/转化不差 + 竞争压力相对低。
 
 **竞品 CSV 字段映射**：
 | 标准字段 | 可接受列名 |

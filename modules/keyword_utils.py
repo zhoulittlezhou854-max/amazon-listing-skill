@@ -326,14 +326,6 @@ def _append_unique(bucket: List[str], token: str, seen: set, limit: Optional[int
     bucket.append(normalized)
 
 
-def _tier_from_volume(volume: float) -> str:
-    if volume >= 10000:
-        return "l1"
-    if volume >= 1000:
-        return "l2"
-    return "l3"
-
-
 def locale_code_for_language(language: str) -> str:
     return LANGUAGE_LOCALE_MAP.get(language, "en")
 

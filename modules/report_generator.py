@@ -11,6 +11,7 @@ from modules.compute_tiering import summarize_compute_tier_map
 from modules.evidence_engine import summarize_evidence_bundle
 from modules.generation_status import is_live_generation_status, is_live_success_status
 from modules.intent_weights import summarize_intent_weight_snapshot
+from modules.keyword_protocol import build_keyword_protocol
 from modules.language_utils import get_scene_display
 from modules.operations_panel import build_prelaunch_checklist, build_thirty_day_iteration_panel
 from modules.writing_policy import LENGTH_RULES
@@ -525,22 +526,19 @@ def _extract_keyword_tiers(preprocessed_data: Any) -> Dict[str, str]:
     if mapping:
         return mapping
 
-    keywords = _safe_get(preprocessed_data, "keyword_data", "keywords", default=[]) or []
-    for row in keywords:
-        keyword = row.get("keyword") or row.get("search_term")
+    raw_keywords = _safe_get(preprocessed_data, "keyword_data", "keywords", default=[]) or []
+    protocol = build_keyword_protocol(
+        raw_keywords,
+        country=str(_safe_get(preprocessed_data, "target_country", default="") or ""),
+        category_type=str(_safe_get(preprocessed_data, "category_type", default="") or "action_camera"),
+    )
+    for row in protocol.get("keyword_metadata") or []:
+        keyword = row.get("keyword")
         if not keyword:
             continue
-        try:
-            volume = float(row.get("search_volume", 0))
-        except (TypeError, ValueError):
-            volume = 0
-        if volume >= 10000:
-            tier = "L1"
-        elif volume >= 1000:
-            tier = "L2"
-        else:
-            tier = "L3"
-        mapping[keyword] = tier
+        tier = row.get("traffic_tier") or row.get("tier")
+        if tier:
+            mapping[keyword] = str(tier).upper()
     return mapping
 
 

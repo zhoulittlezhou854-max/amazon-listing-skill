@@ -10,7 +10,7 @@
 ## 2. 输入通路
 | 数据源 | 描述 | 供给模块 |
 | --- | --- | --- |
-| `generated_copy.decision_trace.keyword_assignments` | 记录每个 keyword（含 tier/source/search_volume）落在的字段列表 | `modules.copy_generation.KeywordAssignmentTracker` |
+| `generated_copy.decision_trace.keyword_assignments` | 记录每个 keyword（含 quality_status/traffic_tier/routing_role/opportunity/assigned_fields）落在的字段列表 | `modules.copy_generation.KeywordAssignmentTracker` |
 | `generated_copy.decision_trace.bullet_trace` | 每个 bullet slot 的 scene/capability/numeric expectation 满足情况 | `modules.copy_generation.generate_bullet_points` |
 | `generated_copy.decision_trace.search_terms_trace` | Search Terms 实际字节数、byte cap、backend-only 计数 | `modules.copy_generation.generate_search_terms` |
 | `generated_copy.audit_trail` | delete/downgrade/backend_only/locale_skip/numeric_patch 等审计事件 | 所有 copy_generation 子模块 |
@@ -20,9 +20,12 @@
 
 ## 3. 评分子模块
 ### 3.1 A10（关键词路由）
-1. **L1 → Title**：统计 tier=L1 的 keyword 在 `assigned_fields` 中出现 `title*` 的条数；按命中比例折算 0~40。
-2. **L2 → Bullets**：同理检查 `bullet_*` 覆盖度，要求 ≥3 个不同 slot 才拿满分。
-3. **L3 → Search Terms**：确认 L3 是否进入 `search_terms`（可叠加 backend-only 字段）；占比决定 0~30。
+A10 no longer rewards raw keyword stuffing. It validates qualified keyword placement:
+1. **Head traffic anchor in Title**：`quality_status=qualified` 且 `routing_role=title` / `traffic_tier=L1` 的核心流量词必须进入标题。
+2. **Qualified keyword placement by routing role**：title / bullet / backend / residual 必须落到对应字段；可见字段出现 rejected/blocked 词会清零该项。
+3. **Bullet conversion / blue-ocean coverage**：`routing_role=bullet` 的 high-conv / blue-ocean 词需要覆盖多个 bullet slot。
+4. **Backend residual coverage**：`routing_role in {backend, residual}` 的安全残余词进入 Search Terms；`l3_search_terms` 仅保留为兼容别名。
+5. **No rejected or blocked visible keywords**：任何 rejected / blocked 词出现在 Title 或 Bullets 都会阻断上线评分。
 
 ### 3.2 COSMO（能力/场景）
 1. **Capability Coverage**：遍历 `intent_graph.capability_metadata` 中 `is_supported=True` 的能力，看是否在可见 bullet trace 中出现，对应 0~40。

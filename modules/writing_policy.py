@@ -451,9 +451,9 @@ FIELD_ROLE_SUMMARY = {
             "No promo words, competitor names, or duplicate nouns"
         ],
         "keyword_routing": {
-            "L1": "brand + l1 slot",
-            "L2": "only if extends persona (scene slot)",
-            "L3": "never visible; route to Search Terms"
+            "L1": "qualified head traffic anchor near brand/category",
+            "L2": "qualified conversion or blue-ocean term when it extends persona/scene",
+            "L3": "qualified residual/long-tail opportunity routed by keyword_protocol.routing_role"
         }
     },
     "bullets": {
