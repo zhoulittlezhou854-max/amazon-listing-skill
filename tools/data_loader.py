@@ -108,22 +108,30 @@ def _load_xlsx(file_path: str) -> List[Dict[str, Any]]:
 
 # 关键词表字段映射
 KEYWORD_FIELD_MAP: Dict[str, List[str]] = {
-    "keyword":        ["关键词", "keyword", "search_term", "Search Term"],
-    "search_volume":  ["月搜索量", "search_volume", "volume", "月搜索", "searches"],
-    "conversion_rate": ["购买率", "conversion_rate", "cvr", "转化率", "purchaseRate"],
-    "avg_price":      ["均价", "avg_price", "price", "平均价格"],
-    "monthly_purchases": ["购买量", "monthly_purchases", "purchases"],
-    "click_share":     ["点击份额", "click_share"],
-    "avg_cpc":        ["平均点击成本", "avg_cpc", "PPC价格", "PPC竞价", "bid"],
-    "spr":            ["SPR", "spr"],
-    "title_density":  ["标题密度", "title_density", "titleDensity"],
-    "click_concentration": ["点击集中度", "click_concentration"],
-    "conv_concentration": ["转化集中度", "conv_concentration"],
+    "keyword":        ["keyword", "关键词", "search_term", "search query", "query", "Search Term"],
+    "search_volume":  ["search_volume", "月搜索量", "volume", "searches", "月搜索"],
+    "conversion_rate": ["conversion_rate", "购买率", "cvr", "purchase_rate", "order_rate", "转化率", "purchaseRate"],
+    "click_share":     ["click_share", "点击份额", "click share"],
+    "ctr":             ["ctr", "click_through_rate", "click rate", "点击率"],
+    "clicks":          ["clicks", "点击量"],
+    "impressions":     ["impressions", "曝光", "展示量"],
+    "cart_adds":       ["cart_adds", "加购", "adds"],
+    "purchases":       ["purchases", "orders", "订单量"],
+    "purchase_share":  ["purchase_share", "购买份额"],
+    "avg_cpc":        ["avg_cpc", "平均点击成本", "PPC价格", "PPC竞价", "bid"],
+    "spr":            ["spr", "SPR"],
+    "title_density":  ["title_density", "标题密度", "titleDensity"],
+    "product_count":  ["product_count", "商品数", "competitor_count", "竞品数"],
+    "click_concentration": ["click_concentration", "点击集中度"],
+    "conv_concentration": ["conv_concentration", "转化集中度"],
+    "avg_price":      ["avg_price", "均价", "price", "平均价格"],
+    "monthly_purchases": ["monthly_purchases", "月购买量", "购买量"],
+    "country":        ["country", "国家", "market", "站点", "Country"],
+    "category":       ["category", "类目"],
+    "source_type":    ["source_type", "source", "来源"],
     "ac_recommend":   ["AC推荐词", "AC推荐", "ac_recommend"],
-    "country":        ["国家", "Country", "country", "market"],
     "model":          ["型号", "model", "Model"],
     "tags":           ["标签", "tags"],
-    "product_count":  ["商品数", "product_count", "商品数"],
     "rating_value":   ["评分值", "rating_value", "评分"],
 }
 
@@ -149,11 +157,8 @@ def standardize_keywords(rows: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     result = []
     for row in rows:
         std = standardize_row(row, KEYWORD_FIELD_MAP)
-        # 清洗数值字段
-        for num_field in ["search_volume", "conversion_rate", "avg_price",
-                          "monthly_purchases", "click_share", "avg_cpc",
-                          "spr", "title_density", "click_concentration",
-                          "conv_concentration", "product_count", "rating_value"]:
+        text_fields = {"keyword", "country", "category", "source_type", "ac_recommend", "model", "tags"}
+        for num_field in [name for name in KEYWORD_FIELD_MAP if name not in text_fields]:
             if num_field in std and std[num_field]:
                 cleaned = str(std[num_field]).replace(",", "").replace("%", "").replace(" ", "")
                 try:

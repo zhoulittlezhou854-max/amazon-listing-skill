@@ -223,7 +223,13 @@ def _merge_feedback_keywords(
             continue
         merged[keyword.lower()] = dict(row)
 
-    def _inject(rows: List[Dict[str, Any]], source_type: str, tier: str, volume_floor: float) -> None:
+    def _safe_float(value: Any) -> float:
+        try:
+            return float(str(value or "0").replace(",", "").replace("%", "").strip() or 0)
+        except (TypeError, ValueError):
+            return 0.0
+
+    def _inject(rows: List[Dict[str, Any]], source_type: str, routing_role_hint: str, priority_boost: float) -> None:
         for row in rows or []:
             keyword = str((row or {}).get("keyword") or "").strip()
             if not keyword:
@@ -231,13 +237,12 @@ def _merge_feedback_keywords(
             key = keyword.lower()
             existing = merged.get(key, {"keyword": keyword, "search_term": keyword})
             volume = max(
-                float(existing.get("search_volume") or 0),
-                float((row or {}).get("search_volume") or 0),
-                volume_floor,
+                _safe_float(existing.get("search_volume")),
+                _safe_float((row or {}).get("search_volume")),
             )
             conversion = max(
-                float(existing.get("conversion_rate") or 0),
-                float((row or {}).get("conversion") or 0),
+                _safe_float(existing.get("conversion_rate")),
+                _safe_float((row or {}).get("conversion_rate") or (row or {}).get("conversion")),
             )
             existing.update(
                 {
@@ -246,15 +251,16 @@ def _merge_feedback_keywords(
                     "search_volume": volume,
                     "conversion_rate": conversion,
                     "source_type": source_type,
-                    "tier": tier,
+                    "routing_role_hint": routing_role_hint,
+                    "priority_boost": priority_boost,
                     "feedback_selected": True,
                 }
             )
             merged[key] = existing
 
-    _inject(feedback_context.get("organic_core") or [], "feedback_organic_core", "L1", 12000.0)
-    _inject(feedback_context.get("sp_intent") or [], "feedback_sp_intent", "L2", 2500.0)
-    _inject(feedback_context.get("backend_only") or [], "feedback_backend_only", "L3", 200.0)
+    _inject(feedback_context.get("organic_core") or [], "feedback_organic_core", "title", 0.20)
+    _inject(feedback_context.get("sp_intent") or [], "feedback_sp_intent", "bullet", 0.15)
+    _inject(feedback_context.get("backend_only") or [], "feedback_backend_only", "backend", 0.10)
     return list(merged.values())
 
 
@@ -361,13 +367,28 @@ def read_keyword_table(file_path: str) -> Tuple[KeywordData, Dict[str, Any]]:
     for row in raw_data:
         standardized = {}
 
-        # 字段映射
         field_mapping = {
-            "keyword": ["keyword", "关键词", "search_term"],
-            "search_volume": ["search_volume", "月搜索量", "volume"],
-            "conversion_rate": ["conversion_rate", "购买率", "cvr"],
-            "avg_price": ["avg_price", "均价", "price"],
-            "monthly_purchases": ["monthly_purchases", "购买量", "purchases"]
+            "keyword": ["keyword", "关键词", "search_term", "search query", "query", "Search Term"],
+            "search_volume": ["search_volume", "月搜索量", "volume", "searches", "月搜索"],
+            "conversion_rate": ["conversion_rate", "购买率", "cvr", "purchase_rate", "order_rate", "转化率", "purchaseRate"],
+            "click_share": ["click_share", "点击份额", "click share"],
+            "ctr": ["ctr", "click_through_rate", "click rate", "点击率"],
+            "clicks": ["clicks", "点击量"],
+            "impressions": ["impressions", "曝光", "展示量"],
+            "cart_adds": ["cart_adds", "加购", "adds"],
+            "purchases": ["purchases", "orders", "订单量"],
+            "purchase_share": ["purchase_share", "购买份额"],
+            "avg_cpc": ["avg_cpc", "平均点击成本", "PPC价格", "PPC竞价", "bid"],
+            "spr": ["spr", "SPR"],
+            "title_density": ["title_density", "标题密度", "titleDensity"],
+            "product_count": ["product_count", "商品数", "competitor_count", "竞品数"],
+            "click_concentration": ["click_concentration", "点击集中度"],
+            "conv_concentration": ["conv_concentration", "转化集中度"],
+            "avg_price": ["avg_price", "均价", "price", "平均价格"],
+            "monthly_purchases": ["monthly_purchases", "月购买量", "购买量"],
+            "country": ["country", "国家", "market", "站点", "Country"],
+            "category": ["category", "类目"],
+            "source_type": ["source_type", "source", "来源"],
         }
 
         for std_field, possible_names in field_mapping.items():
@@ -376,8 +397,9 @@ def read_keyword_table(file_path: str) -> Tuple[KeywordData, Dict[str, Any]]:
                     standardized[std_field] = row[name]
                     break
 
-        # 数值清洗
-        for field in ["search_volume", "conversion_rate", "avg_price", "monthly_purchases"]:
+        # 数值清洗：除文本类字段外，所有标准化指标都转成数字。
+        text_fields = {"keyword", "country", "category", "source_type"}
+        for field in [name for name in field_mapping if name not in text_fields]:
             if field in standardized:
                 value = standardized[field]
                 if value is not None and value != "":
