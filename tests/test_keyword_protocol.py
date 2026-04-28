@@ -163,3 +163,32 @@ def test_blue_ocean_does_not_replace_head_anchor():
     assert meta["body camera"]["routing_role"] == "title"
     assert meta["body camera with audio"]["opportunity_type"] in {"conversion_blue_ocean", "blue_ocean"}
     assert meta["body camera with audio"]["routing_role"] == "bullet"
+
+
+def test_extract_tiered_keywords_uses_protocol_metadata():
+    from types import SimpleNamespace
+
+    from modules.keyword_utils import extract_tiered_keywords
+
+    preprocessed = SimpleNamespace(
+        keyword_data=SimpleNamespace(
+            keywords=[
+                {"keyword": "body camera", "search_volume": 20000, "conversion_rate": 0.02, "click_share": 0.1, "product_fit_score": 0.95},
+                {"keyword": "travel camera", "search_volume": 7737, "conversion_rate": 0.021, "click_share": 0.08, "product_fit_score": 0.92},
+                {"keyword": "snaproll camera", "search_volume": 0, "conversion_rate": 0, "click_share": 0, "product_fit_score": 0.9},
+            ]
+        ),
+        real_vocab=None,
+        core_selling_points=["wearable body camera"],
+        attribute_data={},
+        raw_human_insights="",
+    )
+
+    tiers = extract_tiered_keywords(preprocessed, language="English")
+    metadata = tiers["_metadata"]
+
+    assert "body camera" in tiers["l1"]
+    assert metadata["body camera"]["quality_status"] == "qualified"
+    assert metadata["travel camera"]["routing_role"] in {"bullet", "backend"}
+    assert metadata["snaproll camera"]["quality_status"] == "natural_only"
+    assert "snaproll camera" not in tiers["l1"] + tiers["l2"] + tiers["l3"]

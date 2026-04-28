@@ -8,7 +8,8 @@ from __future__ import annotations
 from statistics import median
 from typing import Any, Dict, List, Tuple
 
-from modules.keyword_utils import GLOBAL_BRAND_BLOCKLIST, is_blocklisted_brand
+from modules.keyword_protocol import build_keyword_protocol
+from modules.keyword_utils import GLOBAL_BRAND_BLOCKLIST, infer_category_type, is_blocklisted_brand
 
 
 def _build_keyword_entry(
@@ -110,10 +111,63 @@ def _build_from_real_vocab(real_vocab: Any) -> Tuple[List[Dict[str, Any]], str]:
     return reserve, "real_vocab"
 
 
+def _decorate_protocol_entry(row: Dict[str, Any]) -> Dict[str, Any]:
+    """Keep legacy keyword arsenal fields while preserving protocol metadata."""
+    entry = dict(row)
+    tier = entry.get("traffic_tier") or entry.get("tier") or ""
+    entry["traffic_tier"] = tier
+    entry["tier"] = tier
+    entry["level"] = tier
+    entry["high_conv"] = bool(
+        _is_high_conv(entry)
+        or float(entry.get("conversion_score") or 0) >= 0.75
+        or float(entry.get("blue_ocean_score") or 0) >= 0.7
+    )
+    entry.setdefault("visibility", "visible")
+    entry.setdefault("downgrade_reason", "")
+    return entry
+
+
+def _traffic_tier_priority(row: Dict[str, Any]) -> int:
+    return {"L1": 0, "L2": 1, "L3": 2}.get(str(row.get("traffic_tier") or row.get("tier") or "").upper(), 3)
+
+
+def _source_rows_and_note(preprocessed_data: Any) -> Tuple[List[Dict[str, Any]], str]:
+    real_vocab = getattr(preprocessed_data, "real_vocab", None)
+    if real_vocab and getattr(real_vocab, "is_available", False) and getattr(real_vocab, "top_keywords", None):
+        return [dict(row) for row in (getattr(real_vocab, "top_keywords", []) or [])], "real_vocab"
+    keyword_rows = getattr(getattr(preprocessed_data, "keyword_data", None), "keywords", []) or []
+    return [dict(row) for row in keyword_rows], "keyword_table"
+
+
 def build_arsenal(preprocessed_data: Any) -> Dict[str, Any]:
     # ─── Priority 1: 真实国家词表 ───
     real_vocab = getattr(preprocessed_data, "real_vocab", None)
-    reserve_keywords, kw_source = _build_from_real_vocab(real_vocab)
+    keyword_rows, kw_source = _source_rows_and_note(preprocessed_data)
+    target_country = getattr(
+        getattr(preprocessed_data, "run_config", None),
+        "target_country",
+        getattr(preprocessed_data, "target_country", "US"),
+    )
+    protocol = build_keyword_protocol(
+        keyword_rows,
+        country=str(target_country or "US").upper(),
+        category_type=infer_category_type(preprocessed_data),
+    )
+    qualified_keywords = [_decorate_protocol_entry(row) for row in protocol.get("qualified_keywords", [])]
+    watchlist_keywords = [_decorate_protocol_entry(row) for row in protocol.get("watchlist_keywords", [])]
+    natural_only_keywords = [_decorate_protocol_entry(row) for row in protocol.get("natural_only_keywords", [])]
+    rejected_keywords = [_decorate_protocol_entry(row) for row in protocol.get("rejected_keywords", [])]
+    blocked_keywords = [_decorate_protocol_entry(row) for row in protocol.get("blocked_keywords", [])]
+
+    reserve_keywords = sorted(
+        qualified_keywords,
+        key=lambda item: (
+            _traffic_tier_priority(item),
+            -float(item.get("opportunity_score") or 0),
+            -float(item.get("search_volume") or 0),
+        ),
+    )[:50]
 
     # 如果有真实词表，将其关键词同步到 keyword_data.keywords（供 scoring._tier_keywords 使用）
     if reserve_keywords and getattr(real_vocab, "is_available", False):
@@ -138,67 +192,12 @@ def build_arsenal(preprocessed_data: Any) -> Dict[str, Any]:
 
     prices = []  # Always initialize prices before conditional block
 
-    if not reserve_keywords:
-        # ─── Priority 2: 预处理数据中的关键词表 ───
-        keyword_rows = getattr(getattr(preprocessed_data, "keyword_data", None), "keywords", []) or []
-
-        # 计算百分位阈值
-        volumes = []
-        for row in keyword_rows:
-            volume = row.get("search_volume") or row.get("月搜索量") or 0
+    for row in keyword_rows:
+        if row.get("avg_price"):
             try:
-                volume = float(volume)
+                prices.append(float(row["avg_price"]))
             except (TypeError, ValueError):
-                volume = 0
-            if volume > 0:
-                volumes.append(volume)
-
-        # 按搜索量降序排序
-        volumes.sort(reverse=True)
-
-        # 计算阈值：L1 = 前20%，L2 = 20-60%，L3 = 60%以下
-        l1_threshold = 0
-        l2_threshold = 0
-        if volumes:
-            n = len(volumes)
-            l1_idx = int(0.2 * n)
-            l2_idx = int(0.6 * n)
-            l1_idx = min(l1_idx, n-1) if n > 0 else 0
-            l2_idx = min(l2_idx, n-1) if n > 0 else 0
-            l1_threshold = volumes[l1_idx] if l1_idx < n else volumes[-1]
-            l2_threshold = volumes[l2_idx] if l2_idx < n else volumes[-1]
-        else:
-            l1_threshold = 10000
-            l2_threshold = 1000
-
-        reserve_keywords = []
-        for row in keyword_rows:
-            keyword = row.get("keyword") or row.get("search_term")
-            if not keyword:
-                continue
-            level, volume = _tier_keyword(row, l1_threshold, l2_threshold)
-            conversion_rate = row.get("conversion_rate") or 0
-            try:
-                conversion_rate = float(conversion_rate)
-            except (TypeError, ValueError):
-                conversion_rate = 0
-            if row.get("avg_price"):
-                try:
-                    prices.append(float(row["avg_price"]))
-                except (TypeError, ValueError):
-                    pass
-            reserve_keywords.append(
-                _build_keyword_entry(
-                    keyword=keyword,
-                    tier=level,
-                    search_volume=volume,
-                    conversion_rate=conversion_rate,
-                    source_type=row.get("source_type", kw_source),
-                )
-            )
-
-        reserve_keywords = sorted(reserve_keywords, key=lambda x: x["search_volume"], reverse=True)
-        kw_source = "keyword_table"
+                pass
 
     review_insights = getattr(getattr(preprocessed_data, "review_data", None), "insights", []) or []
     feedback_context = getattr(preprocessed_data, "feedback_context", {}) or {}
@@ -224,29 +223,26 @@ def build_arsenal(preprocessed_data: Any) -> Dict[str, Any]:
     ][:5]
 
     traffic_priority_keywords = [
-        entry for entry in reserve_keywords
-        if not is_blocklisted_brand(entry.get("keyword", ""))
+        entry for entry in qualified_keywords
+        if entry.get("routing_role") == "title" and not is_blocklisted_brand(entry.get("keyword", ""))
     ]
     traffic_priority_keywords = sorted(
         traffic_priority_keywords,
         key=lambda item: (
-            1 if item.get("source_type") == "feedback_organic_core" else 0,
-            float(item.get("search_volume") or 0),
+            -float(item.get("opportunity_score") or 0),
+            -float(item.get("search_volume") or 0),
         ),
-        reverse=True,
     )[:12]
     conversion_priority_keywords = sorted(
         [
-            entry for entry in reserve_keywords
-            if not is_blocklisted_brand(entry.get("keyword", ""))
+            entry for entry in qualified_keywords
+            if entry.get("routing_role") == "bullet" and not is_blocklisted_brand(entry.get("keyword", ""))
         ],
         key=lambda item: (
-            1 if item.get("source_type") == "feedback_sp_intent" else 0,
-            1 if item.get("high_conv") else 0,
-            float(item.get("conversion_rate") or 0),
-            float(item.get("search_volume") or 0),
+            -float(item.get("blue_ocean_score") or 0),
+            -float(item.get("conversion_score") or 0),
+            -float(item.get("opportunity_score") or 0),
         ),
-        reverse=True,
     )[:12]
     backend_only_terms = sorted(
         {
@@ -266,7 +262,10 @@ def build_arsenal(preprocessed_data: Any) -> Dict[str, Any]:
         )
     )
     taboo_terms = sorted(GLOBAL_BRAND_BLOCKLIST)[:30]
-    keyword_metadata = reserve_keywords[:]
+    keyword_metadata = [
+        _decorate_protocol_entry(row)
+        for row in (protocol.get("keyword_metadata", []) or [])
+    ]
     if hasattr(preprocessed_data, "keyword_metadata"):
         preprocessed_data.keyword_metadata = keyword_metadata
     else:
@@ -283,6 +282,18 @@ def build_arsenal(preprocessed_data: Any) -> Dict[str, Any]:
         "reserve_keywords": reserve_keywords[:50],
         "traffic_priority_keywords": traffic_priority_keywords,
         "conversion_priority_keywords": conversion_priority_keywords,
+        "qualified_keywords": qualified_keywords[:50],
+        "watchlist_keywords": watchlist_keywords[:50],
+        "natural_only_keywords": natural_only_keywords[:50],
+        "rejected_keywords": rejected_keywords[:50],
+        "blocked_keywords": blocked_keywords[:50],
+        "keyword_protocol_summary": {
+            "qualified_count": len(protocol.get("qualified_keywords", [])),
+            "watchlist_count": len(protocol.get("watchlist_keywords", [])),
+            "natural_only_count": len(protocol.get("natural_only_keywords", [])),
+            "rejected_count": len(protocol.get("rejected_keywords", [])),
+            "blocked_count": len(protocol.get("blocked_keywords", [])),
+        },
         "backend_only_terms": backend_only_terms,
         "taboo_terms": taboo_terms,
         "competitor_brands": ["GoPro", "Insta360", "DJI"],

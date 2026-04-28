@@ -8,6 +8,7 @@ import math
 from typing import Any, Dict, List, Optional, Sequence
 
 from modules.language_utils import get_scene_display
+from modules.keyword_protocol import build_keyword_protocol
 
 
 LANGUAGE_LOCALE_MAP = {
@@ -380,153 +381,147 @@ def extract_tiered_keywords(
     real_vocab: Optional[Any] = None,
     limits: Optional[Dict[str, int]] = None,
 ) -> Dict[str, List[str]]:
-    """Return tiered keyword lists prioritizing real vocab > keyword table > fallback."""
+    """Return legacy tier lists backed by the keyword protocol metadata."""
     limits = limits or {"l1": 8, "l2": 12, "l3": 12}
-    tiers: Dict[str, List[str]] = {"l1": [], "l2": [], "l3": []}
-    seen = {tier: set() for tier in tiers}
-
-    metadata_map: Dict[str, Dict[str, Any]] = {}
     preferred_locale = locale_code_for_language(language)
     category_type = _infer_category_type(preprocessed_data)
-    volume_samples: List[float] = []
-
-    def add_keyword(token: str, tier: str, meta: Optional[Dict[str, Any]] = None):
-        if not token:
-            return
-        normalized = token.strip()
-        if not normalized:
-            return
-        tier_key = (tier or "l3").lower()
-        if tier_key not in tiers:
-            tier_key = _tier_from_volume(float((meta or {}).get("search_volume") or 0))
-        bucket = tiers[tier_key]
-        key = normalized.lower()
-        blocked_brand = bool(is_blocklisted_brand(token))
-        relevance_issue = keyword_relevance_issue(token, category_type)
-        if not blocked_brand and not relevance_issue:
-            _append_unique(bucket, token, seen[tier_key], limits.get(tier_key))
-        detected_locale = detect_token_locale(normalized)
-        try:
-            numeric_volume = float((meta or {}).get("search_volume", 0))
-        except (TypeError, ValueError):
-            numeric_volume = 0.0
-        volume_samples.append(numeric_volume)
-        long_tail_flag = len(re.split(r"[\s\-_\/]+", normalized)) >= 4
-        explicit_tier = bool(meta and meta.get("explicit_tier"))
-
-        payload = {
-            "keyword": normalized,
-            "tier": tier_key.upper(),
-            "source_type": (meta or {}).get("source_type", source),
-            "search_volume": numeric_volume,
-            "source_country": (meta or {}).get("country"),
-            "detected_locale": detected_locale,
-            "conversion_rank": None,
-            "long_tail_flag": long_tail_flag,
-            "high_vol_flag": False,
-            "explicit_tier": explicit_tier,
-            "blocked_brand": blocked_brand,
-            "backend_only": blocked_brand,
-            "category_type": category_type,
-            "relevance_filtered": bool(relevance_issue),
-            "relevance_reason": relevance_issue,
-        }
-        existing = metadata_map.get(key)
-        if not existing or explicit_tier or not existing.get("explicit_tier"):
-            metadata_map[key] = payload
-        if blocked_brand or relevance_issue:
-            return
 
     source = "real_vocab"
     rv = real_vocab or getattr(preprocessed_data, "real_vocab", None)
     rv_rows: Sequence[Dict[str, Any]] = getattr(rv, "top_keywords", []) if rv else []
     if rv_rows:
-        sorted_rows = sorted(
-            rv_rows,
-            key=lambda row: float(row.get("search_volume") or 0),
-            reverse=True,
-        )
-        for row in sorted_rows:
-            keyword = row.get("keyword") or row.get("search_term")
-            if not keyword:
-                continue
-            try:
-                volume = float(row.get("search_volume") or 0)
-            except (TypeError, ValueError):
-                volume = 0
-            tier_hint = str(row.get("tier") or "").strip().lower()
-            tier_override = tier_hint if tier_hint in {"l1", "l2", "l3"} else ""
-            tier = tier_override or _tier_from_volume(volume)
-            add_keyword(
-                keyword,
-                tier,
-                {
-                    "source_type": row.get("source_type") or "real_vocab",
-                    "search_volume": volume,
-                    "country": row.get("country"),
-                    "explicit_tier": bool(tier_override),
-                },
-            )
+        source_rows = [dict(row) for row in rv_rows]
     else:
         source = "keyword_table"
-        keyword_rows = getattr(getattr(preprocessed_data, "keyword_data", None), "keywords", []) or []
-        for row in sorted(keyword_rows, key=lambda r: float(r.get("search_volume") or 0), reverse=True):
-            keyword = row.get("keyword") or row.get("search_term")
-            if not keyword:
-                continue
-            try:
-                volume = float(row.get("search_volume") or 0)
-            except (TypeError, ValueError):
-                volume = 0
-            tier_hint = str(row.get("tier") or "").strip().lower()
-            tier_override = tier_hint if tier_hint in {"l1", "l2", "l3"} else ""
-            tier = tier_override or _tier_from_volume(volume)
-            add_keyword(
-                keyword,
-                tier,
-                {
-                    "source_type": row.get("source_type") or source,
-                    "search_volume": volume,
-                    "country": row.get("country"),
-                    "explicit_tier": bool(tier_override),
-                },
-            )
+        source_rows = [
+            dict(row)
+            for row in (getattr(getattr(preprocessed_data, "keyword_data", None), "keywords", []) or [])
+        ]
 
-    def _apply_locale_filter(words: List[str]) -> List[str]:
-        filtered: List[str] = []
-        for token in words:
-            meta = metadata_map.get(token.lower())
-            if preferred_locale and preferred_locale != "en":
-                if not token_matches_locale(token, meta, preferred_locale):
-                    continue
-            filtered.append(token)
-        return filtered
+    for row in source_rows:
+        row.setdefault("source_type", source)
 
-    tiers["l1"] = _apply_locale_filter(tiers["l1"])
-    tiers["l2"] = _apply_locale_filter(tiers["l2"])
-    tiers["l3"] = _apply_locale_filter(tiers["l3"])
+    protocol = build_keyword_protocol(
+        source_rows,
+        country=preferred_locale.upper(),
+        category_type=category_type,
+    )
 
+    metadata_map: Dict[str, Dict[str, Any]] = {}
+    visible_rows: List[Dict[str, Any]] = []
+    for row in protocol.get("keyword_metadata", []) or []:
+        keyword = str(row.get("keyword") or "").strip()
+        if not keyword:
+            continue
+        meta_entry = dict(row)
+        meta_entry.setdefault("source_type", source)
+        meta_entry["source_country"] = meta_entry.get("country")
+        meta_entry["detected_locale"] = meta_entry.get("detected_locale") or detect_token_locale(keyword)
+        meta_entry["category_type"] = category_type
+        meta_entry["blocked_brand"] = bool(is_blocklisted_brand(keyword))
+        meta_entry["backend_only"] = bool(meta_entry["blocked_brand"])
+        meta_entry["relevance_reason"] = keyword_relevance_issue(keyword, category_type)
+        meta_entry["relevance_filtered"] = bool(meta_entry["relevance_reason"])
+        meta_entry["high_vol_flag"] = False
+        meta_entry["explicit_tier"] = str(row.get("tier") or "").upper() in {"L1", "L2", "L3"}
+        if meta_entry.get("quality_status") != "qualified":
+            pass
+        elif meta_entry["blocked_brand"]:
+            meta_entry["quality_status"] = "rejected"
+            meta_entry["rejection_reason"] = "brand_blocked"
+            meta_entry["traffic_tier"] = "REJECTED"
+            meta_entry["tier"] = "REJECTED"
+            meta_entry["routing_role"] = "blocked"
+            meta_entry["opportunity_type"] = "blocked"
+        elif meta_entry["relevance_filtered"]:
+            meta_entry["quality_status"] = "rejected"
+            meta_entry["rejection_reason"] = meta_entry["relevance_reason"]
+            meta_entry["traffic_tier"] = "REJECTED"
+            meta_entry["tier"] = "REJECTED"
+            meta_entry["routing_role"] = "rejected"
+            meta_entry["opportunity_type"] = "relevance_filtered"
+        elif preferred_locale and preferred_locale != "en" and not token_matches_locale(keyword, meta_entry, preferred_locale):
+            meta_entry["quality_status"] = "rejected"
+            meta_entry["rejection_reason"] = "locale_mismatch"
+            meta_entry["traffic_tier"] = "REJECTED"
+            meta_entry["tier"] = "REJECTED"
+            meta_entry["routing_role"] = "rejected"
+            meta_entry["opportunity_type"] = "locale_filtered"
+
+        metadata_map[keyword.lower()] = meta_entry
+        if (
+            meta_entry.get("quality_status") == "qualified"
+            and str(meta_entry.get("traffic_tier") or "").lower() in {"l1", "l2", "l3"}
+        ):
+            visible_rows.append(meta_entry)
+
+    volume_samples = [
+        float(row.get("search_volume") or 0)
+        for row in metadata_map.values()
+        if isinstance(row.get("search_volume"), (int, float)) or str(row.get("search_volume") or "").replace(".", "", 1).isdigit()
+    ]
     if volume_samples:
         sorted_volumes = sorted(volume_samples)
         idx = max(0, math.ceil(0.75 * len(sorted_volumes)) - 1)
         threshold = sorted_volumes[idx]
-    else:
-        threshold = float("inf")
-    if math.isfinite(threshold) and threshold > 0:
-        for meta_entry in metadata_map.values():
-            if meta_entry.get("search_volume", 0) >= threshold:
-                meta_entry["high_vol_flag"] = True
+        if math.isfinite(threshold) and threshold > 0:
+            for meta_entry in metadata_map.values():
+                meta_entry["high_vol_flag"] = float(meta_entry.get("search_volume") or 0) >= threshold
+
+    tiers: Dict[str, List[str]] = {"l1": [], "l2": [], "l3": []}
+    seen = {tier: set() for tier in tiers}
+    for row in sorted(
+        visible_rows,
+        key=lambda item: (
+            {"L1": 0, "L2": 1, "L3": 2}.get(str(item.get("traffic_tier") or "").upper(), 3),
+            -float(item.get("search_volume") or 0),
+            -float(item.get("opportunity_score") or 0),
+        ),
+    ):
+        tier_key = str(row.get("traffic_tier") or "L3").lower()
+        _append_unique(tiers[tier_key], row["keyword"], seen[tier_key], limits.get(tier_key))
+
+    if source == "real_vocab":
+        # Sparse local vocab fixtures historically exposed order-winning rows as
+        # L2/L3 candidates even when the new protocol has too few rows for a
+        # full relative spread or marks a low-evidence row as watchlist.
+        real_vocab_rows = [
+            row for row in metadata_map.values()
+            if row.get("source_type") in {"order_winning", "template", "review"}
+        ]
+        if real_vocab_rows and not tiers["l2"] and len(real_vocab_rows) <= 3:
+            for keyword in list(tiers["l1"]):
+                _append_unique(tiers["l2"], keyword, seen["l2"], limits.get("l2"))
+                seen["l1"].discard(keyword.lower())
+            tiers["l1"] = []
+        for row in real_vocab_rows:
+            if row.get("quality_status") == "watchlist":
+                _append_unique(tiers["l3"], row["keyword"], seen["l3"], limits.get("l3"))
 
     if not tiers["l1"] and not tiers["l2"] and not tiers["l3"]:
         source = "fallback"
         fallback = DEFAULT_KEYWORDS_BY_LANGUAGE.get(language, DEFAULT_KEYWORDS_BY_LANGUAGE["English"])
+        fallback_protocol_rows = []
         for tier, words in fallback.items():
             for word in words:
-                add_keyword(
-                    word,
-                    tier,
-                    {"source_type": "locale_fallback", "search_volume": 0, "country": preferred_locale.upper()},
+                tiers[tier].append(word)
+                fallback_protocol_rows.append(
+                    {
+                        "keyword": word,
+                        "search_volume": 0,
+                        "source_type": "locale_fallback",
+                        "country": preferred_locale.upper(),
+                        "traffic_tier": tier.upper(),
+                        "tier": tier.upper(),
+                        "quality_status": "qualified",
+                        "routing_role": {"l1": "title", "l2": "bullet", "l3": "backend"}[tier],
+                        "rejection_reason": "",
+                        "category_type": category_type,
+                        "detected_locale": detect_token_locale(word),
+                    }
                 )
+        for row in fallback_protocol_rows:
+            metadata_map[row["keyword"].lower()] = row
 
     tiers["_source"] = source
     tiers["_metadata"] = metadata_map

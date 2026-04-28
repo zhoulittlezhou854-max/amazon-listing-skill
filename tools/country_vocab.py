@@ -523,10 +523,14 @@ def find_keywords_for_capability(
 
 def find_high_volume_keywords(
     vocab: Dict[str, List[CountryKeywordEntry]],
-    min_volume: float = 1000,
+    min_volume: float = 0,
     top_n: int = 20
 ) -> List[CountryKeywordEntry]:
-    """获取搜索量最高的前 N 条关键词"""
+    """获取搜索量最高的前 N 条关键词。
+
+    Keyword tiering is handled by modules.keyword_protocol; this helper should
+    not impose the old 1000-volume tier gate by default.
+    """
     all_entries = vocab.get("all", [])
     ranked = sorted(
         [e for e in all_entries if (e.search_volume or 0) >= min_volume],
