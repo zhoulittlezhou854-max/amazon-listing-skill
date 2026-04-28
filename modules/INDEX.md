@@ -11,6 +11,7 @@ modules/
 ├── copy_generation.py      # 文案生成
 ├── intent_translator.py    # 意图翻译
 ├── keyword_arsenal.py      # 关键词库
+├── keyword_protocol.py     # 关键词质量、机会评分与流量分层协议
 ├── keyword_utils.py        # 关键词工具
 ├── language_utils.py       # 语言工具
 ├── report_generator.py     # 报告生成
@@ -27,6 +28,7 @@ modules/
 | copy_generation.py | 生成Amazon列表文案 | 大 | 2026-04-03 |
 | intent_translator.py | 翻译用户意图到文案要求 | 中 | 2026-04-03 |
 | keyword_arsenal.py | 管理和优化关键词库 | 大 | 2026-04-03 |
+| keyword_protocol.py | 关键词质量过滤、蓝海机会评分、相对 L1/L2/L3 分层与路由协议 | 中 | 2026-04-28 |
 | keyword_utils.py | 关键词处理工具函数 | 中 | 2026-04-03 |
 | language_utils.py | 语言处理工具函数 | 中 | 2026-04-03 |
 | report_generator.py | 生成各种报告 | 中 | 2026-04-03 |
@@ -61,4 +63,5 @@ graph TD
 - [main.py](../main.py): 主程序入口
 
 ## 最后更新
+2026-04-28: 新增 keyword_protocol.py 关键词协议核心索引
 2026-04-03: 初始创建
