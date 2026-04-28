@@ -83,6 +83,52 @@ def _canonical_capabilities(preprocessed_data: Any) -> List[str]:
     return [english_capability_label(canonicalize_capability(cap)) for cap in caps]
 
 
+def _blueprint_metadata_rows(tiered_keywords: Dict[str, Any]) -> List[Dict[str, Any]]:
+    metadata = tiered_keywords.get("_metadata", {}) or {}
+    if isinstance(metadata, dict):
+        return [row for row in metadata.values() if isinstance(row, dict)]
+    if isinstance(metadata, list):
+        return [row for row in metadata if isinstance(row, dict)]
+    return []
+
+
+def _blueprint_numeric(row: Dict[str, Any], field: str) -> float:
+    try:
+        return float(row.get(field) or 0)
+    except (TypeError, ValueError):
+        return 0.0
+
+
+def _derive_blueprint_l2_keywords(tiered_keywords: Dict[str, Any]) -> List[str]:
+    bullet_rows = [
+        row for row in _blueprint_metadata_rows(tiered_keywords)
+        if str(row.get("quality_status") or "").lower() == "qualified"
+        and str(row.get("routing_role") or "").lower() == "bullet"
+    ]
+    if not bullet_rows:
+        return list(tiered_keywords.get("l2", []) or [])
+
+    sorted_rows = sorted(
+        bullet_rows,
+        key=lambda row: (
+            _blueprint_numeric(row, "opportunity_score"),
+            _blueprint_numeric(row, "blue_ocean_score"),
+            _blueprint_numeric(row, "conversion_score"),
+            _blueprint_numeric(row, "search_volume"),
+        ),
+        reverse=True,
+    )
+    keywords: List[str] = []
+    seen = set()
+    for row in sorted_rows:
+        keyword = str(row.get("keyword") or "").strip()
+        key = keyword.lower()
+        if keyword and key not in seen:
+            seen.add(key)
+            keywords.append(keyword)
+    return keywords
+
+
 def _truncate_insights(raw_text: str) -> str:
     if not raw_text:
         return ""
@@ -437,7 +483,7 @@ def _generate_bullet_blueprint_impl(
         getattr(preprocessed_data, "language", "English"),
         getattr(preprocessed_data, "real_vocab", None),
     )
-    l2_keywords = tiered_keywords.get("l2", []) or []
+    l2_keywords = _derive_blueprint_l2_keywords(tiered_keywords)
     canonical_caps = _canonical_capabilities(preprocessed_data)
     attr_summary = _summarize_attributes(getattr(preprocessed_data, "attribute_data", {}))
     compliance = writing_policy.get("compliance_directives", {})

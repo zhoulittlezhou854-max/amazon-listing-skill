@@ -5213,9 +5213,33 @@ def generate_search_terms(preprocessed_data: PreprocessedData,
     plan = writing_policy.get("search_term_plan", {})
     max_bytes = plan.get("max_bytes", 249)
     backend_only_terms = set(plan.get("backend_only_terms", []))
-    backend_longtail_keywords = plan.get("backend_longtail_keywords", []) or []
+    backend_residual_keywords = plan.get("backend_residual_keywords", []) or []
+    backend_longtail_keywords = backend_residual_keywords or plan.get("backend_longtail_keywords", []) or []
     approved_feedback_backend_terms = plan.get("approved_feedback_backend_terms", []) or []
-    priority_tiers = plan.get("priority_tiers", ["l3"])
+    priority_tiers = [
+        str(tier or "").strip().lower()
+        for tier in (plan.get("priority_tiers", ["l3"]) or [])
+        if str(tier or "").strip()
+    ]
+    priority_roles = {
+        str(role or "").strip().lower()
+        for role in (plan.get("priority_roles") or [])
+        if str(role or "").strip()
+    }
+    role_aware_search_plan = bool(priority_roles)
+    role_checked_sources = {
+        "backend_longtail",
+        "brand",
+        "category",
+        "scene_backend",
+        "mode_backend",
+        "keyword_slot",
+        "policy_l3",
+        "priority_role",
+        "priority_tier",
+        "l3_fill",
+        "density_fill",
+    }
     metadata_map = dict((tiered_keywords or {}).get("_metadata", {}) or {})
     for row in writing_policy.get("keyword_metadata") or []:
         keyword = str((row or {}).get("keyword") or "").strip()
@@ -5223,14 +5247,15 @@ def generate_search_terms(preprocessed_data: PreprocessedData,
             continue
         lowered = keyword.lower()
         existing = metadata_map.get(lowered) or {}
-        metadata_map[lowered] = {
-            "keyword": keyword,
-            "tier": str((row or {}).get("tier") or (row or {}).get("level") or existing.get("tier") or "").upper(),
-            "source_type": (row or {}).get("source_type") or existing.get("source_type"),
-            "search_volume": (row or {}).get("search_volume") or existing.get("search_volume"),
-            "country": (row or {}).get("source_country") or existing.get("country"),
-            "detected_locale": (row or {}).get("detected_locale") or existing.get("detected_locale"),
-        }
+        merged = dict(row or {})
+        merged.update(existing)
+        merged["keyword"] = existing.get("keyword") or keyword
+        merged["tier"] = str(existing.get("tier") or (row or {}).get("tier") or (row or {}).get("level") or "").upper()
+        merged["source_type"] = existing.get("source_type") or (row or {}).get("source_type")
+        merged["search_volume"] = existing.get("search_volume") or (row or {}).get("search_volume")
+        merged["country"] = existing.get("country") or (row or {}).get("country") or (row or {}).get("source_country")
+        merged["detected_locale"] = existing.get("detected_locale") or (row or {}).get("detected_locale")
+        metadata_map[lowered] = merged
     if assignment_tracker is not None and hasattr(assignment_tracker, "_metadata_map"):
         assignment_tracker._metadata_map.update(metadata_map)
     preferred_locale = (
@@ -5256,6 +5281,46 @@ def generate_search_terms(preprocessed_data: PreprocessedData,
                 if keyword:
                     existing_non_search_assignment_keywords.add(keyword)
 
+    def _search_role_allowed(term: str, *, allow_unmapped: bool = False) -> bool:
+        if not role_aware_search_plan:
+            return True
+        meta = metadata_map.get((term or "").strip().lower()) or {}
+        if not meta:
+            return allow_unmapped
+        if meta.get("blocked") or meta.get("blocked_brand") or meta.get("relevance_filtered"):
+            return False
+        quality_status = str(meta.get("quality_status") or "").strip().lower()
+        if quality_status and quality_status != "qualified":
+            return False
+        routing_role = str(meta.get("routing_role") or meta.get("role") or "").strip().lower()
+        return routing_role in priority_roles
+
+    backend_plan_terms = {
+        str(term or "").strip().lower()
+        for term in backend_longtail_keywords
+        if str(term or "").strip()
+    }
+
+    def _role_priority_terms() -> List[str]:
+        if not role_aware_search_plan:
+            return []
+        rows = []
+        for row in metadata_map.values():
+            keyword = str((row or {}).get("keyword") or "").strip()
+            if keyword and _search_role_allowed(keyword):
+                rows.append(row)
+        rows = sorted(
+            rows,
+            key=lambda row: (
+                float((row or {}).get("opportunity_score") or 0),
+                float((row or {}).get("blue_ocean_score") or 0),
+                float((row or {}).get("keyword_quality_score") or 0),
+                float((row or {}).get("search_volume") or 0),
+            ),
+            reverse=True,
+        )
+        return _dedupe_keyword_sequence([str((row or {}).get("keyword") or "").strip() for row in rows])
+
     explicit_policy_l3_terms: List[str] = []
     for row in writing_policy.get("keyword_metadata") or []:
         keyword = str((row or {}).get("keyword") or "").strip()
@@ -5263,6 +5328,8 @@ def generate_search_terms(preprocessed_data: PreprocessedData,
             continue
         tier = str((row or {}).get("tier") or (row or {}).get("level") or "").upper()
         if tier != "L3":
+            continue
+        if role_aware_search_plan and not _search_role_allowed(keyword):
             continue
         if keyword.lower() in existing_non_search_assignment_keywords:
             continue
@@ -5319,6 +5386,15 @@ def generate_search_terms(preprocessed_data: PreprocessedData,
                 {"term": cleaned, "reason": "taboo keyword filtered"},
             )
             return
+        if role_aware_search_plan and source in role_checked_sources:
+            if not _search_role_allowed(cleaned, allow_unmapped=normalized in backend_plan_terms):
+                _log_action(
+                    audit_log,
+                    "search_terms",
+                    "routing_role_skip",
+                    {"term": cleaned, "source": source, "priority_roles": sorted(priority_roles)},
+                )
+                return
         conflict_reason = _keyword_conflicts_constraints(cleaned, capability_constraints)
         if conflict_reason:
             _log_action(
@@ -5365,7 +5441,7 @@ def generate_search_terms(preprocessed_data: PreprocessedData,
         keyword_slots = writing_policy.get("keyword_slots") or {}
     for kw in (keyword_slots.get("search_terms") or {}).get("keywords", []):
         if kw:
-            _add_term(kw)
+            _add_term(kw, source="keyword_slot")
 
     for term in backend_longtail_keywords:
         _add_term(term, source="backend_longtail")
@@ -5373,9 +5449,13 @@ def generate_search_terms(preprocessed_data: PreprocessedData,
     for term in explicit_policy_l3_terms:
         _add_term(term, source="policy_l3")
 
-    for tier in priority_tiers:
-        for kw in tiered_keywords.get(tier, []):
-            _add_term(kw)
+    if role_aware_search_plan:
+        for kw in _role_priority_terms():
+            _add_term(kw, source="priority_role")
+    else:
+        for tier in priority_tiers:
+            for kw in tiered_keywords.get(tier, []):
+                _add_term(kw, source="priority_tier")
 
     if backend_only_terms:
         for term in backend_only_terms:
@@ -5470,7 +5550,7 @@ def generate_search_terms(preprocessed_data: PreprocessedData,
 
     brand = preprocessed_data.run_config.brand_name if hasattr(preprocessed_data.run_config, 'brand_name') else "TOSBARRFT"
     if brand != "TOSBARRFT":
-        _add_term(brand)
+        _add_term(brand, source="brand")
 
     filtered_terms: List[str] = []
     byte_total = 0
@@ -5485,7 +5565,7 @@ def generate_search_terms(preprocessed_data: PreprocessedData,
         existing_terms.add(term)
         byte_total += term_bytes + extra
 
-    if byte_total < max_bytes:
+    if byte_total < max_bytes and not role_aware_search_plan:
         for kw in tiered_keywords.get("l3", []):
             keyword_phrase = (kw or "").strip()
             if not keyword_phrase or keyword_phrase in existing_terms:
@@ -5553,8 +5633,11 @@ def generate_search_terms(preprocessed_data: PreprocessedData,
     if byte_total < min_density_target:
         density_candidates: List[str] = []
         density_candidates.extend(backend_longtail_keywords)
-        density_candidates.extend(tiered_keywords.get("l3", []))
-        density_candidates.extend(tiered_keywords.get("l2", []))
+        if role_aware_search_plan:
+            density_candidates.extend(_role_priority_terms())
+        else:
+            density_candidates.extend(tiered_keywords.get("l3", []))
+            density_candidates.extend(tiered_keywords.get("l2", []))
         if category_type == "wearable_body_camera":
             density_candidates.extend([
                 "mini body camera",
@@ -5594,6 +5677,11 @@ def generate_search_terms(preprocessed_data: PreprocessedData,
             if any(taboo in normalized_phrase for taboo in taboo_terms):
                 continue
             if is_blocklisted_brand(keyword_phrase):
+                continue
+            if role_aware_search_plan and not _search_role_allowed(
+                keyword_phrase,
+                allow_unmapped=normalized_phrase in backend_plan_terms,
+            ):
                 continue
             conflict_reason = _keyword_conflicts_constraints(keyword_phrase, capability_constraints)
             if conflict_reason:

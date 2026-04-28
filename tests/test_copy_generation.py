@@ -998,6 +998,161 @@ def test_search_terms_pull_distinct_explicit_l3_keywords_from_policy_metadata():
     assert "search_terms" in records["chest camera"]["assigned_fields"]
 
 
+def test_search_terms_role_aware_plan_does_not_leak_bullet_l3_to_backend():
+    preprocessed = SimpleNamespace(
+        run_config=SimpleNamespace(brand_name="TestBrand"),
+        capability_constraints={},
+        core_selling_points=[],
+    )
+    tiered_keywords = {
+        "l1": [],
+        "l2": [],
+        "l3": ["thumb camera", "mini cam synonym"],
+        "_metadata": {
+            "thumb camera": {
+                "keyword": "thumb camera",
+                "tier": "L3",
+                "traffic_tier": "L3",
+                "routing_role": "bullet",
+                "quality_status": "qualified",
+                "search_volume": 5000,
+            },
+            "mini cam synonym": {
+                "keyword": "mini cam synonym",
+                "tier": "L3",
+                "traffic_tier": "L3",
+                "routing_role": "backend",
+                "quality_status": "qualified",
+                "search_volume": 1200,
+            },
+        },
+        "_preferred_locale": "en",
+    }
+    writing_policy = {
+        "scene_priority": [],
+        "search_term_plan": {
+            "priority_roles": ["backend", "residual"],
+            "priority_tiers": ["l3"],
+            "backend_residual_keywords": ["mini cam synonym"],
+            "backend_longtail_keywords": ["mini cam synonym"],
+            "max_bytes": 80,
+            "density_target_bytes": 0,
+        },
+        "keyword_slots": {"search_terms": {"keywords": ["thumb camera"]}},
+    }
+
+    terms, _ = cg.generate_search_terms(
+        preprocessed_data=preprocessed,
+        writing_policy=writing_policy,
+        title="TestBrand action camera",
+        bullets=["Pocket clips for travel."],
+        description="",
+        language="English",
+        tiered_keywords=tiered_keywords,
+        keyword_slots=writing_policy["keyword_slots"],
+        audit_log=[],
+        assignment_tracker=cg.KeywordAssignmentTracker(tiered_keywords["_metadata"]),
+    )
+
+    assert "mini cam synonym" in terms
+    assert "thumb camera" not in terms
+
+
+def test_search_terms_legacy_priority_tiers_accept_uppercase_names():
+    preprocessed = SimpleNamespace(
+        run_config=SimpleNamespace(brand_name="TestBrand"),
+        capability_constraints={},
+        core_selling_points=[],
+    )
+    tiered_keywords = {
+        "l1": [],
+        "l2": [],
+        "l3": ["legacy backend phrase"],
+        "_metadata": {
+            "legacy backend phrase": {
+                "keyword": "legacy backend phrase",
+                "tier": "L3",
+                "source_type": "synthetic",
+                "search_volume": 1000,
+            }
+        },
+        "_preferred_locale": "en",
+    }
+    writing_policy = {
+        "scene_priority": [],
+        "search_term_plan": {
+            "priority_tiers": ["L3"],
+            "backend_only_terms": [],
+            "max_bytes": 80,
+            "density_target_bytes": 0,
+        },
+        "keyword_slots": {"search_terms": {"keywords": []}},
+    }
+
+    terms, _ = cg.generate_search_terms(
+        preprocessed_data=preprocessed,
+        writing_policy=writing_policy,
+        title="TestBrand action camera",
+        bullets=[],
+        description="",
+        language="English",
+        tiered_keywords=tiered_keywords,
+        keyword_slots=writing_policy["keyword_slots"],
+        audit_log=[],
+        assignment_tracker=cg.KeywordAssignmentTracker(tiered_keywords["_metadata"]),
+    )
+
+    assert "legacy backend phrase" in terms
+
+
+def test_search_terms_role_aware_plan_rejects_unmapped_fallback_terms():
+    preprocessed = SimpleNamespace(
+        run_config=SimpleNamespace(brand_name="TestBrand"),
+        capability_constraints={},
+        core_selling_points=[],
+    )
+    tiered_keywords = {
+        "l1": [],
+        "l2": [],
+        "l3": ["thumb camera"],
+        "_metadata": {
+            "thumb camera": {
+                "keyword": "thumb camera",
+                "tier": "L3",
+                "routing_role": "bullet",
+                "quality_status": "qualified",
+                "search_volume": 5000,
+            }
+        },
+        "_preferred_locale": "en",
+    }
+    writing_policy = {
+        "scene_priority": ["cycling_recording"],
+        "search_term_plan": {
+            "priority_roles": ["backend", "residual"],
+            "priority_tiers": ["L3"],
+            "max_bytes": 120,
+            "density_target_bytes": 120,
+        },
+        "keyword_slots": {"search_terms": {"keywords": ["thumb camera"]}},
+    }
+
+    terms, _ = cg.generate_search_terms(
+        preprocessed_data=preprocessed,
+        writing_policy=writing_policy,
+        title="TestBrand action camera",
+        bullets=[],
+        description="",
+        language="English",
+        tiered_keywords=tiered_keywords,
+        keyword_slots=writing_policy["keyword_slots"],
+        audit_log=[],
+        assignment_tracker=cg.KeywordAssignmentTracker(tiered_keywords["_metadata"]),
+    )
+
+    assert terms == []
+
+
 def test_diversify_duplicate_bullet_dimensions_swaps_in_unused_capability():
     bullets = [
         "LIGHTWEIGHT CONTROL — Capture every commute with compact, lightweight handling.",

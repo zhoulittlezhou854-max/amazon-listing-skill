@@ -20,6 +20,59 @@ def _preprocessed():
     )
 
 
+def test_blueprint_l2_keywords_use_qualified_bullet_metadata():
+    tiered_keywords = {
+        "l2": ["legacy l2 fallback"],
+        "_metadata": {
+            "body camera": {
+                "keyword": "body camera",
+                "quality_status": "qualified",
+                "routing_role": "title",
+                "traffic_tier": "L1",
+                "search_volume": 20000,
+            },
+            "travel camera": {
+                "keyword": "travel camera",
+                "quality_status": "qualified",
+                "routing_role": "bullet",
+                "traffic_tier": "L2",
+                "blue_ocean_score": 0.8,
+            },
+            "thumb camera": {
+                "keyword": "thumb camera",
+                "quality_status": "qualified",
+                "routing_role": "bullet",
+                "traffic_tier": "L3",
+            },
+            "blocked camera": {
+                "keyword": "blocked camera",
+                "quality_status": "rejected",
+                "routing_role": "bullet",
+            },
+        },
+    }
+
+    assert blueprint_generator._derive_blueprint_l2_keywords(tiered_keywords) == [
+        "travel camera",
+        "thumb camera",
+    ]
+
+
+def test_blueprint_l2_keywords_fallback_to_legacy_l2_when_no_bullet_metadata():
+    tiered_keywords = {
+        "l2": ["legacy l2 fallback"],
+        "_metadata": {
+            "body camera": {
+                "keyword": "body camera",
+                "quality_status": "qualified",
+                "routing_role": "title",
+            },
+        },
+    }
+
+    assert blueprint_generator._derive_blueprint_l2_keywords(tiered_keywords) == ["legacy l2 fallback"]
+
+
 class TestCallBlueprintLlm:
     def test_uses_v3_primary_model(self, monkeypatch):
         calls = []

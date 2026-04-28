@@ -601,43 +601,126 @@ def _build_bullet_slot_rules(
             "scene_index": 0,
             "tier": "P2",
             "required_elements": ["package_contents", "compatibility_or_capacity", "trust_close"],
-            "preferred_keywords": keyword_routing.get("backend_longtail_keywords", [])[:2],
+            "preferred_keywords": (
+                keyword_routing.get("backend_residual_keywords")
+                or keyword_routing.get("backend_longtail_keywords", [])
+            )[:2],
             "goal": "Close with what's included, capacity/compatibility, and practical purchase reassurance.",
         },
     }
 
 
-def _derive_keyword_routing(tiered_keywords: Dict[str, List[str]]) -> Dict[str, List[str]]:
+def _metadata_rows(tiered_keywords: Dict[str, Any]) -> List[Dict[str, Any]]:
     metadata = tiered_keywords.get("_metadata", {}) or {}
-    visible_candidates = [
-        meta for meta in metadata.values()
-        if not meta.get("blocked_brand") and not meta.get("relevance_filtered")
-    ]
-    traffic = sorted(
-        visible_candidates,
-        key=lambda item: (
-            1 if (item.get("source_type") or "") == "feedback_organic_core" else 0,
-            float(item.get("search_volume") or 0),
-        ),
-        reverse=True,
-    )
-    conversion = sorted(
-        visible_candidates,
-        key=lambda item: (
-            1 if (item.get("source_type") or "") == "feedback_organic_core" else 0,
-            1 if item.get("high_vol_flag") else 0,
-            float(item.get("search_volume") or 0),
-        ),
-        reverse=True,
-    )
-    long_tail = [
-        item for item in visible_candidates
-        if (item.get("long_tail_flag") or (item.get("tier") or "").upper() == "L3")
-    ]
+    if isinstance(metadata, dict):
+        return [row for row in metadata.values() if isinstance(row, dict)]
+    if isinstance(metadata, list):
+        return [row for row in metadata if isinstance(row, dict)]
+    return []
+
+
+def _numeric_score(row: Dict[str, Any], field: str) -> float:
+    try:
+        return float(row.get(field) or 0)
+    except (TypeError, ValueError):
+        return 0.0
+
+
+def _source_boost(row: Dict[str, Any]) -> int:
+    source_type = str(row.get("source_type") or "").lower()
+    if source_type == "feedback_organic_core":
+        return 3
+    if source_type.startswith("feedback"):
+        return 2
+    if source_type in {"keyword_protocol", "keyword_table", "aba", "sqp"}:
+        return 1
+    return 0
+
+
+def _dedupe_keywords(rows: List[Dict[str, Any]], limit: int) -> List[str]:
+    keywords: List[str] = []
+    seen = set()
+    for row in rows:
+        keyword = str(row.get("keyword") or "").strip()
+        key = keyword.lower()
+        if not keyword or key in seen:
+            continue
+        seen.add(key)
+        keywords.append(keyword)
+        if len(keywords) >= limit:
+            break
+    return keywords
+
+
+def _legacy_role_fallback(tiered_keywords: Dict[str, Any]) -> Dict[str, List[str]]:
+    title_keywords = list(tiered_keywords.get("l1", []) or [])[:3]
+    bullet_keywords = list((tiered_keywords.get("l2", []) or []) + (tiered_keywords.get("l3", []) or []))[:5]
+    backend_keywords = list(tiered_keywords.get("l3", []) or [])[:8]
     return {
-        "title_traffic_keywords": [item.get("keyword") for item in traffic[:3] if item.get("keyword")],
-        "bullet_conversion_keywords": [item.get("keyword") for item in conversion[:5] if item.get("keyword")],
-        "backend_longtail_keywords": [item.get("keyword") for item in long_tail[:8] if item.get("keyword")],
+        "title_traffic_keywords": title_keywords,
+        "bullet_conversion_keywords": bullet_keywords,
+        "backend_residual_keywords": backend_keywords,
+        "backend_longtail_keywords": backend_keywords,
+    }
+
+
+def _derive_keyword_routing(tiered_keywords: Dict[str, Any]) -> Dict[str, List[str]]:
+    metadata_rows = _metadata_rows(tiered_keywords)
+    if not metadata_rows:
+        return _legacy_role_fallback(tiered_keywords)
+
+    visible_candidates = [
+        row for row in metadata_rows
+        if str(row.get("quality_status") or "").lower() == "qualified"
+        and not row.get("blocked_brand")
+        and not row.get("blocked")
+        and not row.get("relevance_filtered")
+    ]
+    if not visible_candidates:
+        return _legacy_role_fallback(tiered_keywords)
+
+    title = sorted(
+        [row for row in visible_candidates if str(row.get("routing_role") or "").lower() == "title"],
+        key=lambda row: (
+            _source_boost(row),
+            _numeric_score(row, "search_volume"),
+            _numeric_score(row, "opportunity_score"),
+            _numeric_score(row, "blue_ocean_score"),
+            _numeric_score(row, "conversion_score"),
+        ),
+        reverse=True,
+    )
+    bullet = sorted(
+        [row for row in visible_candidates if str(row.get("routing_role") or "").lower() == "bullet"],
+        key=lambda row: (
+            _source_boost(row),
+            _numeric_score(row, "opportunity_score"),
+            _numeric_score(row, "blue_ocean_score"),
+            _numeric_score(row, "conversion_score"),
+            _numeric_score(row, "search_volume"),
+        ),
+        reverse=True,
+    )
+    backend = sorted(
+        [
+            row for row in visible_candidates
+            if str(row.get("routing_role") or "").lower() in {"backend", "residual"}
+        ],
+        key=lambda row: (
+            _source_boost(row),
+            _numeric_score(row, "opportunity_score"),
+            _numeric_score(row, "blue_ocean_score"),
+            _numeric_score(row, "conversion_score"),
+            _numeric_score(row, "search_volume"),
+        ),
+        reverse=True,
+    )
+    backend_keywords = _dedupe_keywords(backend, 8)
+    return {
+        "title_traffic_keywords": _dedupe_keywords(title, 3),
+        "bullet_conversion_keywords": _dedupe_keywords(bullet, 5),
+        "backend_residual_keywords": backend_keywords,
+        "backend_longtail_keywords": backend_keywords,
     }
 
 
@@ -1125,6 +1208,7 @@ def generate_policy(preprocessed_data: PreprocessedData,
 
     title_slots = _build_title_slots(prioritized_scenes)
     search_term_plan = {
+        "priority_roles": ["backend", "residual"],
         "priority_tiers": ["l3"],
         "max_bytes": compliance_directives.get("search_term_byte_limit", 249),
         "backend_only_terms": sorted(
@@ -1134,9 +1218,13 @@ def generate_policy(preprocessed_data: PreprocessedData,
             )
         ),
         "approved_feedback_backend_terms": _feedback_keywords(preprocessed_data, "backend_only"),
-        "routing_notes": "Title routes traffic head terms, bullets route conversion intent, L3 long-tail stays backend",
+        "routing_notes": (
+            "Title uses qualified head anchors, bullets use conversion and blue-ocean opportunities, "
+            "backend keeps qualified residual safe terms."
+        ),
         "traffic_priority_keywords": keyword_routing["title_traffic_keywords"],
         "conversion_priority_keywords": keyword_routing["bullet_conversion_keywords"],
+        "backend_residual_keywords": keyword_routing["backend_residual_keywords"],
         "backend_longtail_keywords": keyword_routing["backend_longtail_keywords"],
     }
     bullet_slot_rules = _build_bullet_slot_rules(
@@ -1291,12 +1379,17 @@ def generate_default_4scene_policy(preprocessed_data: Any) -> Dict[str, Any]:
         "forbidden_pairs": DEFAULT_FORBIDDEN_PAIRS[:2],  # 限制为2个
         "title_slots": _build_title_slots(four_scenes),
         "search_term_plan": {
+            "priority_roles": ["backend", "residual"],
             "priority_tiers": ["l3"],
             "max_bytes": compliance_directives.get("search_term_byte_limit", 249),
             "backend_only_terms": compliance_directives.get("backend_only_terms", []),
-            "routing_notes": "Debug fallback routing: traffic -> title, conversion -> bullets, long-tail -> backend",
+            "routing_notes": (
+                "Debug fallback routing: qualified head anchors -> title, conversion/blue-ocean opportunities -> bullets, "
+                "qualified residual safe terms -> backend."
+            ),
             "traffic_priority_keywords": keyword_routing["title_traffic_keywords"],
             "conversion_priority_keywords": keyword_routing["bullet_conversion_keywords"],
+            "backend_residual_keywords": keyword_routing["backend_residual_keywords"],
             "backend_longtail_keywords": keyword_routing["backend_longtail_keywords"],
         },
         "bullet_slot_rules": _build_bullet_slot_rules(
