@@ -39,6 +39,127 @@ def _preprocessed(capability_constraints=None):
     )
 
 
+def test_a10_rejects_bad_keyword_even_when_visible():
+    generated = {
+        "title": "Hidden spy camera body camera",
+        "bullets": [
+            "Travel camera with clip support",
+            "Body camera with audio",
+            "Thumb camera for walks",
+        ],
+        "search_terms": ["mini cam synonym"],
+        "decision_trace": {
+            "keyword_assignments": [
+                {
+                    "keyword": "hidden spy camera",
+                    "tier": "L1",
+                    "traffic_tier": "REJECTED",
+                    "quality_status": "rejected",
+                    "routing_role": "rejected",
+                    "assigned_fields": ["title"],
+                },
+                {
+                    "keyword": "body camera",
+                    "tier": "L1",
+                    "traffic_tier": "L1",
+                    "quality_status": "qualified",
+                    "routing_role": "title",
+                    "assigned_fields": ["title"],
+                },
+                {
+                    "keyword": "travel camera",
+                    "tier": "L2",
+                    "traffic_tier": "L2",
+                    "quality_status": "qualified",
+                    "routing_role": "bullet",
+                    "assigned_fields": ["bullet_1"],
+                },
+                {
+                    "keyword": "body camera with audio",
+                    "tier": "L2",
+                    "traffic_tier": "L2",
+                    "quality_status": "qualified",
+                    "routing_role": "bullet",
+                    "assigned_fields": ["bullet_2"],
+                },
+                {
+                    "keyword": "thumb camera",
+                    "tier": "L3",
+                    "traffic_tier": "L3",
+                    "quality_status": "qualified",
+                    "routing_role": "bullet",
+                    "assigned_fields": ["bullet_3"],
+                },
+                {
+                    "keyword": "mini cam synonym",
+                    "tier": "L3",
+                    "traffic_tier": "L3",
+                    "quality_status": "qualified",
+                    "routing_role": "backend",
+                    "assigned_fields": ["search_terms"],
+                },
+            ]
+        },
+    }
+
+    scores = calculate_scores(generated, {}, _preprocessed())
+
+    assert scores["a10"]["keyword_quality_penalty"]["score"] == 0
+    assert scores["listing_status"] == "NOT_READY_FOR_LISTING"
+
+
+def test_a10_backend_residual_coverage_uses_routing_role():
+    from modules.scoring import _score_a10
+
+    assignments = [
+        {
+            "keyword": "body camera",
+            "tier": "L1",
+            "traffic_tier": "L1",
+            "quality_status": "qualified",
+            "routing_role": "title",
+            "assigned_fields": ["title"],
+        },
+        {
+            "keyword": "travel camera",
+            "tier": "L2",
+            "traffic_tier": "L2",
+            "quality_status": "qualified",
+            "routing_role": "bullet",
+            "assigned_fields": ["bullet_1"],
+        },
+        {
+            "keyword": "body camera with audio",
+            "tier": "L2",
+            "traffic_tier": "L2",
+            "quality_status": "qualified",
+            "routing_role": "bullet",
+            "assigned_fields": ["bullet_2"],
+        },
+        {
+            "keyword": "thumb camera",
+            "tier": "L3",
+            "traffic_tier": "L3",
+            "quality_status": "qualified",
+            "routing_role": "bullet",
+            "assigned_fields": ["bullet_3"],
+        },
+        {
+            "keyword": "mini cam synonym",
+            "tier": "L2",
+            "traffic_tier": "L2",
+            "quality_status": "qualified",
+            "routing_role": "backend",
+            "assigned_fields": ["search_terms"],
+        },
+    ]
+
+    a10 = _score_a10(assignments)
+
+    assert a10["backend_residual_coverage"]["score"] > 0
+    assert a10["l3_search_terms"]["score"] == a10["backend_residual_coverage"]["score"]
+
+
 def test_standardized_constraints_feed_capability_gate():
     attr = {
         "Video Capture Resolution": "4K 30fps",
@@ -1139,4 +1260,3 @@ def test_too_many_bullet_fallbacks_force_not_ready_listing_status():
 
     assert risk["listing_status"]["status"] == "NOT_READY_FOR_LISTING"
     assert "too_many_bullet_fallbacks" in (risk["listing_status"]["blocking_reasons"] or [])
-

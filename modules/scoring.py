@@ -53,7 +53,7 @@ def _extract_keyword_assignments(
     decision_trace: Dict[str, Any],
     preprocessed_data: Any,
 ) -> List[Dict[str, Any]]:
-    """Return keyword assignment records with tier + assigned_fields."""
+    """Return keyword assignment records while preserving protocol metadata."""
     assignments = decision_trace.get("keyword_assignments")
     normalized: List[Dict[str, Any]] = []
     if isinstance(assignments, list):
@@ -61,15 +61,12 @@ def _extract_keyword_assignments(
             fields = row.get("assigned_fields") or []
             if not fields:
                 continue
-            normalized.append(
-                {
-                    "keyword": row.get("keyword"),
-                    "tier": _normalize_tier(row.get("tier")),
-                    "source_type": row.get("source_type"),
-                    "search_volume": row.get("search_volume"),
-                    "assigned_fields": list(fields),
-                }
-            )
+            record = dict(row)
+            traffic_tier = row.get("traffic_tier") or row.get("tier")
+            record["tier"] = _normalize_tier(traffic_tier)
+            record["traffic_tier"] = _normalize_tier(traffic_tier)
+            record["assigned_fields"] = list(fields)
+            normalized.append(record)
     if normalized:
         return normalized
 
@@ -79,80 +76,170 @@ def _extract_keyword_assignments(
         fields = entry.get("assigned_fields")
         if not fields:
             continue
-        normalized.append(
-            {
-                "keyword": entry.get("keyword"),
-                "tier": _normalize_tier(entry.get("tier") or entry.get("level")),
-                "source_type": entry.get("source_type"),
-                "search_volume": entry.get("search_volume"),
-                "assigned_fields": list(fields),
-            }
-        )
+        record = dict(entry)
+        traffic_tier = entry.get("traffic_tier") or entry.get("tier") or entry.get("level")
+        record["tier"] = _normalize_tier(traffic_tier)
+        record["traffic_tier"] = _normalize_tier(traffic_tier)
+        record["assigned_fields"] = list(fields)
+        normalized.append(record)
     return normalized
 
 
 def _score_a10(assignments: List[Dict[str, Any]], audit_trail: Optional[Sequence[Dict[str, Any]]] = None) -> Dict[str, Any]:
+    def _fields(entry: Dict[str, Any]) -> List[str]:
+        return [str(field or "") for field in (entry.get("assigned_fields") or [])]
+
+    def _has_title(entry: Dict[str, Any]) -> bool:
+        return any(field.startswith("title") for field in _fields(entry))
+
+    def _bullet_fields(entry: Dict[str, Any]) -> List[str]:
+        return [field for field in _fields(entry) if field.startswith("bullet_")]
+
+    def _has_search_terms(entry: Dict[str, Any]) -> bool:
+        return "search_terms" in _fields(entry)
+
+    def _quality_status(entry: Dict[str, Any]) -> str:
+        return str(entry.get("quality_status") or "qualified").strip().lower()
+
+    def _routing_role(entry: Dict[str, Any]) -> str:
+        return str(entry.get("routing_role") or "").strip().lower()
+
+    def _traffic_tier(entry: Dict[str, Any]) -> str:
+        return _normalize_tier(entry.get("traffic_tier") or entry.get("tier"))
+
+    def _is_qualified(entry: Dict[str, Any]) -> bool:
+        return _quality_status(entry) in {"", "qualified"}
+
+    def _is_bad_quality(entry: Dict[str, Any]) -> bool:
+        return _quality_status(entry) in {"rejected", "blocked"}
+
+    def _intended_role(entry: Dict[str, Any], *, has_role_metadata: bool) -> str:
+        role = _routing_role(entry)
+        if role:
+            return role
+        tier = _traffic_tier(entry)
+        if not has_role_metadata:
+            if tier == "L1":
+                return "title"
+            if tier == "L2":
+                return "bullet"
+            if tier == "L3":
+                return "backend"
+        return ""
+
     tier_map: Dict[str, List[Dict[str, Any]]] = {"L1": [], "L2": [], "L3": []}
     for entry in assignments:
-        tier = entry.get("tier") or ""
+        tier = _traffic_tier(entry)
         if tier not in tier_map:
             tier_map[tier] = []
         tier_map[tier].append(entry)
 
-    # L1 title alignment
-    l1_entries = tier_map.get("L1", [])
-    l1_title_hits = sum(
-        1
-        for entry in l1_entries
-        if any(f.startswith("title") for f in entry.get("assigned_fields", []))
-    )
-    denom = max(1, min(3, len(l1_entries))) if l1_entries else 1
-    title_score = int(min(1.0, l1_title_hits / denom) * 40) if l1_entries else 0
-    title_note = f"L1分配 {l1_title_hits}/{len(l1_entries) or '0'} 条进入标题槽位"
+    has_role_metadata = any(_routing_role(entry) for entry in assignments)
+    qualified = [entry for entry in assignments if _is_qualified(entry)]
+    bad_visible = [
+        entry
+        for entry in assignments
+        if _is_bad_quality(entry) and (_has_title(entry) or _bullet_fields(entry))
+    ]
 
-    # L2 bullet distribution
+    head_candidates = [
+        entry
+        for entry in qualified
+        if _routing_role(entry) == "title" or _traffic_tier(entry) == "L1"
+    ]
+    head_hits = sum(1 for entry in head_candidates if _has_title(entry))
+    head_target = max(1, min(3, len(head_candidates))) if head_candidates else 1
+    head_score = int(min(1.0, head_hits / head_target) * 30) if head_candidates else 0
+    head_note = f"Head traffic anchors {head_hits}/{len(head_candidates) or '0'} placed in title"
+
+    placement_candidates = [
+        entry
+        for entry in qualified
+        if _intended_role(entry, has_role_metadata=has_role_metadata) in {"title", "bullet", "backend", "residual"}
+    ]
+    placement_hits = 0
+    for entry in placement_candidates:
+        role = _intended_role(entry, has_role_metadata=has_role_metadata)
+        if role == "title" and _has_title(entry):
+            placement_hits += 1
+        elif role == "bullet" and _bullet_fields(entry):
+            placement_hits += 1
+        elif role in {"backend", "residual"} and _has_search_terms(entry):
+            placement_hits += 1
+    placement_target = max(1, len(placement_candidates)) if placement_candidates else 1
+    placement_score = int(min(1.0, placement_hits / placement_target) * 25) if placement_candidates else 0
+    placement_note = f"Qualified keyword placement {placement_hits}/{len(placement_candidates) or '0'} matched intended role"
+
+    bullet_entries = [
+        entry
+        for entry in qualified
+        if _routing_role(entry) == "bullet" or (not has_role_metadata and _traffic_tier(entry) == "L2")
+    ]
     bullet_fields = set()
-    for entry in tier_map.get("L2", []):
-        for field in entry.get("assigned_fields", []):
-            if field.startswith("bullet_"):
-                bullet_fields.add(field)
+    for entry in bullet_entries:
+        bullet_fields.update(_bullet_fields(entry))
     unique_slots = len(bullet_fields)
     if unique_slots >= 3:
-        l2_score = 30
+        bullet_score = 25
     elif unique_slots == 2:
-        l2_score = 20
+        bullet_score = 17
     elif unique_slots == 1:
-        l2_score = 10
+        bullet_score = 8
     else:
-        l2_score = 0
-    l2_note = f"L2关键词覆盖 {unique_slots} 个 bullet 槽位"
+        bullet_score = 0
+    bullet_note = f"Bullet conversion keywords cover {unique_slots} bullet slots"
 
-    # L3 search term coverage
-    l3_entries = tier_map.get("L3", [])
-    l3_hits = sum(
+    if has_role_metadata:
+        backend_entries = [
+            entry for entry in qualified if _routing_role(entry) in {"backend", "residual"}
+        ]
+    else:
+        backend_entries = tier_map.get("L3", [])
+    backend_hits = sum(
         1
-        for entry in l3_entries
-        if "search_terms" in entry.get("assigned_fields", [])
+        for entry in backend_entries
+        if _has_search_terms(entry)
     )
-    target = max(1, min(5, len(l3_entries))) if l3_entries else 1
-    l3_score = int(min(1.0, l3_hits / target) * 30) if l3_entries else 0
-    l3_note = f"L3关键词 {l3_hits}/{len(l3_entries) or '0'} 进入 Search Terms"
+    backend_target = max(1, min(5, len(backend_entries))) if backend_entries else 1
+    backend_score = int(min(1.0, backend_hits / backend_target) * 10) if backend_entries else 0
+    backend_note = f"Backend residual keywords {backend_hits}/{len(backend_entries) or '0'} placed in Search Terms"
+
+    quality_score = 0 if bad_visible else 10
+    quality_note = (
+        f"Blocked/rejected visible keywords: {len(bad_visible)}"
+        if bad_visible
+        else "No blocked or rejected visible keywords"
+    )
 
     brand_violation = any(
         (entry or {}).get("action") == "brand_visible_violation"
         for entry in (audit_trail or [])
     )
     if brand_violation:
-        title_score = l2_score = l3_score = 0
-        title_note += "（检测到竞争品牌，A10 清零）"
-        l2_note += "（检测到竞争品牌，A10 清零）"
-        l3_note += "（检测到竞争品牌，A10 清零）"
+        head_score = placement_score = bullet_score = backend_score = quality_score = 0
+        head_note += "（检测到竞争品牌，A10 清零）"
+        placement_note += "（检测到竞争品牌，A10 清零）"
+        bullet_note += "（检测到竞争品牌，A10 清零）"
+        backend_note += "（检测到竞争品牌，A10 清零）"
+        quality_note += "（检测到竞争品牌，A10 清零）"
 
-    subtotal = title_score + l2_score + l3_score
+    if bad_visible:
+        placement_score = 0
+        placement_note += "；visible rejected/blocked keyword invalidates placement"
+
+    l1_score = min(40, head_score + 10) if head_score else 0
+    l2_score = min(30, bullet_score)
+    l3_score = min(30, backend_score)
+    subtotal = head_score + placement_score + bullet_score + backend_score + quality_score
     return {
-        "l1_title_alignment": {"max": 40, "score": title_score, "note": title_note},
-        "l2_bullet_distribution": {"max": 30, "score": l2_score, "note": l2_note},
-        "l3_search_terms": {"max": 30, "score": l3_score, "note": l3_note},
+        "head_traffic_anchor": {"max": 30, "score": head_score, "note": head_note},
+        "qualified_keyword_placement": {"max": 25, "score": placement_score, "note": placement_note},
+        "bullet_conversion_coverage": {"max": 25, "score": bullet_score, "note": bullet_note},
+        "backend_residual_coverage": {"max": 10, "score": backend_score, "note": backend_note},
+        "keyword_quality_penalty": {"max": 10, "score": quality_score, "note": quality_note},
+        "l1_title_alignment": {"max": 40, "score": l1_score, "note": head_note},
+        "l2_bullet_distribution": {"max": 30, "score": l2_score, "note": bullet_note},
+        "l3_search_terms": {"max": 30, "score": l3_score, "note": backend_note},
         "subtotal": subtotal,
     }
 
