@@ -97,28 +97,29 @@ class KeywordAssignmentTracker:
             meta = self._metadata_map.get(key)
             if not meta:
                 continue
+            row_metadata = dict(meta)
+            row_metadata.setdefault("keyword", normalized)
             bucket = self._assignments.setdefault(
                 key,
                 {
-                    "keyword": meta.get("keyword") or normalized,
-                    "tier": (meta.get("tier") or "").upper(),
-                    "source_type": meta.get("source_type"),
-                    "search_volume": meta.get("search_volume"),
+                    "metadata": row_metadata,
                     "fields": set(),
                 },
             )
-            if not bucket.get("tier") and meta.get("tier"):
-                bucket["tier"] = (meta.get("tier") or "").upper()
+            bucket["metadata"].update({k: v for k, v in row_metadata.items() if not _metadata_value_is_empty(v)})
             bucket["fields"].add(field)
 
     def as_list(self) -> List[Dict[str, Any]]:
         records: List[Dict[str, Any]] = []
         for meta in self._assignments.values():
+            metadata = dict(meta.get("metadata") or {})
+            tier = str(metadata.get("traffic_tier") or metadata.get("tier") or "").upper()
+            if tier:
+                metadata["tier"] = tier
+                metadata.setdefault("traffic_tier", tier)
             record = {
-                "keyword": meta["keyword"],
-                "tier": meta.get("tier", "").upper(),
-                "source_type": meta.get("source_type"),
-                "search_volume": meta.get("search_volume"),
+                **metadata,
+                "keyword": metadata.get("keyword"),
                 "assigned_fields": sorted(meta["fields"]),
             }
             records.append(record)
@@ -132,10 +133,7 @@ class KeywordAssignmentTracker:
                 continue
             key = keyword.lower()
             self._assignments[key] = {
-                "keyword": keyword,
-                "tier": str((record or {}).get("tier") or "").upper(),
-                "source_type": (record or {}).get("source_type"),
-                "search_volume": (record or {}).get("search_volume"),
+                "metadata": dict(record or {}, keyword=keyword),
                 "fields": set((record or {}).get("assigned_fields") or []),
             }
 
@@ -155,6 +153,177 @@ class KeywordAssignmentTracker:
             fields = set(entry.get("assigned_fields") or [])
             fields.update(assignment["fields"])
             entry["assigned_fields"] = sorted(fields)
+
+
+def _keyword_present_in_visible_text(text: str, keyword: str) -> bool:
+    normalized_text = _normalize_keyword_text(text or "")
+    normalized_keyword = _normalize_keyword_text(keyword or "")
+    return bool(normalized_keyword and normalized_keyword in normalized_text)
+
+
+def _keyword_metadata_row(keyword: str, row: Optional[Dict[str, Any]] = None, *, tier: str = "") -> Dict[str, Any]:
+    source = row or {}
+    metadata = dict(source)
+    resolved_tier = str(
+        source.get("traffic_tier")
+        or source.get("tier")
+        or source.get("level")
+        or tier
+        or ""
+    ).upper()
+    metadata.update({
+        "keyword": source.get("keyword") or keyword,
+        "tier": resolved_tier,
+        "traffic_tier": source.get("traffic_tier") or resolved_tier,
+        "source_type": source.get("source_type"),
+        "search_volume": source.get("search_volume"),
+        "country": source.get("country") or source.get("source_country"),
+        "detected_locale": source.get("detected_locale"),
+    })
+    return metadata
+
+
+
+def _metadata_value_is_empty(value: Any) -> bool:
+    return value is None or value == ""
+
+
+def reconcile_final_keyword_assignments(
+    generated_copy: Dict[str, Any],
+    metadata_map: Dict[str, Dict[str, Any]],
+) -> List[Dict[str, Any]]:
+    title = str((generated_copy or {}).get("title") or "")
+    bullets = [str(item or "") for item in ((generated_copy or {}).get("bullets") or [])]
+    search_terms = [str(item or "") for item in ((generated_copy or {}).get("search_terms") or [])]
+    assignments: List[Dict[str, Any]] = []
+
+    for keyword_key, meta in (metadata_map or {}).items():
+        source_meta = dict(meta or {})
+        keyword = str(source_meta.get("keyword") or keyword_key or "").strip()
+        if not keyword:
+            continue
+        fields: List[str] = []
+        traffic_tier = str(
+            source_meta.get("traffic_tier")
+            or source_meta.get("tier")
+            or source_meta.get("level")
+            or ""
+        ).upper()
+        if _keyword_present_in_visible_text(title, keyword):
+            fields.append("title")
+        for idx, bullet in enumerate(bullets, start=1):
+            if _keyword_present_in_visible_text(bullet, keyword):
+                fields.append(f"bullet_{idx}")
+        if any(_keyword_present_in_visible_text(term, keyword) for term in search_terms):
+            fields.append("search_terms")
+        if not fields:
+            continue
+        row = dict(source_meta)
+        row["keyword"] = keyword
+        if traffic_tier:
+            row["traffic_tier"] = traffic_tier
+            row["tier"] = traffic_tier
+        row["assigned_fields"] = fields
+        assignments.append(row)
+
+    return assignments
+
+
+def _prepare_final_keyword_metadata(
+    assignment_tracker: KeywordAssignmentTracker,
+    tiered_keywords: Dict[str, Any],
+    writing_policy: Dict[str, Any],
+) -> None:
+    metadata_map = getattr(assignment_tracker, "_metadata_map", None)
+    if metadata_map is None:
+        return
+
+    protected_keys = {
+        "tier",
+        "traffic_tier",
+        "source_type",
+        "search_volume",
+        "country",
+        "detected_locale",
+    }
+
+    def _merge_metadata(
+        existing: Dict[str, Any],
+        incoming: Dict[str, Any],
+        *,
+        prefer_incoming_for: Optional[Set[str]] = None,
+    ) -> Dict[str, Any]:
+        merged = dict(existing or {})
+        prefer_incoming_for = prefer_incoming_for or set()
+        for key, value in (incoming or {}).items():
+            if _metadata_value_is_empty(value):
+                continue
+            if key in prefer_incoming_for or _metadata_value_is_empty(merged.get(key)):
+                merged[key] = value
+            elif key not in protected_keys:
+                # Keep earlier protocol truth when present; otherwise fill gaps.
+                merged.setdefault(key, value)
+        return merged
+
+    # The tier map extracted from the source keyword table is authoritative.
+    for keyword, row in ((tiered_keywords or {}).get("_metadata", {}) or {}).items():
+        normalized = str(keyword or "").strip().lower()
+        if normalized:
+            metadata_map[normalized] = _merge_metadata(
+                metadata_map.get(normalized) or {},
+                _keyword_metadata_row(str(keyword), row),
+                prefer_incoming_for=protected_keys | {"keyword"},
+            )
+
+    for tier_key in ("l1", "l2", "l3"):
+        for keyword in (tiered_keywords or {}).get(tier_key) or []:
+            normalized = str(keyword or "").strip().lower()
+            if not normalized:
+                continue
+            metadata_map.setdefault(
+                normalized,
+                _keyword_metadata_row(str(keyword), {"keyword": str(keyword)}, tier=tier_key.upper()),
+            )
+
+    # Policy metadata can add backend-only/synthetic candidates, but must not
+    # retier keywords already known from the real keyword table.
+    for row in (writing_policy or {}).get("keyword_metadata") or []:
+        keyword = str((row or {}).get("keyword") or "").strip()
+        if not keyword:
+            continue
+        normalized = keyword.lower()
+        metadata_map[normalized] = _merge_metadata(
+            metadata_map.get(normalized) or {},
+            _keyword_metadata_row(keyword, row),
+        )
+
+    for record in assignment_tracker.as_list():
+        keyword = str((record or {}).get("keyword") or "").strip()
+        if not keyword:
+            continue
+        normalized = keyword.lower()
+        metadata_map[normalized] = _merge_metadata(
+            metadata_map.get(normalized) or {},
+            _keyword_metadata_row(keyword, record),
+        )
+
+
+def _reconcile_final_keyword_assignments(
+    assignment_tracker: KeywordAssignmentTracker,
+    *,
+    title: str,
+    bullets: Sequence[str],
+    search_terms: Sequence[str],
+    tiered_keywords: Dict[str, Any],
+    writing_policy: Dict[str, Any],
+) -> None:
+    _prepare_final_keyword_metadata(assignment_tracker, tiered_keywords, writing_policy)
+    metadata_map = getattr(assignment_tracker, "_metadata_map", {}) or {}
+    assignments = reconcile_final_keyword_assignments(
+        {"title": title, "bullets": list(bullets or []), "search_terms": list(search_terms or [])},
+        metadata_map,
+    )
+    assignment_tracker.load_from_records(assignments)
 
 
 def _normalize_core_selling_points(points: Sequence[str]) -> List[str]:
@@ -8290,6 +8459,15 @@ def generate_multilingual_copy(preprocessed_data: PreprocessedData,
         description,
         writing_policy,
         getattr(preprocessed_en, "capability_constraints", {}) or {},
+    )
+
+    _reconcile_final_keyword_assignments(
+        keyword_assignment_tracker,
+        title=title,
+        bullets=bullets,
+        search_terms=search_terms,
+        tiered_keywords=tiered_keywords,
+        writing_policy=writing_policy,
     )
 
     # 构建完整文案

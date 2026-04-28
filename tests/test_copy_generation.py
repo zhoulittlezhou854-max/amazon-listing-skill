@@ -1153,6 +1153,175 @@ def test_search_terms_role_aware_plan_rejects_unmapped_fallback_terms():
     assert terms == []
 
 
+def test_final_keyword_reconciliation_records_l1_bullet_only_usage():
+    assignments = cg.reconcile_final_keyword_assignments(
+        {
+            "title": "",
+            "bullets": ["This body camera clips on easily"],
+            "search_terms": [],
+        },
+        {
+            "body camera": {
+                "keyword": "body camera",
+                "traffic_tier": "L1",
+                "routing_role": "title",
+                "quality_status": "qualified",
+            }
+        },
+    )
+
+    assert assignments[0]["keyword"] == "body camera"
+    assert assignments[0]["traffic_tier"] == "L1"
+    assert assignments[0]["assigned_fields"] == ["bullet_1"]
+
+
+def test_keyword_assignment_tracker_uses_normalized_keyword_when_metadata_lacks_keyword():
+    tracker = cg.KeywordAssignmentTracker({"body camera": {"tier": "L1"}})
+
+    tracker.record("title", ["body camera"])
+
+    [record] = tracker.as_list()
+    assert record["keyword"] == "body camera"
+    assert record["traffic_tier"] == "L1"
+    assert record["assigned_fields"] == ["title"]
+
+
+def test_final_keyword_metadata_merge_preserves_protocol_fields_for_table_keywords():
+    tracker = cg.KeywordAssignmentTracker(
+        {
+            "travel camera": {
+                "keyword": "travel camera",
+                "tier": "L2",
+                "source_type": "keyword_table",
+                "search_volume": 7000,
+                "routing_role": "bullet",
+                "quality_status": "qualified",
+                "blue_ocean_score": 0.8,
+            }
+        }
+    )
+
+    cg._reconcile_final_keyword_assignments(
+        tracker,
+        title="",
+        bullets=["Travel camera setup with clip support"],
+        search_terms=[],
+        tiered_keywords={
+            "l1": [],
+            "l2": ["travel camera"],
+            "l3": [],
+            "_metadata": {
+                "travel camera": {
+                    "keyword": "travel camera",
+                    "tier": "L2",
+                    "source_type": "keyword_table",
+                    "search_volume": 7000,
+                }
+            },
+        },
+        writing_policy={
+            "keyword_metadata": [
+                {
+                    "keyword": "travel camera",
+                    "tier": "L3",
+                    "source_type": "synthetic",
+                    "routing_role": "bullet",
+                    "quality_status": "qualified",
+                    "blue_ocean_score": 0.8,
+                    "search_volume": 100,
+                }
+            ]
+        },
+    )
+
+    [record] = tracker.as_list()
+    assert record["keyword"] == "travel camera"
+    assert record["tier"] == "L2"
+    assert record["traffic_tier"] == "L2"
+    assert record["source_type"] == "keyword_table"
+    assert record["search_volume"] == 7000
+    assert record["routing_role"] == "bullet"
+    assert record["quality_status"] == "qualified"
+    assert record["blue_ocean_score"] == 0.8
+    assert record["assigned_fields"] == ["bullet_1"]
+
+
+def test_final_keyword_metadata_merge_handles_prepopulated_assignment_records():
+    tracker = cg.KeywordAssignmentTracker(
+        {
+            "travel camera": {
+                "keyword": "travel camera",
+                "tier": "L2",
+                "routing_role": "bullet",
+                "quality_status": "qualified",
+            }
+        }
+    )
+    tracker.record("bullet_1", ["travel camera"])
+
+    cg._reconcile_final_keyword_assignments(
+        tracker,
+        title="",
+        bullets=["Travel camera setup with clip support"],
+        search_terms=[],
+        tiered_keywords={
+            "l1": [],
+            "l2": ["travel camera"],
+            "l3": [],
+            "_metadata": {"travel camera": {"keyword": "travel camera", "tier": "L2"}},
+        },
+        writing_policy={},
+    )
+
+    [record] = tracker.as_list()
+    assert record["keyword"] == "travel camera"
+    assert record["assigned_fields"] == ["bullet_1"]
+
+
+def test_final_keyword_reconciliation_preserves_protocol_fields():
+    metadata = {
+        "body camera": {
+            "keyword": "body camera",
+            "tier": "L1",
+            "traffic_tier": "L1",
+            "routing_role": "title",
+            "quality_status": "qualified",
+            "opportunity_score": 0.9,
+        },
+        "travel camera": {
+            "keyword": "travel camera",
+            "tier": "L2",
+            "traffic_tier": "L2",
+            "routing_role": "bullet",
+            "quality_status": "qualified",
+            "blue_ocean_score": 0.8,
+        },
+        "mini cam synonym": {
+            "keyword": "mini cam synonym",
+            "tier": "L3",
+            "traffic_tier": "L3",
+            "routing_role": "backend",
+            "quality_status": "qualified",
+        },
+    }
+    generated = {
+        "title": "Body Camera for Travel Recording",
+        "bullets": ["Travel camera setup with clip support"],
+        "search_terms": ["mini cam synonym wearable recorder"],
+    }
+
+    assignments = cg.reconcile_final_keyword_assignments(generated, metadata)
+    by_keyword = {row["keyword"]: row for row in assignments}
+
+    assert by_keyword["body camera"]["traffic_tier"] == "L1"
+    assert by_keyword["body camera"]["routing_role"] == "title"
+    assert by_keyword["travel camera"]["quality_status"] == "qualified"
+    assert by_keyword["travel camera"]["blue_ocean_score"] == 0.8
+    assert "title" in by_keyword["body camera"]["assigned_fields"]
+    assert "bullet_1" in by_keyword["travel camera"]["assigned_fields"]
+    assert "search_terms" in by_keyword["mini cam synonym"]["assigned_fields"]
+
+
 def test_diversify_duplicate_bullet_dimensions_swaps_in_unused_capability():
     bullets = [
         "LIGHTWEIGHT CONTROL — Capture every commute with compact, lightweight handling.",
