@@ -228,6 +228,7 @@ WEARABLE_BODY_CAMERA_POSITIVE_PATTERNS = [
         r"\bpov camera\b",
         r"\bvlogging camera\b",
         r"\btravel camera\b",
+        r"\baction camera\b",
         r"\bsmall camera\b",
         r"\bmagnetic\b",
         r"\bneck(?:lace| strap| lanyard)?\b",

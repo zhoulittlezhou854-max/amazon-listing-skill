@@ -192,3 +192,32 @@ def test_extract_tiered_keywords_uses_protocol_metadata():
     assert metadata["travel camera"]["routing_role"] in {"bullet", "backend"}
     assert metadata["snaproll camera"]["quality_status"] == "natural_only"
     assert "snaproll camera" not in tiers["l1"] + tiers["l2"] + tiers["l3"]
+
+
+def test_wearable_body_camera_keeps_action_camera_as_broad_category_anchor():
+    from types import SimpleNamespace
+
+    from modules.keyword_utils import extract_tiered_keywords
+
+    preprocessed = SimpleNamespace(
+        keyword_data=SimpleNamespace(
+            keywords=[
+                {"keyword": "action camera", "search_volume": 84755, "conversion_rate": 0.0087},
+                {"keyword": "vlogging camera", "search_volume": 30000, "conversion_rate": 0.018, "click_share": 0.12},
+                {"keyword": "mini camera", "search_volume": 22000, "conversion_rate": 0.017, "click_share": 0.11},
+                {"keyword": "body camera", "search_volume": 18000, "conversion_rate": 0.02, "click_share": 0.1},
+                {"keyword": "hidden spy camera", "search_volume": 50000, "conversion_rate": 0.03, "click_share": 0.2},
+            ]
+        ),
+        real_vocab=None,
+        core_selling_points=["wearable body camera with clip"],
+        attribute_data=SimpleNamespace(data={}),
+        raw_human_insights="",
+    )
+
+    tiers = extract_tiered_keywords(preprocessed, language="English")
+    metadata = tiers["_metadata"]
+
+    assert metadata["action camera"]["quality_status"] == "qualified"
+    assert metadata["action camera"]["routing_role"] in {"title", "bullet"}
+    assert metadata["hidden spy camera"]["quality_status"] == "rejected"
