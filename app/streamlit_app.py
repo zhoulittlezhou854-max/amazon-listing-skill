@@ -191,6 +191,31 @@ def build_report_guide_rows(result: dict) -> list[dict]:
     return rows
 
 
+def build_keyword_protocol_display_rows(result: dict, limit: int = 25) -> list[dict]:
+    copy_payload = result.get("generated_copy") or {}
+    decision_trace = copy_payload.get("decision_trace") or result.get("decision_trace") or {}
+    assignments = decision_trace.get("keyword_assignments") or result.get("keyword_metadata") or []
+    rows: list[dict] = []
+    for item in assignments[:limit]:
+        if not isinstance(item, dict):
+            continue
+        rows.append(
+            {
+                "keyword": item.get("keyword") or "-",
+                "traffic_tier": item.get("traffic_tier") or item.get("tier") or "-",
+                "quality_status": item.get("quality_status") or "-",
+                "routing_role": item.get("routing_role") or "-",
+                "opportunity_type": item.get("opportunity_type") or "-",
+                "opportunity_score": item.get("opportunity_score", "-"),
+                "blue_ocean_score": item.get("blue_ocean_score", "-"),
+                "rejection_reason": item.get("rejection_reason") or "-",
+                "assigned_fields": ", ".join(str(field) for field in item.get("assigned_fields") or []) or "-",
+                "tier": item.get("tier") or "-",
+            }
+        )
+    return rows
+
+
 def _render_metadata(metadata: dict) -> None:
     if not metadata:
         st.info("暂无模型元数据")
@@ -231,6 +256,10 @@ def _render_run_result(result: dict) -> None:
     if report_guide_rows:
         st.markdown("### 这 3 份报告分别看什么")
         st.table(pd.DataFrame(report_guide_rows))
+    keyword_protocol_rows = build_keyword_protocol_display_rows(result)
+    if keyword_protocol_rows:
+        st.markdown("### Keyword Protocol Decisions")
+        st.dataframe(pd.DataFrame(keyword_protocol_rows), use_container_width=True)
 
     top = st.columns(4)
     top[0].metric("推荐版本", display_state["recommended_output"])

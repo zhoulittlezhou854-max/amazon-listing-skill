@@ -1,4 +1,5 @@
 from app.streamlit_app import (
+    build_keyword_protocol_display_rows,
     build_result_display_state,
     build_report_guide_rows,
     build_result_summary_rows,
@@ -116,3 +117,43 @@ def test_build_report_guide_rows_clarifies_three_reports():
     assert "不是文案" in rows[1]["用途"]
     assert rows[2]["报告"] == "all_report_compare.md"
     assert "V3 基线版" in rows[2]["对应版本"]
+
+
+def test_build_keyword_protocol_display_rows_exposes_protocol_fields():
+    rows = build_keyword_protocol_display_rows(
+        {
+            "generated_copy": {
+                "decision_trace": {
+                    "keyword_assignments": [
+                        {
+                            "keyword": "body camera with audio",
+                            "traffic_tier": "L2",
+                            "tier": "L2",
+                            "quality_status": "qualified",
+                            "routing_role": "bullet",
+                            "opportunity_type": "conversion_blue_ocean",
+                            "opportunity_score": 0.78,
+                            "blue_ocean_score": 0.81,
+                            "rejection_reason": "",
+                            "assigned_fields": ["bullet_2"],
+                        }
+                    ]
+                }
+            }
+        }
+    )
+
+    assert rows == [
+        {
+            "keyword": "body camera with audio",
+            "traffic_tier": "L2",
+            "quality_status": "qualified",
+            "routing_role": "bullet",
+            "opportunity_type": "conversion_blue_ocean",
+            "opportunity_score": 0.78,
+            "blue_ocean_score": 0.81,
+            "rejection_reason": "-",
+            "assigned_fields": "bullet_2",
+            "tier": "L2",
+        }
+    ]

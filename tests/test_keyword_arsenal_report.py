@@ -79,9 +79,53 @@ def test_generate_report_contains_keyword_arsenal_sections():
     )
 
     assert "## Keyword Arsenal" in report
-    assert "### L1 — Title Keywords" in report
-    assert "### L2 — Bullet Keywords" in report
-    assert "### L3 — Search Terms Keywords" in report
-    assert "- action camera" in report
-    assert "- body camera" in report
-    assert "- clip on cam" in report
+    assert "### Head Traffic Anchors" in report
+    assert "### Bullet Conversion / Blue-Ocean Keywords" in report
+    assert "### Backend Residual Keywords" in report
+    assert "action camera" in report
+    assert "body camera" in report
+    assert "clip on cam" in report
+
+
+def test_report_renders_protocol_keyword_decisions():
+    from modules.report_generator import _keyword_arsenal_block
+
+    preprocessed = SimpleNamespace(
+        keyword_metadata=[
+            {
+                "keyword": "body camera",
+                "traffic_tier": "L1",
+                "tier": "L1",
+                "quality_status": "qualified",
+                "routing_role": "title",
+                "opportunity_type": "head_traffic",
+            },
+            {
+                "keyword": "body camera with audio",
+                "traffic_tier": "L2",
+                "tier": "L2",
+                "quality_status": "qualified",
+                "routing_role": "bullet",
+                "opportunity_type": "conversion_blue_ocean",
+            },
+            {
+                "keyword": "snaproll camera",
+                "traffic_tier": "NON_TIER",
+                "tier": "NON_TIER",
+                "quality_status": "natural_only",
+                "routing_role": "natural_only",
+                "rejection_reason": "zero_search_volume",
+            },
+        ],
+        keyword_data=SimpleNamespace(keywords=[]),
+    )
+    generated = {"decision_trace": {"keyword_assignments": []}}
+
+    lines = _keyword_arsenal_block(preprocessed, generated)
+    text = "\n".join(lines)
+
+    assert "Traffic Tier" in text
+    assert "Quality Status" in text
+    assert "Routing Role" in text
+    assert "conversion_blue_ocean" in text
+    assert "zero_search_volume" in text

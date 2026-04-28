@@ -517,6 +517,14 @@ def _data_ingestion_audit_block(preprocessed_data: Any, generated_copy: Dict[str
 
 def _extract_keyword_tiers(preprocessed_data: Any) -> Dict[str, str]:
     mapping: Dict[str, str] = {}
+    for row in getattr(preprocessed_data, "keyword_metadata", []) or []:
+        keyword = row.get("keyword")
+        tier = row.get("traffic_tier") or row.get("tier")
+        if keyword and tier:
+            mapping[str(keyword)] = str(tier).upper()
+    if mapping:
+        return mapping
+
     keywords = _safe_get(preprocessed_data, "keyword_data", "keywords", default=[]) or []
     for row in keywords:
         keyword = row.get("keyword") or row.get("search_term")
@@ -566,60 +574,126 @@ def _keyword_coverage_rows(preprocessed_data: Any, generated_copy: Dict[str, Any
     return rows
 
 
-def _collect_keyword_arsenal(preprocessed_data: Any, generated_copy: Dict[str, Any]) -> Dict[str, List[str]]:
-    arsenal: Dict[str, List[str]] = {"L1": [], "L2": [], "L3": []}
-    seen = {"L1": set(), "L2": set(), "L3": set()}
+def _collect_keyword_arsenal(preprocessed_data: Any, generated_copy: Dict[str, Any]) -> List[Dict[str, Any]]:
+    rows: List[Dict[str, Any]] = []
+    seen = set()
 
-    def _add(keyword: str, tier: str) -> None:
-        normalized_tier = (tier or "").upper()
+    def _add(source: Dict[str, Any]) -> None:
+        keyword = source.get("keyword") or source.get("search_term")
         normalized_keyword = (keyword or "").strip()
-        if normalized_tier not in arsenal or not normalized_keyword:
+        if not normalized_keyword:
             return
         dedupe_key = normalized_keyword.lower()
-        if dedupe_key in seen[normalized_tier]:
+        if dedupe_key in seen:
             return
-        seen[normalized_tier].add(dedupe_key)
-        arsenal[normalized_tier].append(normalized_keyword)
+        seen.add(dedupe_key)
+        traffic_tier = str(source.get("traffic_tier") or source.get("tier") or source.get("level") or "").upper()
+        rows.append(
+            {
+                **source,
+                "keyword": normalized_keyword,
+                "traffic_tier": traffic_tier or "-",
+                "quality_status": source.get("quality_status") or "qualified",
+                "routing_role": source.get("routing_role") or _legacy_routing_role(traffic_tier),
+                "opportunity_type": source.get("opportunity_type") or "-",
+                "assigned_fields": list(source.get("assigned_fields") or []),
+                "rejection_reason": source.get("rejection_reason") or source.get("reason") or "",
+            }
+        )
 
     decision_trace = generated_copy.get("decision_trace") or {}
     for entry in decision_trace.get("keyword_assignments") or []:
-        _add(entry.get("keyword", ""), entry.get("tier", ""))
+        _add(entry)
 
     for entry in getattr(preprocessed_data, "keyword_metadata", []) or []:
-        _add(entry.get("keyword", ""), entry.get("tier", ""))
+        _add(entry)
 
-    if not any(arsenal.values()):
+    if not rows:
         for keyword, tier in _extract_keyword_tiers(preprocessed_data).items():
-            _add(keyword, tier)
+            _add({"keyword": keyword, "traffic_tier": tier, "tier": tier})
 
-    return arsenal
+    return rows
+
+
+def _legacy_routing_role(traffic_tier: str) -> str:
+    tier = str(traffic_tier or "").upper()
+    if tier == "L1":
+        return "title"
+    if tier == "L2":
+        return "bullet"
+    if tier == "L3":
+        return "backend"
+    return "natural_only"
 
 
 def _keyword_arsenal_block(preprocessed_data: Any, generated_copy: Dict[str, Any]) -> List[str]:
     arsenal = _collect_keyword_arsenal(preprocessed_data, generated_copy)
 
-    def _render_keywords(keywords: Sequence[str]) -> List[str]:
-        return [f"- {keyword}" for keyword in keywords] or ["- 无"]
+    def _group(row: Dict[str, Any]) -> str:
+        role = str(row.get("routing_role") or "").lower()
+        status = str(row.get("quality_status") or "").lower()
+        tier = str(row.get("traffic_tier") or row.get("tier") or "").upper()
+        if status in {"rejected", "blocked", "natural_only", "watchlist"} or role in {"natural_only", "rejected", "blocked"}:
+            return "other"
+        if role == "title" or tier == "L1":
+            return "title"
+        if role == "bullet" or tier == "L2":
+            return "bullet"
+        if role in {"backend", "residual"} or tier == "L3":
+            return "backend"
+        return "other"
+
+    def _render_table(rows: Sequence[Dict[str, Any]]) -> str:
+        table_rows = []
+        for row in rows:
+            assigned = ", ".join(str(field) for field in row.get("assigned_fields") or []) or "-"
+            reason = row.get("rejection_reason") or "-"
+            table_rows.append(
+                [
+                    str(row.get("keyword") or "-"),
+                    str(row.get("traffic_tier") or row.get("tier") or "-"),
+                    str(row.get("quality_status") or "-"),
+                    str(row.get("routing_role") or "-"),
+                    str(row.get("opportunity_type") or "-"),
+                    assigned,
+                    str(reason),
+                ]
+            )
+        return _markdown_table(
+            ["Keyword", "Traffic Tier", "Quality Status", "Routing Role", "Opportunity", "Assigned Fields", "Reason"],
+            table_rows,
+        )
+
+    grouped = {
+        "title": [row for row in arsenal if _group(row) == "title"],
+        "bullet": [row for row in arsenal if _group(row) == "bullet"],
+        "backend": [row for row in arsenal if _group(row) == "backend"],
+        "other": [row for row in arsenal if _group(row) == "other"],
+    }
 
     lines = [
         "## Keyword Arsenal",
         "",
-        "### L1 — Title Keywords",
-        "（直接用于 title 的核心词，最高权重）",
-        *_render_keywords(arsenal["L1"]),
+        "### Head Traffic Anchors",
+        "（qualified head terms that should anchor the title without replacing product truth）",
+        _render_table(grouped["title"]),
         "",
-        "### L2 — Bullet Keywords",
-        "（用于 bullets 的次级词，中等权重）",
-        *_render_keywords(arsenal["L2"]),
+        "### Bullet Conversion / Blue-Ocean Keywords",
+        "（qualified conversion and blue-ocean opportunities for visible bullet slots）",
+        _render_table(grouped["bullet"]),
         "",
-        "### L3 — Search Terms Keywords",
-        "（用于 search terms 的长尾词，低权重）",
-        *_render_keywords(arsenal["L3"]),
+        "### Backend Residual Keywords",
+        "（safe residual, long-tail, and synonym terms for Search Terms）",
+        _render_table(grouped["backend"]),
+        "",
+        "### Watchlist / Natural Only / Rejected Keywords",
+        "（not part of the L1/L2/L3 qualified basket unless upgraded by data）",
+        _render_table(grouped["other"]),
         "",
         "### Routing Summary",
-        "- L1 → Title: these keywords must appear in the product title",
-        "- L2 → Bullets: these keywords should be naturally integrated into bullets",
-        "- L3 → Search Terms: these keywords go into backend search terms field",
+        "- Title keeps qualified head traffic anchors.",
+        "- Bullets keep qualified conversion and blue-ocean opportunities.",
+        "- Search Terms use qualified backend residual / scene variants / long-tail opportunity terms.",
     ]
     return lines
 
@@ -687,7 +761,7 @@ def _l2_overlap_notes(assignments: Sequence[Dict[str, Any]]) -> List[str]:
         has_visible = any(str(field).startswith("title") or str(field).startswith("bullet_") for field in fields)
         if "search_terms" in fields and has_visible:
             keyword = entry.get("keyword") or "L2关键词"
-            notes.append(f"{keyword} 同时位于可见字段与 Search Terms → 可替换为 L3 长尾词")
+            notes.append(f"{keyword} 同时位于可见字段与 Search Terms → 可替换为 qualified backend residual / 场景变体")
     return notes
 
 
@@ -1389,7 +1463,7 @@ def _l2_overlap_notes(assignments: Sequence[Dict[str, Any]]) -> List[str]:
         has_visible = any(str(field).startswith("title") or str(field).startswith("bullet_") for field in fields)
         if "search_terms" in fields and has_visible:
             keyword = entry.get("keyword") or "L2关键词"
-            notes.append(f"{keyword} 同时位于可见字段与 Search Terms → 可替换为 L3 长尾词")
+            notes.append(f"{keyword} 同时位于可见字段与 Search Terms → 可替换为 qualified backend residual / 场景变体")
     return notes
 
 
@@ -1459,21 +1533,21 @@ def _build_a10_suggestions(
     if byte_cap and byte_used < 0.6 * byte_cap:
         suggestions.append({
             "type": "data",
-            "reason": f"Search Terms 仅 {byte_used}/{byte_cap} bytes，L3 长尾词偏少",
-            "action": f"补充 data/raw/{country_lower}/{country}/ 长尾词或在 ABA 表中追加低搜索量关键词，词库补齐后 Search Terms 会自动填满"
+            "reason": f"Search Terms 仅 {byte_used}/{byte_cap} bytes，qualified backend residual / 场景变体偏少",
+            "action": f"补充 data/raw/{country_lower}/{country}/ backend residual、场景变体或 long-tail opportunity，词库补齐后 Search Terms 会自动填满"
         })
 
     if stats["L3"]["total"] == 0:
         suggestions.append({
             "type": "data",
-            "reason": "缺少 L3 长尾词",
-            "action": f"在 {keyword_path} 或 data/raw/{country_lower}/{country}/ 中新增 ≥20 条本地长尾词，供 Search Terms 使用"
+            "reason": "缺少 qualified backend residual / 场景变体",
+            "action": f"在 {keyword_path} 或 data/raw/{country_lower}/{country}/ 中新增 ≥20 条安全残余词、场景变体或 long-tail opportunity，供 Search Terms 使用"
         })
     elif stats["L3"]["search_hits"] == 0:
         suggestions.append({
             "type": "strategy",
-            "reason": "已有 L3 词未落入 Search Terms",
-            "action": "检查 writing_policy.search_term_plan 优先级，确保 L3 排在 L2 之前或直接通过 keyword_slots.search_terms 指定"
+            "reason": "已有 backend residual 词未落入 Search Terms",
+            "action": "检查 writing_policy.search_term_plan priority_roles，确保 backend/residual 优先进入 Search Terms 或直接通过 keyword_slots.search_terms 指定"
         })
     return suggestions
 
@@ -1696,7 +1770,7 @@ def _build_action_items(
             "A10",
             "数据缺口",
             f"data/raw/{country_lower}/{target_country}/",
-            "补充 ≥20 条 L3 长尾词并在 search_term_plan 中开启 backend-only 槽位",
+            "补充 ≥20 条 qualified backend residual / 场景变体，并在 search_term_plan 中开启 backend/residual 槽位",
             "A10 预计提升（Search Terms bytes 提升）"
         )
 
@@ -1755,7 +1829,7 @@ def _build_action_items(
             "COSMO",
             "策略可调",
             "writing_policy.json",
-            "检查 keyword_assignments，将重复覆盖的 L2 替换为 L3 backend-only",
+            "检查 keyword_assignments，将重复覆盖的可见词替换为 qualified backend residual / 场景变体",
             "COSMO 预计提升（Slot 稀释度下降）"
         )
 
