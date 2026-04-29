@@ -21,6 +21,7 @@ tests/
 | test_canonical_facts.py | 产品事实标准化、H91 alias、claim permission 与 fact readiness 测试 | 小 | 2026-04-29 |
 | test_claim_language_contract.py | 合规语言审计、repairable claim 与 blocking claim 测试 | 小 | 2026-04-29 |
 | test_field_provenance.py | 字段 provenance tier、fallback eligibility 与规范化匹配测试 | 小 | 2026-04-29 |
+| test_image_handoff.py | 图片制作交接文档结构、风险提示与写入测试 | 小 | 2026-04-29 |
 | test_keyword_reconciliation.py | 最终候选文案关键词复核、覆盖统计与 metadata 保真测试 | 小 | 2026-04-29 |
 | test_keyword_protocol.py | 关键词协议质量过滤、蓝海机会、相对分层与路由测试 | 小 | 2026-04-28 |
 | test_listing_candidate.py | Listing 候选对象 reviewable/paste-ready 契约测试 | 小 | 2026-04-29 |

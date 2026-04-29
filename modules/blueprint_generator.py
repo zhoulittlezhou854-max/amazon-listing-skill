@@ -4,13 +4,20 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 import time
 from copy import deepcopy
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Sequence
 
-from modules.llm_client import get_llm_client, LLMClientUnavailable
+from modules.llm_client import (
+    DEEPSEEK_R1_EXPERIMENT_MODEL,
+    DEEPSEEK_STABLE_MODEL,
+    get_llm_client,
+    is_r1_experiment_model,
+    LLMClientUnavailable,
+)
 from modules.keyword_utils import extract_tiered_keywords
 from modules.language_utils import english_capability_label, canonicalize_capability
 try:
@@ -19,8 +26,16 @@ except Exception:  # pragma: no cover - optional dependency
     OpenAI = None  # type: ignore
 
 MAX_INSIGHT_CHARS = 4000
-BLUEPRINT_PRIMARY_MODEL = "deepseek-chat"
-BLUEPRINT_FALLBACK_MODEL = "deepseek-reasoner"
+BLUEPRINT_PRIMARY_MODEL = DEEPSEEK_STABLE_MODEL
+BLUEPRINT_FALLBACK_MODEL = DEEPSEEK_R1_EXPERIMENT_MODEL
+
+
+def _r1_blueprint_timeout_seconds() -> int:
+    raw = os.getenv("DEEPSEEK_V4_PRO_TIMEOUT_SEC") or os.getenv("R1_BLUEPRINT_TIMEOUT_SEC")
+    try:
+        return max(45, int(raw)) if raw else 180
+    except Exception:
+        return 180
 
 AUDIENCE_GROUPS = {
     "hero": "Primary use case / main buyer persona",
@@ -41,17 +56,24 @@ AUDIENCE_FALLBACK_PLAN = [
 SUPPRESSED_CAPABILITY_TERMS = {
     "live_streaming_supported": ["live stream", "live streaming", "livestream"],
     "waterproof_supported": ["waterproof", "underwater"],
-    "stabilization_supported": ["stabilization", "stabilized", "eis"],
+    "stabilization_supported": [
+        "electronic image stabilization",
+        "image stabilization",
+        "digital stabilization",
+        "stabilization",
+        "stabilized",
+        "eis",
+    ],
 }
 
 _NEGATIVE_PREFIX_RE = re.compile(
-    r"(?i)^(?:(?:explicit\s+)?note:\s*)?(?:(?:it|this camera|the camera|machine)\s+)?(?:has\s+no|no|without)\s+\w+(?:\s+\w+){0,2}\s*[,;:\.-]?\s*"
+    r"(?i)^(?:(?:explicit\s+)?note:\s*)?(?:(?:it|this camera|the camera|machine)\s+)?(?:(?:does\s+not\s+(?:include|feature|support|offer))(?:\s+\w+){0,3}|(?:has\s+no\b|no\b|without\b|lacks\b)(?:\s+\w+){0,3})\s*[,;:\.-]?\s*"
 )
 _NEGATIVE_SUFFIX_RE = re.compile(
-    r"(?i)\s*[,;:-]?\s*(?:as\s+it\s+)?(?:lacks|has\s+no|without)\s+\w+(?:\s+\w+){0,2}\s*\.?\s*$"
+    r"(?i)\s*[,;:-]?\s*(?:as\s+it\s+)?(?:(?:does\s+not\s+(?:include|feature|support|offer))(?:\s+\w+){0,3}|(?:lacks\b|has\s+no\b|without\b)(?:\s+\w+){0,3})\s*\.?\s*$"
 )
 _NEGATIVE_ONLY_RE = re.compile(
-    r"(?i)^(?:(?:explicit\s+)?note:\s*)?(?:(?:it|this camera|the camera|machine)\s+)?(?:lacks|has\s+no|no|without)\s+\w+(?:\s+\w+){0,2}\s*\.?$"
+    r"(?i)^(?:(?:explicit\s+)?note:\s*)?(?:(?:it|this camera|the camera|machine)\s+)?(?:(?:does\s+not\s+(?:include|feature|support|offer))(?:\s+\w+){0,3}|(?:lacks\b|has\s+no\b|no\b|without\b)(?:\s+\w+){0,3})\s*\.?$"
 )
 _GUIDANCE_HINT_RE = re.compile(r"(?i)\b(guidance|warning|boundary|best[- ]use|first-time|informed buyer|not suitable)\b")
 _MID_SENTENCE_NEGATIVE_REPAIRS = [
@@ -61,6 +83,10 @@ _MID_SENTENCE_NEGATIVE_REPAIRS = [
     ),
     (
         re.compile(r"(?i)(?:,\s*)?(?:note:\s*)?(?:(?:it|this camera|the camera|machine)\s+)?(?:has\s+no|no)\s+image\s+and\s+"),
+        ", ",
+    ),
+    (
+        re.compile(r"(?i)(?:,\s*)?(?:note:\s*)?(?:(?:it|this camera|the camera|machine)\s+)?does\s+not\s+(?:include|feature|support|offer)\s+image\s+and\s+"),
         ", ",
     ),
 ]
@@ -178,7 +204,12 @@ def _parse_llm_blueprint(response: str) -> Dict[str, Any]:
 
 def _clean_suppressed_text(text: str, blocked_terms: Sequence[str]) -> str:
     cleaned = str(text or "")
-    for term in blocked_terms:
+    ordered_terms = sorted(
+        {str(term or "").strip() for term in blocked_terms if str(term or "").strip()},
+        key=len,
+        reverse=True,
+    )
+    for term in ordered_terms:
         cleaned = re.sub(re.escape(term), "", cleaned, flags=re.IGNORECASE)
     for pattern, replacement in _MID_SENTENCE_NEGATIVE_REPAIRS:
         cleaned = pattern.sub(replacement, cleaned)
@@ -402,12 +433,16 @@ def _call_blueprint_llm(
     timeout: int,
     artifact_dir: Optional[str],
     audit_log: Optional[List[Dict[str, Any]]],
+    override_model: Optional[str] = None,
 ) -> str:
     del artifact_dir  # Reserved for future artifact logging, kept in signature by design.
-    attempts = [
-        (BLUEPRINT_PRIMARY_MODEL, 30),
-        (BLUEPRINT_FALLBACK_MODEL, 120),
-    ]
+    if override_model:
+        attempts = [(override_model, timeout)]
+    else:
+        attempts = [
+            (BLUEPRINT_PRIMARY_MODEL, 30),
+            (BLUEPRINT_FALLBACK_MODEL, 120),
+        ]
     last_exc: Optional[Exception] = None
     for index, (model, model_timeout) in enumerate(attempts, start=1):
         started = time.time()
@@ -463,11 +498,29 @@ def _resolve_blueprint_stream_client(llm: Any) -> Any:
     stream_client = getattr(llm, "_client", None)
     if stream_client is not None:
         return stream_client
+    openai_compatible = getattr(llm, "_openai_compatible", None) or {}
+    compatible_key = openai_compatible.get("api_key")
+    compatible_base = openai_compatible.get("base_url")
+    if OpenAI is not None and compatible_key and compatible_base:
+        return OpenAI(api_key=compatible_key, base_url=compatible_base)
     deepseek_key = getattr(llm, "_deepseek_key", None)
     deepseek_base = getattr(llm, "_deepseek_base", None)
     if OpenAI is not None and deepseek_key and deepseek_base:
         return OpenAI(api_key=deepseek_key, base_url=deepseek_base)
     raise RuntimeError("Blueprint streaming client is unavailable")
+
+
+def _should_fallback_to_non_streaming_blueprint(exc: Exception, llm: Any) -> bool:
+    if not hasattr(llm, "generate_text"):
+        return False
+    message = str(exc or "").lower()
+    if not message:
+        return False
+    return (
+        "streaming client is unavailable" in message
+        or ("route" in message and "not found" in message)
+        or ("/chat/completions" in message and "404" in message)
+    )
 
 
 def _generate_bullet_blueprint_impl(
@@ -535,8 +588,8 @@ def _generate_bullet_blueprint_impl(
         "feedback_context": getattr(preprocessed_data, "feedback_context", {}) or {},
         "audience_allocation": audience_allocation,
         "suppressed_capabilities": suppressed_capabilities,
-        "_request_timeout_seconds": 45 if override_model == "deepseek-reasoner" else 90,
-        "_disable_fallback": bool(override_model == "deepseek-reasoner"),
+        "_request_timeout_seconds": _r1_blueprint_timeout_seconds() if is_r1_experiment_model(override_model) else 90,
+        "_disable_fallback": bool(is_r1_experiment_model(override_model)),
     }
 
     system_prompt = (
@@ -566,18 +619,19 @@ def _generate_bullet_blueprint_impl(
     )
 
     llm = get_llm_client()
-    stream_client = _resolve_blueprint_stream_client(llm)
     messages = [
         {"role": "system", "content": system_prompt},
         {"role": "user", "content": json.dumps(request_payload, ensure_ascii=False)},
     ]
     try:
+        stream_client = _resolve_blueprint_stream_client(llm)
         response = _call_blueprint_llm(
             stream_client,
             messages,
             int(request_payload.get("_request_timeout_seconds") or 30),
             None,
             [],
+            override_model=override_model,
         )
         configured_model = (
             getattr(stream_client, "_last_blueprint_model", "")
@@ -621,24 +675,59 @@ def _generate_bullet_blueprint_impl(
         )
         raise error from exc
     except Exception as exc:
-        error = RuntimeError(f"Bullet blueprint generation failed: {exc}")
-        setattr(
-            error,
-            "debug_context",
-            {
-                "stage": "bullet_blueprint",
-                "field": "bullet_blueprint",
-                "system_prompt": system_prompt,
-                "request_payload": {
+        if _should_fallback_to_non_streaming_blueprint(exc, llm):
+            try:
+                response = llm.generate_text(
+                    system_prompt,
+                    request_payload,
+                    temperature=0.0,
+                    override_model=override_model,
+                )
+                blueprint = _scrub_suppressed_blueprint_content(
+                    _dedupe_negative_constraint_blueprint_content(
+                        _parse_llm_blueprint(response or ""),
+                        suppressed_capabilities,
+                    ),
+                    suppressed_capabilities,
+                )
+            except Exception as fallback_exc:
+                error = RuntimeError(f"Bullet blueprint generation failed: {fallback_exc}")
+                setattr(
+                    error,
+                    "debug_context",
+                    {
+                        "stage": "bullet_blueprint",
+                        "field": "bullet_blueprint",
+                        "system_prompt": system_prompt,
+                        "request_payload": {
+                            "field": "bullet_blueprint",
+                            "override_model": override_model or "",
+                            "payload": request_payload,
+                        },
+                        "llm_response_meta": (getattr(llm, "response_metadata", {}) or {}),
+                        "error": str(fallback_exc),
+                    },
+                )
+                raise error from fallback_exc
+        else:
+            error = RuntimeError(f"Bullet blueprint generation failed: {exc}")
+            setattr(
+                error,
+                "debug_context",
+                {
+                    "stage": "bullet_blueprint",
                     "field": "bullet_blueprint",
-                    "override_model": override_model or "",
-                    "payload": request_payload,
+                    "system_prompt": system_prompt,
+                    "request_payload": {
+                        "field": "bullet_blueprint",
+                        "override_model": override_model or "",
+                        "payload": request_payload,
+                    },
+                    "llm_response_meta": (getattr(llm, "response_metadata", {}) or {}),
+                    "error": str(exc),
                 },
-                "llm_response_meta": (getattr(llm, "response_metadata", {}) or {}),
-                "error": str(exc),
-            },
-        )
-        raise error from exc
+            )
+            raise error from exc
 
     blueprint["created_at"] = datetime.now(timezone.utc).isoformat()
     blueprint["llm_model"] = (
@@ -686,7 +775,7 @@ def generate_bullet_blueprint_r1(
         writing_policy=writing_policy,
         intent_graph=intent_graph,
         output_path=output_path,
-        override_model="deepseek-reasoner",
+        override_model=DEEPSEEK_R1_EXPERIMENT_MODEL,
     )
 
 

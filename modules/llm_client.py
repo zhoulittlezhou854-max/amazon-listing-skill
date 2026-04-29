@@ -39,6 +39,10 @@ class LLMClientUnavailable(RuntimeError):
 
 RUNTIME_LLM_CONFIG: Dict[str, Any] = {}
 RUNTIME_FORCE_LIVE = False
+DEEPSEEK_STABLE_MODEL = "deepseek-v4-flash"
+DEEPSEEK_QUALITY_MODEL = "deepseek-v4-pro"
+DEEPSEEK_R1_EXPERIMENT_MODEL = DEEPSEEK_QUALITY_MODEL
+DEEPSEEK_DEFAULT_MODEL = DEEPSEEK_STABLE_MODEL
 RETRYABLE_LLM_ERROR_CODES = {
     "missing_output_text",
     "missing_choices",
@@ -53,8 +57,29 @@ NON_RETRYABLE_SAME_PROVIDER_ERROR_CODES = {
 }
 
 
+def _is_timeout_error(error: str) -> bool:
+    lowered = str(error or "").strip().lower()
+    return bool(lowered) and (
+        "timeout" in lowered
+        or "timed out" in lowered
+        or "read timed out" in lowered
+    )
+
+
+def _normalize_timeout_error(error: str) -> str:
+    return "transport_hard_stop_timeout" if _is_timeout_error(error) else str(error or "")
+
+
+def is_r1_experiment_model(model: Optional[str]) -> bool:
+    return str(model or "").strip() in {"deepseek-reasoner", DEEPSEEK_R1_EXPERIMENT_MODEL}
+
+
+def _supports_deepseek_reasoning_controls(model: Optional[str]) -> bool:
+    return str(model or "").strip() in {DEEPSEEK_STABLE_MODEL, DEEPSEEK_QUALITY_MODEL}
+
+
 def _disable_fallback_for_request(payload: Optional[Dict[str, Any]], override_model: Optional[str]) -> bool:
-    if str(override_model or "").strip() == "deepseek-reasoner":
+    if is_r1_experiment_model(override_model):
         return True
     if not isinstance(payload, dict):
         return False
@@ -245,9 +270,11 @@ class LLMClient:
             or os.getenv("LLM_REQUEST_TIMEOUT_SECONDS")
             or 60
         )
-        self._verify_ssl = str(
-            self._config.get("verify_ssl", os.getenv("OPENAI_COMPAT_VERIFY_SSL", "1"))
-        ).strip().lower() not in {"0", "false", "no"}
+        verify_ssl_value = self._config.get(
+            "verify_ssl",
+            os.getenv("LLM_VERIFY_SSL", os.getenv("OPENAI_COMPAT_VERIFY_SSL", "1")),
+        )
+        self._verify_ssl = str(verify_ssl_value).strip().lower() not in {"0", "false", "no"}
         self._http_fallback_provider = deepcopy(self._config.get("http_fallback_provider") or None)
         self._disable_codex_exec_fallback = str(
             self._config.get("disable_codex_exec_fallback", os.getenv("OPENAI_COMPAT_DISABLE_CODEX_FALLBACK", "0"))
@@ -268,11 +295,14 @@ class LLMClient:
         self._active_model: Optional[str] = None
         self._deepseek_key = None
         self._deepseek_base = "https://api.deepseek.com"
-        self._deepseek_model = "deepseek-chat"
+        self._deepseek_model = DEEPSEEK_DEFAULT_MODEL
+        self._deepseek_thinking: Optional[Dict[str, Any]] = None
+        self._deepseek_reasoning_effort = ""
         self._openai_compatible: Optional[Dict[str, Any]] = None
         self._codex_exec_fallback: Optional[Dict[str, Any]] = None
         self._last_response_meta: Dict[str, Any] = {}
         self._last_healthcheck: Dict[str, Any] = {}
+        self._active_timeout_context: Dict[str, Any] = {}
 
         configured = False
         if self._config:
@@ -314,7 +344,8 @@ class LLMClient:
                 "openai-request-id",
             )
         )
-        self._last_response_meta = {
+        self._last_response_meta = self._attach_timeout_context(
+            {
             "configured_model": configured_model or self.active_model,
             "returned_model": response_data.get("model") or configured_model or self.active_model,
             "provider": self.provider_label,
@@ -328,6 +359,44 @@ class LLMClient:
             "success": success,
             "error": error,
             "response_state": response_state,
+            }
+        )
+
+    def _attach_timeout_context(self, meta: Dict[str, Any]) -> Dict[str, Any]:
+        timeout_context = deepcopy(self._active_timeout_context or {})
+        if not timeout_context:
+            return meta
+        merged = dict(meta)
+        merged["timeout_source"] = timeout_context.get("timeout_source") or ""
+        merged["business_timeout_seconds"] = timeout_context.get("business_timeout_seconds")
+        merged["transport_timeout_seconds"] = timeout_context.get("transport_timeout_seconds")
+        return merged
+
+    def _resolve_request_timeout_contract(
+        self,
+        payload: Optional[Dict[str, Any]],
+        *,
+        transport_floor_seconds: int = 0,
+    ) -> Dict[str, Any]:
+        payload = payload or {}
+        source = "default_request_timeout"
+        if payload.get("_request_timeout_seconds"):
+            raw_timeout = payload.get("_request_timeout_seconds")
+            source = "business_stage_timeout"
+        elif self._request_timeout_seconds:
+            raw_timeout = self._request_timeout_seconds
+            source = "runtime_request_timeout"
+        else:
+            raw_timeout = 60
+        try:
+            business_timeout = max(5, int(raw_timeout))
+        except Exception:
+            business_timeout = 60
+            source = "default_request_timeout"
+        return {
+            "business_timeout_seconds": business_timeout,
+            "transport_timeout_seconds": max(business_timeout, int(transport_floor_seconds or 0)),
+            "timeout_source": source,
         }
 
     def healthcheck(self) -> Dict[str, Any]:
@@ -461,7 +530,12 @@ class LLMClient:
             return False
         self._deepseek_key = api_key
         self._deepseek_base = cfg.get("base_url") or os.getenv("DEEPSEEK_API_BASE", "https://api.deepseek.com/v1")
-        self._deepseek_model = cfg.get("model") or os.getenv("DEEPSEEK_MODEL") or "deepseek-chat"
+        self._deepseek_model = cfg.get("model") or os.getenv("DEEPSEEK_MODEL") or DEEPSEEK_DEFAULT_MODEL
+        thinking = cfg.get("thinking")
+        self._deepseek_thinking = thinking if isinstance(thinking, dict) else None
+        self._deepseek_reasoning_effort = str(
+            cfg.get("reasoning_effort") or os.getenv("DEEPSEEK_REASONING_EFFORT") or ""
+        ).strip()
         self._provider = "deepseek"
         self._provider_label = cfg.get("provider", "deepseek")
         self._credential_source = f"env:{env_var}"
@@ -606,12 +680,7 @@ class LLMClient:
             return None
 
     def _resolve_request_timeout(self, payload: Optional[Dict[str, Any]]) -> int:
-        payload = payload or {}
-        timeout = payload.get("_request_timeout_seconds") or self._request_timeout_seconds or 60
-        try:
-            return max(5, int(timeout))
-        except Exception:
-            return 60
+        return self._resolve_request_timeout_contract(payload)["business_timeout_seconds"]
 
     def _call_openai_compatible(
         self,
@@ -624,6 +693,10 @@ class LLMClient:
     ) -> Optional[str]:
         if not self._openai_compatible:
             return None
+        self._active_timeout_context = self._resolve_request_timeout_contract(
+            payload,
+            transport_floor_seconds=timeout_seconds,
+        )
         base = self._openai_compatible["base_url"].rstrip("/")
         wire_api = self._openai_compatible.get("wire_api", "chat/completions")
         endpoint = "responses" if wire_api == "responses" else "chat/completions"
@@ -739,7 +812,7 @@ class LLMClient:
                 )
                 return (content or "").strip()
             except Exception as exc:  # pragma: no cover - network failure
-                last_error = str(exc)
+                last_error = _normalize_timeout_error(str(exc))
                 self._record_response_meta(
                     endpoint=endpoint,
                     wire_api=wire_api,
@@ -794,6 +867,10 @@ class LLMClient:
         except Exception:
             payload_timeout = 0
         timeout = max(configured_timeout, int(timeout_seconds or 0), payload_timeout)
+        self._active_timeout_context = self._resolve_request_timeout_contract(
+            payload,
+            transport_floor_seconds=max(configured_timeout, int(timeout_seconds or 0)),
+        )
         if not base_url or not api_key:
             logging.warning("http_fallback_provider missing base_url or api_key")
             return None
@@ -829,7 +906,7 @@ class LLMClient:
             text = text.strip() if isinstance(text, str) else ""
             latency_ms = int((time.time() - started) * 1000)
             if not text:
-                self._last_response_meta = {
+                self._last_response_meta = self._attach_timeout_context({
                     "configured_model": model,
                     "returned_model": result.get("model") or model,
                     "provider": "http_fallback",
@@ -843,10 +920,10 @@ class LLMClient:
                     "success": False,
                     "error": "empty_content",
                     "response_state": "empty_content",
-                }
+                })
                 logging.warning("http_fallback: empty content in response")
                 return None
-            self._last_response_meta = {
+            self._last_response_meta = self._attach_timeout_context({
                 "configured_model": model,
                 "returned_model": result.get("model") or model,
                 "provider": "http_fallback",
@@ -860,12 +937,12 @@ class LLMClient:
                 "success": True,
                 "error": "",
                 "response_state": "success",
-            }
+            })
             logging.info("http_fallback succeeded model=%s len=%s", model, len(text))
             return text
         except urllib.error.HTTPError as exc:
             detail = exc.read().decode("utf-8", errors="replace")
-            self._last_response_meta = {
+            self._last_response_meta = self._attach_timeout_context({
                 "configured_model": model,
                 "returned_model": model,
                 "provider": "http_fallback",
@@ -879,11 +956,12 @@ class LLMClient:
                 "success": False,
                 "error": f"HTTPError {exc.code}: {detail[:1000]}",
                 "response_state": "http_fallback_error",
-            }
+            })
             logging.warning("http_fallback failed: HTTPError %s: %s", exc.code, detail[:300])
             return None
         except Exception as exc:
-            self._last_response_meta = {
+            normalized_error = _normalize_timeout_error(str(exc))
+            self._last_response_meta = self._attach_timeout_context({
                 "configured_model": model,
                 "returned_model": model,
                 "provider": "http_fallback",
@@ -895,9 +973,9 @@ class LLMClient:
                 "response_id": "",
                 "latency_ms": int((time.time() - started) * 1000),
                 "success": False,
-                "error": str(exc),
-                "response_state": "http_fallback_error",
-            }
+                "error": normalized_error,
+                "response_state": normalized_error if normalized_error == "transport_hard_stop_timeout" else "http_fallback_error",
+            })
             logging.warning("http_fallback failed: %s", exc)
             return None
 
@@ -1026,6 +1104,11 @@ class LLMClient:
         codex_bin = fallback.get("codex_bin")
         if not codex_bin:
             return None
+        timeout_budget = max(60, int(timeout_seconds or 0))
+        self._active_timeout_context = self._resolve_request_timeout_contract(
+            payload,
+            transport_floor_seconds=timeout_budget,
+        )
         prompt = self._build_codex_exec_prompt(system_prompt, payload)
         started = time.time()
         workdir = str(fallback.get("workdir") or os.getcwd() or tempfile.gettempdir())
@@ -1056,7 +1139,6 @@ class LLMClient:
             except OSError:
                 pass
         try:
-            timeout_budget = max(60, int(timeout_seconds or 0))
             result = subprocess.run(
                 command,
                 env=env,
@@ -1075,7 +1157,7 @@ class LLMClient:
                 except FileNotFoundError:
                     text = ""
                 if text:
-                    self._last_response_meta = {
+                    self._last_response_meta = self._attach_timeout_context({
                         "configured_model": fallback.get("model") or self.active_model,
                         "returned_model": fallback.get("model") or self.active_model,
                         "provider": "codex_exec",
@@ -1089,14 +1171,14 @@ class LLMClient:
                         "success": True,
                         "error": "",
                         "response_state": "success",
-                    }
+                    })
                     return text
             error = stderr_text or stdout_text or f"codex_exec_exit_{result.returncode}"
             if result.returncode == 0:
                 error = "empty_output_file"
             if "permission denied" in error.lower() or "operation not permitted" in error.lower():
                 self._codex_exec_fallback = None
-            self._last_response_meta = {
+            self._last_response_meta = self._attach_timeout_context({
                 "configured_model": fallback.get("model") or self.active_model,
                 "returned_model": fallback.get("model") or self.active_model,
                 "provider": "codex_exec",
@@ -1110,12 +1192,12 @@ class LLMClient:
                 "success": False,
                 "error": error[:1000],
                 "response_state": "codex_exec_error",
-            }
+            })
             logging.warning("Codex exec fallback returned no text: %s", error)
             return None
         except subprocess.TimeoutExpired:
             latency_ms = int((time.time() - started) * 1000)
-            self._last_response_meta = {
+            self._last_response_meta = self._attach_timeout_context({
                 "configured_model": fallback.get("model") or self.active_model,
                 "returned_model": fallback.get("model") or self.active_model,
                 "provider": "codex_exec",
@@ -1129,13 +1211,13 @@ class LLMClient:
                 "success": False,
                 "error": "codex_exec_timeout",
                 "response_state": "codex_exec_timeout",
-            }
+            })
             logging.warning("Codex exec fallback timed out after %sms", latency_ms)
             return None
         except Exception as exc:  # pragma: no cover - runtime path
             if "permission denied" in str(exc).lower() or "operation not permitted" in str(exc).lower():
                 self._codex_exec_fallback = None
-            self._last_response_meta = {
+            self._last_response_meta = self._attach_timeout_context({
                 "configured_model": fallback.get("model") or self.active_model,
                 "returned_model": fallback.get("model") or self.active_model,
                 "provider": "codex_exec",
@@ -1149,7 +1231,7 @@ class LLMClient:
                 "success": False,
                 "error": str(exc),
                 "response_state": "codex_exec_exception",
-            }
+            })
             logging.warning("Codex exec fallback error: %s", exc)
             return None
         finally:
@@ -1169,17 +1251,27 @@ class LLMClient:
     ) -> Optional[str]:
         if not self._deepseek_key:
             return None
+        self._active_timeout_context = self._resolve_request_timeout_contract(
+            payload,
+            transport_floor_seconds=timeout_seconds,
+        )
         base = self._deepseek_base.rstrip("/")
         url = f"{base}/chat/completions"
         logging.debug("DeepSeek POST %s", url)
+        target_model = override_model or self._deepseek_model
         body = {
-            "model": override_model or self._deepseek_model,
+            "model": target_model,
             "messages": [
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": json.dumps(payload, ensure_ascii=False)},
             ],
             "temperature": temperature,
+            "stream": False,
         }
+        if self._deepseek_thinking and _supports_deepseek_reasoning_controls(target_model):
+            body["thinking"] = self._deepseek_thinking
+        if self._deepseek_reasoning_effort and _supports_deepseek_reasoning_controls(target_model):
+            body["reasoning_effort"] = self._deepseek_reasoning_effort
         headers = {
             "Authorization": f"Bearer {self._deepseek_key}",
             "Content-Type": "application/json",
@@ -1188,7 +1280,13 @@ class LLMClient:
         }
         started = time.time()
         try:
-            data, response_headers = _http_post_json(url, body, headers, timeout=timeout_seconds)
+            data, response_headers = _http_post_json(
+                url,
+                body,
+                headers,
+                timeout=timeout_seconds,
+                verify_ssl=self._verify_ssl,
+            )
             logging.debug("DeepSeek raw response: %r", data)
             if not isinstance(data, dict):
                 self._record_response_meta(
@@ -1252,13 +1350,14 @@ class LLMClient:
             )
             return content.strip()
         except Exception as exc:  # pragma: no cover - network failure
+            normalized_error = _normalize_timeout_error(str(exc))
             self._record_response_meta(
                 endpoint="chat.completions",
                 wire_api="chat/completions",
                 response_data={"model": override_model or self._deepseek_model},
                 latency_ms=int((time.time() - started) * 1000),
                 success=False,
-                error=str(exc),
+                error=normalized_error,
                 configured_model=override_model or self._deepseek_model,
             )
             logging.warning("DeepSeek client error, using offline generator: %s", exc)

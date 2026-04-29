@@ -13,6 +13,7 @@ tools/
 ├── launch_streamlit_console.command # 双击启动本地控制台
 ├── live_smoke.py      # 线上 smoke 工具
 ├── preprocess.py      # 数据预处理
+├── runtime_bootstrap.py # 入口脚本的虚拟环境自举
 └── streamlit_launcher.py # 本地 Streamlit 控制台启动器
 ```
 
@@ -24,6 +25,7 @@ tools/
 | data_loader.py | 加载CSV/JSON数据 | 中 | 2026-04-03 |
 | launch_streamlit_console.command | 双击后启动控制台并自动打开浏览器 | 小 | 2026-04-21 |
 | preprocess.py | 数据清洗和转换 | 中 | 2026-04-03 |
+| runtime_bootstrap.py | 入口脚本自动切换到项目虚拟环境 | 小 | 2026-04-28 |
 | live_smoke.py | 本地/线上 smoke 运行工具 | 中 | 2026-04-21 |
 | streamlit_launcher.py | 启停 Streamlit 控制台并管理 PID/日志 | 中 | 2026-04-21 |
 
@@ -45,6 +47,10 @@ tools/
 - 国家特定词汇表
 - 语言规则
 - 本地化处理
+
+### runtime_bootstrap.py
+- 在入口脚本发现当前解释器不是项目 `.venv` 时自动重启到 `.venv/bin/python`
+- 避免系统 Python 缺依赖导致的假性运行错误
 
 ### streamlit_launcher.py
 - 启动本地 Streamlit 控制台到后台
@@ -75,4 +81,5 @@ tools/
 ## 最后更新
 2026-04-03: 初始创建
 2026-04-21: 补充 Streamlit 启动器与 smoke 工具索引
+2026-04-28: 增加 runtime_bootstrap 虚拟环境自举工具
 2026-04-28: 补充关键词蓝海指标摄取说明

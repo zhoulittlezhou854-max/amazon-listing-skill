@@ -18,6 +18,7 @@ modules/
 ├── keyword_protocol.py     # 关键词质量、机会评分与流量分层协议
 ├── keyword_utils.py        # 关键词工具
 ├── language_utils.py       # 语言工具
+├── image_handoff.py        # Listing 到图片制作交接文档
 ├── listing_candidate.py    # Listing 候选对象契约归一化
 ├── packet_rerender.py      # slot 级结构化 rerender 计划与替换
 ├── readiness_verdict.py    # 单一 operational readiness 决策
@@ -45,6 +46,7 @@ modules/
 | keyword_protocol.py | 关键词质量过滤、蓝海机会评分、相对 L1/L2/L3 分层与路由协议 | 中 | 2026-04-28 |
 | keyword_utils.py | 关键词处理工具函数 | 中 | 2026-04-03 |
 | language_utils.py | 语言处理工具函数 | 中 | 2026-04-03 |
+| image_handoff.py | 根据 listing、事实与风险信息生成图片制作交接文档 | 中 | 2026-04-29 |
 | listing_candidate.py | Listing 候选对象契约归一化、reviewable 与 paste-ready 状态判定 | 小 | 2026-04-29 |
 | packet_rerender.py | slot 级结构化 rerender 计划与替换 helper | 中 | 2026-04-25 |
 | readiness_verdict.py | 对 version_a/version_b/hybrid 候选做 paste-ready 排名并输出唯一运营决策 | 小 | 2026-04-29 |
@@ -84,6 +86,7 @@ graph TD
 
 ## 最后更新
 2026-04-29: 新增 canonical_facts.py、claim_language_contract.py、field_provenance.py、slot_contracts.py 合同层索引
+2026-04-29: 新增 image_handoff.py 图片交接模块索引
 2026-04-29: 新增 readiness_verdict.py operational readiness 决策索引
 2026-04-29: 新增 keyword_reconciliation.py 最终文案关键词复核索引
 2026-04-29: 新增 listing_candidate.py 候选对象契约索引

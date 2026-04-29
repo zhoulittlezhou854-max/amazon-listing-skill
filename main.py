@@ -5,6 +5,10 @@ Amazon Listing Generator - 主工作流脚本
 功能: 整合 Step 0-9 完整工作流，支持增量实现
 """
 
+from pathlib import Path
+
+from tools.runtime_bootstrap import ensure_project_venv
+
 try:
     from dotenv import load_dotenv
 except ImportError:  # pragma: no cover - optional fallback when dependency missing locally
@@ -35,7 +39,7 @@ import argparse
 import sys
 import os
 from pathlib import Path
-from typing import Dict, List, Any, Optional
+from typing import Dict, List, Any, Optional, Callable
 
 # 添加模块路径
 sys.path.insert(0, str(Path(__file__).parent))
@@ -54,9 +58,11 @@ try:
     from modules import keyword_arsenal
     from modules import intent_translator
     from modules import blueprint_generator
+    from modules import image_handoff
     from modules.llm_client import (
         configure_llm_runtime,
         get_llm_client,
+        is_r1_experiment_model,
         LLMClientUnavailable,
     )
     from modules import input_validator
@@ -74,6 +80,29 @@ def _save_step_artifact(output_dir: str, artifact_subdir: str, stage_name: str, 
     artifact_dir.mkdir(parents=True, exist_ok=True)
     artifact_path = artifact_dir / f"{stage_name}.json"
     artifact_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    return str(artifact_path)
+
+
+def _write_keyword_protocol_artifact(output_dir: str, arsenal: Dict[str, Any]) -> Optional[str]:
+    """Persist the keyword protocol as its own audit artifact for scoring/debug parity."""
+    protocol = (arsenal or {}).get("keyword_protocol")
+    if not isinstance(protocol, dict):
+        metadata = (arsenal or {}).get("keyword_metadata") or []
+        if not metadata:
+            return None
+        protocol = {
+            "country": (arsenal or {}).get("site"),
+            "language": (arsenal or {}).get("language"),
+            "keyword_protocol_summary": (arsenal or {}).get("keyword_protocol_summary") or {},
+            "keyword_metadata": metadata,
+            "qualified_keywords": (arsenal or {}).get("qualified_keywords") or [],
+            "watchlist_keywords": (arsenal or {}).get("watchlist_keywords") or [],
+            "natural_only_keywords": (arsenal or {}).get("natural_only_keywords") or [],
+            "rejected_keywords": (arsenal or {}).get("rejected_keywords") or [],
+            "blocked_keywords": (arsenal or {}).get("blocked_keywords") or [],
+        }
+    artifact_path = Path(output_dir) / "keyword_protocol.json"
+    artifact_path.write_text(json.dumps(protocol, ensure_ascii=False, indent=2), encoding="utf-8")
     return str(artifact_path)
 
 
@@ -301,8 +330,11 @@ class AmazonListingGenerator:
             output_path = os.path.join(self.output_dir, "arsenal_output.json")
             with open(output_path, 'w', encoding='utf-8') as f:
                 json.dump(arsenal, f, ensure_ascii=False, indent=2)
+            protocol_path = _write_keyword_protocol_artifact(self.output_dir, arsenal)
             print(f"✓ 军火库生成，关键词数: {len(arsenal.get('reserve_keywords', []))}")
-            return {"status": "success", "output": output_path}
+            if protocol_path:
+                print(f"  关键词协议: {protocol_path}")
+            return {"status": "success", "output": output_path, "keyword_protocol_path": protocol_path}
         except Exception as e:
             print(f"✗ 军火库生成失败: {e}")
             return {"status": "error", "error": str(e)}
@@ -404,7 +436,7 @@ class AmazonListingGenerator:
             try:
                 blueprint_fn = (
                     blueprint_generator.generate_bullet_blueprint_r1
-                    if self.blueprint_model_override == "deepseek-reasoner"
+                    if is_r1_experiment_model(self.blueprint_model_override)
                     else blueprint_generator.generate_bullet_blueprint
                 )
                 blueprint = blueprint_fn(
@@ -433,7 +465,7 @@ class AmazonListingGenerator:
                         "llm_debug_context": llm_debug_context,
                     },
                 )
-                if self.blueprint_model_override == "deepseek-reasoner":
+                if is_r1_experiment_model(self.blueprint_model_override):
                     return {
                         "status": "error",
                         "error": f"experimental_version_b_blueprint_failed: {blueprint_error}",
@@ -526,7 +558,7 @@ class AmazonListingGenerator:
                         self.bullet_blueprint = json.load(f)
                     except json.JSONDecodeError:
                         self.bullet_blueprint = None
-        if self.blueprint_model_override == "deepseek-reasoner" and not self.bullet_blueprint:
+        if is_r1_experiment_model(self.blueprint_model_override) and not self.bullet_blueprint:
             return {
                 "status": "error",
                 "error": "experimental_version_b_blueprint_missing",
@@ -909,10 +941,20 @@ class AmazonListingGenerator:
             with open(action_items_path, 'w', encoding='utf-8') as f:
                 json.dump(action_items, f, ensure_ascii=False, indent=2)
 
+            image_handoff_path = image_handoff.write_image_handoff(
+                output_dir=self.output_dir,
+                preprocessed_data=self.preprocessed_data,
+                generated_copy=self.generated_copy or {},
+                writing_policy=self.writing_policy or {},
+                intent_graph=self.intent_graph or {},
+                risk_report=self.risk_report or {},
+            )
+
             print(f"✓ 报告生成完成")
             print(f"  报告文件: {report_path}")
             print(f"  报告长度: {len(report_content)}字符")
             print(f"  行动项: {action_items_path}（{len(action_items)} 条）")
+            print(f"  图像交接文件: {image_handoff_path}")
 
             return {
                 "status": "success",
@@ -921,6 +963,7 @@ class AmazonListingGenerator:
                 "action_items_path": action_items_path,
                 "action_items_count": len(action_items),
                 "readiness_summary_path": readiness_path,
+                "image_handoff_path": str(image_handoff_path),
             }
 
         except Exception as e:
@@ -949,7 +992,12 @@ class AmazonListingGenerator:
                 "report_path": report_path
             }
 
-    def run_workflow(self, steps: List[int] = None) -> Dict[str, Any]:
+    def run_workflow(
+        self,
+        steps: List[int] = None,
+        *,
+        status_callback: Optional[Callable[[Dict[str, Any]], None]] = None,
+    ) -> Dict[str, Any]:
         """
         运行完整工作流或指定步骤
 
@@ -975,6 +1023,18 @@ class AmazonListingGenerator:
             8: self.run_step_8,
             9: self.run_step_9
         }
+        stage_labels = {
+            0: "data_preprocessing",
+            1: "visual_audit",
+            2: "keyword_arsenal",
+            3: "capability_check",
+            4: "intent_graph",
+            5: "writing_policy",
+            6: "copy_generation",
+            7: "risk_check",
+            8: "scoring",
+            9: "report_generation",
+        }
 
         blocking_error_steps = {0, 3, 5, 6, 8, 9}
         executed_steps: List[int] = []
@@ -983,8 +1043,25 @@ class AmazonListingGenerator:
             if step in step_functions:
                 print(f"\n>>> 开始执行 Step {step}")
                 executed_steps.append(step)
+                if status_callback:
+                    status_callback(
+                        {
+                            "event": "step_started",
+                            "step": step,
+                            "stage_label": stage_labels.get(step, f"step_{step}"),
+                        }
+                    )
                 result = step_functions[step]()
                 results[f"step_{step}"] = result
+                if status_callback:
+                    status_callback(
+                        {
+                            "event": "step_finished",
+                            "step": step,
+                            "stage_label": stage_labels.get(step, f"step_{step}"),
+                            "status": result.get("status") or "success",
+                        }
+                    )
 
                 if result.get("status") == "error":
                     workflow_status = "failed"
@@ -1011,6 +1088,15 @@ class AmazonListingGenerator:
         with open(summary_path, 'w', encoding='utf-8') as f:
             json.dump(summary, f, ensure_ascii=False, indent=2)
 
+        if status_callback:
+            status_callback(
+                {
+                    "event": "workflow_finished",
+                    "workflow_status": workflow_status,
+                    "steps_executed": executed_steps,
+                }
+            )
+
         print(f"执行摘要已保存到: {summary_path}")
         print(f"所有输出文件位于: {self.output_dir}")
 
@@ -1033,6 +1119,7 @@ def run_generator_workflow(
     blueprint_model_override: Optional[str] = None,
     title_model_override: Optional[str] = None,
     bullet_model_override: Optional[str] = None,
+    status_callback: Optional[Callable[[Dict[str, Any]], None]] = None,
 ) -> Dict[str, Any]:
     """Programmatic entrypoint used by Streamlit/service layer."""
     generator = AmazonListingGenerator(
@@ -1042,7 +1129,7 @@ def run_generator_workflow(
         title_model_override=title_model_override,
         bullet_model_override=bullet_model_override,
     )
-    summary = generator.run_workflow(steps)
+    summary = generator.run_workflow(steps, status_callback=status_callback)
     return {
         "summary": summary,
         "preprocessed_data": generator.preprocessed_data,
@@ -1100,4 +1187,5 @@ def main():
 
 
 if __name__ == "__main__":
+    ensure_project_venv(Path(__file__).resolve().parent)
     main()
