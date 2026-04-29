@@ -1,5 +1,23 @@
 import json
 import pytest
+
+from modules.copy_generation import _build_bullet_packet, _build_slot_quality_packet
+
+
+def test_slot_quality_packet_records_b5_contract_failure_for_multi_topic_blend():
+    packet = _build_bullet_packet(
+        "B5",
+        (
+            "Unbox, Charge, and Start Capturing — The box includes a mini body camera, mount, USB-C cable, "
+            "and a 32GB memory card so you can record right out of the box. Supports up to 256GB cards; "
+            "150-minute battery powers full adventures. Our support team is ready if you need help."
+        ),
+    )
+
+    quality = _build_slot_quality_packet(packet)
+
+    assert quality["contract_pass"] is False
+    assert "slot_contract_failed:multiple_primary_promises" in quality["issues"]
 from types import SimpleNamespace
 
 from modules import copy_generation as cg
@@ -178,6 +196,167 @@ def test_guarantee_mandatory_keywords_skips_semantically_present_phrase():
     updated = cg._guarantee_mandatory_keywords(text, ["body camera with audio"], "English")
 
     assert updated == text
+
+
+def test_normalize_bullet_packet_fills_shadow_defaults():
+    packet = cg._normalize_bullet_packet(
+        {
+            "slot": "B4",
+            "header": "STEADY 1080P TRAVEL SHOTS",
+            "benefit": "Capture cleaner walking footage in 1080P.",
+            "capability_mapping": ["1080p_recording"],
+        }
+    )
+
+    assert packet["slot"] == "B4"
+    assert packet["header"] == "STEADY 1080P TRAVEL SHOTS"
+    assert packet["benefit"] == "Capture cleaner walking footage in 1080P."
+    assert packet["proof"] == ""
+    assert packet["guidance"] == ""
+    assert packet["required_keywords"] == []
+    assert packet["required_facts"] == []
+    assert packet["scene_mapping"] == []
+    assert packet["contract_version"] == "slot_packet_v1"
+
+
+def test_assemble_bullet_from_packet_combines_header_benefit_proof_guidance():
+    packet = {
+        "slot": "B4",
+        "header": "STEADY 1080P TRAVEL SHOTS",
+        "benefit": "Capture cleaner walking footage in 1080P.",
+        "proof": "Use a stable clip for sharper results.",
+        "guidance": "Best for steady walks and desk setups.",
+    }
+
+    text = cg._assemble_bullet_from_packet(packet)
+
+    assert text == (
+        "STEADY 1080P TRAVEL SHOTS — Capture cleaner walking footage in 1080P. "
+        "Use a stable clip for sharper results. Best for steady walks and desk setups."
+    )
+
+
+def test_build_slot_quality_packet_flags_dash_tail_issue():
+    packet = cg._normalize_bullet_packet(
+        {
+            "slot": "B4",
+            "header": "STEADY 1080P TRAVEL SHOTS",
+            "benefit": "Capture cleaner walking footage in 1080P.",
+            "proof": "Use a stable clip for sharper results.",
+            "guidance": "think city strolls",
+            "required_keywords": ["travel shots"],
+            "capability_mapping": ["1080p_recording"],
+            "scene_mapping": ["travel_documentation"],
+        }
+    )
+
+    quality = cg._build_slot_quality_packet(
+        packet,
+        copy_contracts={
+            "bullet_opening": {"header_required": True, "frontload_window_tokens": 16},
+            "scene_capability_numeric_binding": {
+                "require_scene_and_capability": False,
+                "require_numeric_or_condition_slots": [],
+                "condition_markers": [],
+            },
+        },
+        slot_rule_contract={
+            "sentence_contract": {
+                "headline_type": "benefit_plus_usecase",
+                "body_components": ["benefit", "proof", "guidance"],
+                "forbid_patterns": ["dash_tail_fragment"],
+            }
+        },
+    )
+
+    assert quality["slot"] == "B4"
+    assert quality["format_pass"] is True
+    assert quality["fluency_pass"] is False
+    assert "dash_tail_without_predicate" in quality["issues"]
+
+
+def test_build_slot_quality_packet_flags_negative_unsupported_capability_literal():
+    packet = cg._normalize_bullet_packet(
+        {
+            "slot": "B4",
+            "header": "STEADY 1080P TRAVEL SHOTS",
+            "benefit": "This camera does not include stabilization.",
+            "proof": "Use a stable clip for sharper results.",
+            "guidance": "Best for steady walks and desk setups.",
+            "required_keywords": ["travel shots"],
+            "capability_mapping": ["1080p_recording"],
+            "scene_mapping": ["travel_documentation"],
+            "unsupported_capability_policy": {
+                "expression_mode": "positive_guidance_only",
+                "capabilities": ["stabilization_supported"],
+            },
+        }
+    )
+
+    quality = cg._build_slot_quality_packet(
+        packet,
+        copy_contracts={
+            "bullet_opening": {"header_required": True, "frontload_window_tokens": 16},
+            "scene_capability_numeric_binding": {
+                "require_scene_and_capability": False,
+                "require_numeric_or_condition_slots": [],
+                "condition_markers": [],
+            },
+        },
+        slot_rule_contract={
+            "sentence_contract": {
+                "headline_type": "benefit_plus_usecase",
+                "body_components": ["benefit", "proof", "guidance"],
+                "forbid_patterns": ["negative_capability_literal"],
+            },
+            "unsupported_capability_policy": {
+                "expression_mode": "positive_guidance_only",
+                "capabilities": ["stabilization_supported"],
+            },
+        },
+    )
+
+    assert quality["unsupported_policy_pass"] is False
+    assert "unsupported_capability_negative_literal" in quality["issues"]
+
+
+def test_build_slot_quality_packet_uses_localized_aliases_for_binding_checks():
+    packet = cg._normalize_bullet_packet(
+        {
+            "slot": "B3",
+            "header": "TRAVEL READY 1080P CLARITY",
+            "benefit": "This travel camera captures sharp 1080p footage on every trip.",
+            "proof": "A compact clip-on body keeps the camera easy to carry all day.",
+            "guidance": "Use it for travel days, weekend journeys, and simple daily documentation.",
+            "required_keywords": ["travel camera"],
+            "capability_mapping": ["high definition"],
+            "scene_mapping": ["travel_documentation"],
+        }
+    )
+
+    quality = cg._build_slot_quality_packet(
+        packet,
+        copy_contracts={
+            "bullet_opening": {"header_required": True, "frontload_window_tokens": 16},
+            "scene_capability_numeric_binding": {
+                "require_scene_and_capability": True,
+                "require_numeric_or_condition_slots": [],
+                "condition_markers": [],
+            },
+        },
+        slot_rule_contract={
+            "sentence_contract": {
+                "headline_type": "benefit_plus_usecase",
+                "body_components": ["benefit", "proof", "guidance"],
+                "forbid_patterns": [],
+            }
+        },
+        target_language="English",
+    )
+
+    assert quality["contract_pass"] is True
+    assert "scene_binding_missing" not in quality["issues"]
+    assert "capability_binding_missing" not in quality["issues"]
 
 
 def test_title_generation_patches_missing_keywords_before_fallback(monkeypatch):
@@ -635,12 +814,12 @@ def test_llm_generate_title_passes_override_model_to_client(monkeypatch):
             "required_keywords": ["action camera", "body camera"],
             "numeric_specs": ["150 minutes"],
             "core_capability": "150 Minutes Runtime",
-            "_llm_override_model": "deepseek-reasoner",
+            "_llm_override_model": "deepseek-v4-pro",
         }
     )
 
     assert title.startswith("TOSBARRFT")
-    assert client.calls == [("title", "deepseek-reasoner", "deepseek-reasoner")]
+    assert client.calls == [("title", "deepseek-v4-pro", "deepseek-v4-pro")]
 
 
 def test_llm_generate_bullet_passes_override_model_to_client(monkeypatch):
@@ -657,12 +836,12 @@ def test_llm_generate_bullet_passes_override_model_to_client(monkeypatch):
             "evidence_numeric_values": ["150 minutes"],
             "spec_dimension_target": "runtime",
             "spec_dimensions_used": [],
-            "_llm_override_model": "deepseek-reasoner",
+            "_llm_override_model": "deepseek-v4-pro",
         }
     )
 
     assert "READY TO RECORD" in bullet
-    assert client.calls == [("bullet", "deepseek-reasoner", "deepseek-reasoner")]
+    assert client.calls == [("bullet", "deepseek-v4-pro", "deepseek-v4-pro")]
 
 
 def test_aplus_short_circuits_to_fallback_on_budget_constrained_runtime(monkeypatch):
@@ -742,10 +921,10 @@ def test_dedupe_exact_phrase_occurrences_keeps_first_exact_match():
     assert "action camera 4k" in cleaned
 
 
-def test_finalize_visible_text_scrubs_absolute_claims():
+def test_finalize_visible_text_scrubs_repairable_absolute_claims():
     audit_log = []
     cleaned = cg._finalize_visible_text(
-        "#1 best camera with guaranteed results for the best viewing experience",
+        "#1 best camera for the best viewing experience",
         "description",
         "English",
         audit_log=audit_log,
@@ -754,10 +933,31 @@ def test_finalize_visible_text_scrubs_absolute_claims():
     lowered = cleaned.lower()
     assert "#1" not in cleaned
     assert "best" not in lowered
-    assert "guaranteed" not in lowered
+    assert "compact" in lowered
+    assert "suitable" in lowered
     assert any(
         entry.get("field") == "description"
         and entry.get("action") == "downgrade"
+        for entry in audit_log
+    )
+
+
+def test_finalize_visible_text_does_not_silently_rewrite_blocking_claims():
+    audit_log = []
+    cleaned = cg._finalize_visible_text(
+        "Camera with guaranteed results and warranty support",
+        "description",
+        "English",
+        audit_log=audit_log,
+    )
+
+    lowered = cleaned.lower()
+    assert "guaranteed" in lowered
+    assert "warranty" in lowered
+    assert any(
+        entry.get("field") == "description"
+        and entry.get("action") == "claim_language_blocked"
+        and set(entry.get("blocking_reasons") or []) >= {"guarantee_claim", "warranty_claim"}
         for entry in audit_log
     )
 
@@ -1175,153 +1375,6 @@ def test_final_keyword_reconciliation_records_l1_bullet_only_usage():
     assert assignments[0]["assigned_fields"] == ["bullet_1"]
 
 
-def test_keyword_assignment_tracker_uses_normalized_keyword_when_metadata_lacks_keyword():
-    tracker = cg.KeywordAssignmentTracker({"body camera": {"tier": "L1"}})
-
-    tracker.record("title", ["body camera"])
-
-    [record] = tracker.as_list()
-    assert record["keyword"] == "body camera"
-    assert record["traffic_tier"] == "L1"
-    assert record["assigned_fields"] == ["title"]
-
-
-def test_final_keyword_metadata_merge_preserves_protocol_fields_for_table_keywords():
-    tracker = cg.KeywordAssignmentTracker(
-        {
-            "travel camera": {
-                "keyword": "travel camera",
-                "tier": "L2",
-                "source_type": "keyword_table",
-                "search_volume": 7000,
-                "routing_role": "bullet",
-                "quality_status": "qualified",
-                "blue_ocean_score": 0.8,
-            }
-        }
-    )
-
-    cg._reconcile_final_keyword_assignments(
-        tracker,
-        title="",
-        bullets=["Travel camera setup with clip support"],
-        search_terms=[],
-        tiered_keywords={
-            "l1": [],
-            "l2": ["travel camera"],
-            "l3": [],
-            "_metadata": {
-                "travel camera": {
-                    "keyword": "travel camera",
-                    "tier": "L2",
-                    "source_type": "keyword_table",
-                    "search_volume": 7000,
-                }
-            },
-        },
-        writing_policy={
-            "keyword_metadata": [
-                {
-                    "keyword": "travel camera",
-                    "tier": "L3",
-                    "source_type": "synthetic",
-                    "routing_role": "bullet",
-                    "quality_status": "qualified",
-                    "blue_ocean_score": 0.8,
-                    "search_volume": 100,
-                }
-            ]
-        },
-    )
-
-    [record] = tracker.as_list()
-    assert record["keyword"] == "travel camera"
-    assert record["tier"] == "L2"
-    assert record["traffic_tier"] == "L2"
-    assert record["source_type"] == "keyword_table"
-    assert record["search_volume"] == 7000
-    assert record["routing_role"] == "bullet"
-    assert record["quality_status"] == "qualified"
-    assert record["blue_ocean_score"] == 0.8
-    assert record["assigned_fields"] == ["bullet_1"]
-
-
-def test_final_keyword_metadata_merge_handles_prepopulated_assignment_records():
-    tracker = cg.KeywordAssignmentTracker(
-        {
-            "travel camera": {
-                "keyword": "travel camera",
-                "tier": "L2",
-                "routing_role": "bullet",
-                "quality_status": "qualified",
-            }
-        }
-    )
-    tracker.record("bullet_1", ["travel camera"])
-
-    cg._reconcile_final_keyword_assignments(
-        tracker,
-        title="",
-        bullets=["Travel camera setup with clip support"],
-        search_terms=[],
-        tiered_keywords={
-            "l1": [],
-            "l2": ["travel camera"],
-            "l3": [],
-            "_metadata": {"travel camera": {"keyword": "travel camera", "tier": "L2"}},
-        },
-        writing_policy={},
-    )
-
-    [record] = tracker.as_list()
-    assert record["keyword"] == "travel camera"
-    assert record["assigned_fields"] == ["bullet_1"]
-
-
-def test_final_keyword_reconciliation_preserves_protocol_fields():
-    metadata = {
-        "body camera": {
-            "keyword": "body camera",
-            "tier": "L1",
-            "traffic_tier": "L1",
-            "routing_role": "title",
-            "quality_status": "qualified",
-            "opportunity_score": 0.9,
-        },
-        "travel camera": {
-            "keyword": "travel camera",
-            "tier": "L2",
-            "traffic_tier": "L2",
-            "routing_role": "bullet",
-            "quality_status": "qualified",
-            "blue_ocean_score": 0.8,
-        },
-        "mini cam synonym": {
-            "keyword": "mini cam synonym",
-            "tier": "L3",
-            "traffic_tier": "L3",
-            "routing_role": "backend",
-            "quality_status": "qualified",
-        },
-    }
-    generated = {
-        "title": "Body Camera for Travel Recording",
-        "bullets": ["Travel camera setup with clip support"],
-        "search_terms": ["mini cam synonym wearable recorder"],
-    }
-
-    assignments = cg.reconcile_final_keyword_assignments(generated, metadata)
-    by_keyword = {row["keyword"]: row for row in assignments}
-
-    assert by_keyword["body camera"]["traffic_tier"] == "L1"
-    assert by_keyword["body camera"]["routing_role"] == "title"
-    assert by_keyword["travel camera"]["quality_status"] == "qualified"
-    assert by_keyword["travel camera"]["blue_ocean_score"] == 0.8
-    assert "title" in by_keyword["body camera"]["assigned_fields"]
-    assert "bullet_1" in by_keyword["travel camera"]["assigned_fields"]
-    assert "search_terms" in by_keyword["mini cam synonym"]["assigned_fields"]
-
-
 def test_diversify_duplicate_bullet_dimensions_swaps_in_unused_capability():
     bullets = [
         "LIGHTWEIGHT CONTROL — Capture every commute with compact, lightweight handling.",
@@ -1642,15 +1695,17 @@ def test_scrub_visible_field_repairs_leading_negative_fragment_after_forbidden_t
         "bullet_b2",
         audit_log,
         forbidden_terms=["stabilization"],
+        unsupported_capabilities=["stabilization_supported"],
     )
 
     assert "stabilization" not in cleaned.lower()
     assert "no image" not in cleaned.lower()
-    assert "best for stable professional scenes" in cleaned.lower()
+    assert "steady recording" in cleaned.lower()
+    assert "stable professional scenes" not in cleaned.lower()
     assert any(
         entry.get("field") == "bullet_b2"
         and entry.get("action") == "rewrite"
-        and entry.get("reason") == "forbidden_visible_terms_fragment_repair"
+        and entry.get("reason") == "unsupported_capability_semantic_rewrite"
         for entry in audit_log
     )
 
@@ -1662,11 +1717,14 @@ def test_scrub_visible_field_repairs_trailing_negative_fragment_after_forbidden_
         "bullet_b4",
         [],
         forbidden_terms=["stabilization"],
+        unsupported_capabilities=["stabilization_supported"],
     )
 
     assert "stabilization" not in cleaned.lower()
     assert "lacks image" not in cleaned.lower()
-    assert "not suitable for high-vibration environments such as motorcycles" in cleaned.lower()
+    assert "not suitable" not in cleaned.lower()
+    assert "steady recording" in cleaned.lower()
+    assert "stable mount" in cleaned.lower() or "steady mount" in cleaned.lower()
 
 
 def test_scrub_visible_field_repairs_mid_sentence_lacks_image_clause_after_forbidden_term_removal():
@@ -1676,11 +1734,29 @@ def test_scrub_visible_field_repairs_mid_sentence_lacks_image_clause_after_forbi
         "bullet_b4",
         [],
         forbidden_terms=["stabilization"],
+        unsupported_capabilities=["stabilization_supported"],
     )
 
     assert "stabilization" not in cleaned.lower()
     assert "lacks image" not in cleaned.lower()
-    assert "not suitable for high-vibration environments like motorcycles" in cleaned.lower()
+    assert "not suitable" not in cleaned.lower()
+    assert "steady recording" in cleaned.lower()
+    assert "smooth daily scenes" in cleaned.lower() or "stable mount" in cleaned.lower()
+
+
+def test_scrub_visible_field_repairs_does_not_include_image_fragment_after_forbidden_term_removal():
+    cleaned = cg._scrub_visible_field(
+        "BEST RESULTS WITH STEADY SHOTS — This body camera does not include image stabilization, so for the clearest 1080P video, mount it on a steady surface or use gentle handheld movements.",
+        "bullet_b4",
+        [],
+        forbidden_terms=["stabilization", "image stabilization"],
+        unsupported_capabilities=["stabilization_supported"],
+    )
+
+    assert "stabilization" not in cleaned.lower()
+    assert "does not include image" not in cleaned.lower()
+    assert "steady recording" in cleaned.lower()
+    assert "steady surface" in cleaned.lower() or "stable mount" in cleaned.lower()
 
 
 class _FakeOfflineClient:
@@ -2156,6 +2232,7 @@ def test_r1_batch_prompt_uses_shared_title_length_contract(monkeypatch):
 
     prompt = captured["system_prompt"]
     assert "title_recipe" in prompt
+    assert "bullet_packets" in prompt
     assert "lead_keyword" in prompt
     assert "differentiators" in prompt
     assert "use_cases" in prompt
@@ -2236,9 +2313,139 @@ def test_r1_batch_generate_listing_reuses_shared_title_audit(monkeypatch):
     assert result["title"].startswith("TestBrand Audited Action Camera")
     assert captured["payload"]["_prefetched_title_candidates"]
     assert captured["payload"]["_prefetched_title_candidates"][0].startswith("TestBrand action camera")
-    assert captured["payload"]["_llm_override_model"] == "deepseek-reasoner"
+    assert captured["payload"]["_llm_override_model"] == "deepseek-v4-pro"
     assert captured["payload"]["_disable_fallback"] is True
     assert captured["required_keywords"]
+
+
+def test_r1_batch_generate_listing_dual_writes_bullet_packets(monkeypatch):
+    client = _FakeLiveReasonerClient(
+        text=(
+            '{"title_recipe":{"lead_keyword":"action camera","differentiators":["150-Minute Runtime","Mini Camera Coverage"],"use_cases":["daily recording use"]},"bullets":['
+            '"READY TO RIDE — Capture every commute with stable 1080P footage and 150 minutes of runtime.",'
+            '"EVIDENCE READY — Clip on for work shifts when clear first-person recording matters.",'
+            '"TRAVEL LIGHT — Slip the mini camera into a pocket for quick scenic clips.",'
+            '"USE IT RIGHT — Best for walking, commuting, and steady handheld moments.",'
+            '"VALUE KIT — Start fast with the included essentials for everyday recording."'
+            ']}'
+        )
+    )
+    monkeypatch.setattr(cg, "get_llm_client", lambda: client)
+    monkeypatch.setattr(
+        cg,
+        "_generate_and_audit_title",
+        lambda payload, audit_log, assignment_tracker, required_keywords, max_retries=3: payload["_prefetched_title_candidates"][0],
+    )
+
+    result = cg._r1_batch_generate_listing(
+        _sample_preprocessed(),
+        _sample_policy(),
+        {
+            "l1": ["action camera", "mini camera", "body camera"],
+            "l2": ["bike camera"],
+            "l3": ["travel camera"],
+        },
+        {
+            "entries": [{"slot": idx, "theme": f"Bullet {idx}", "assigned_keywords": []} for idx in range(1, 6)]
+        },
+        "English",
+        [],
+        audit_log=[],
+    )
+
+    assert len(result["bullets"]) == 5
+    assert len(result["bullet_packets"]) == 5
+    assert result["bullet_packets"][0]["slot"] == "B1"
+    assert result["bullet_packets"][0]["header"] == "READY TO RIDE"
+    assert result["bullet_packets"][0]["benefit"].startswith("Capture every commute")
+    assert result["bullet_packets"][0]["contract_version"] == "slot_packet_v1"
+
+
+def test_r1_batch_generate_listing_prefers_packet_first_response(monkeypatch):
+    client = _FakeLiveReasonerClient(
+        text=(
+            '{"title_recipe":{"lead_keyword":"action camera","differentiators":["150-Minute Runtime","Mini Camera Coverage"],"use_cases":["daily recording use"]},'
+            '"bullet_packets":['
+            '{"slot":"B1","header":"READY TO RIDE","benefit":"Capture every commute with stable 1080P footage.","proof":"Record up to 150 minutes on one charge.","guidance":"Best for steady daily rides.","required_keywords":["action camera"],"capability_mapping":["1080p_recording"],"scene_mapping":["cycling_recording"]},'
+            '{"slot":"B2","header":"EVIDENCE READY","benefit":"Clip on for work shifts when clear first-person recording matters.","proof":"Lightweight design stays discreet through long sessions.","guidance":"","required_keywords":["body camera"],"capability_mapping":["wearable_recording"],"scene_mapping":["security_recording"]},'
+            '{"slot":"B3","header":"TRAVEL LIGHT","benefit":"Slip the mini camera into a pocket for quick scenic clips.","proof":"Compact build keeps gear light during day trips.","guidance":"","required_keywords":["mini camera"],"capability_mapping":["compact_design"],"scene_mapping":["travel_documentation"]},'
+            '{"slot":"B4","header":"USE IT RIGHT","benefit":"Keep footage smoother in walking and steady handheld moments.","proof":"Stable pacing helps preserve clean framing.","guidance":"Best for walks, desk setups, and controlled scenes.","required_keywords":["travel camera"],"capability_mapping":["usage_guidance"],"scene_mapping":["daily_recording"]},'
+            '{"slot":"B5","header":"VALUE KIT","benefit":"Start fast with the included essentials for everyday recording.","proof":"USB-C charging keeps setup simple.","guidance":"","required_keywords":["body camera"],"capability_mapping":["kit_value"],"scene_mapping":["daily_recording"]}'
+            ']}'
+        )
+    )
+    monkeypatch.setattr(cg, "get_llm_client", lambda: client)
+    monkeypatch.setattr(
+        cg,
+        "_generate_and_audit_title",
+        lambda payload, audit_log, assignment_tracker, required_keywords, max_retries=3: payload["_prefetched_title_candidates"][0],
+    )
+
+    result = cg._r1_batch_generate_listing(
+        _sample_preprocessed(),
+        _sample_policy(),
+        {
+            "l1": ["action camera", "mini camera", "body camera"],
+            "l2": ["bike camera"],
+            "l3": ["travel camera"],
+        },
+        {
+            "entries": [{"slot": idx, "theme": f"Bullet {idx}", "assigned_keywords": []} for idx in range(1, 6)]
+        },
+        "English",
+        [],
+        audit_log=[],
+    )
+
+    assert len(result["bullet_packets"]) == 5
+    assert result["bullets"][0] == (
+        "READY TO RIDE — Capture every commute with stable 1080P footage. "
+        "Record up to 150 minutes on one charge. Best for steady daily rides."
+    )
+    assert result["bullet_packets"][0]["slot"] == "B1"
+
+
+def test_r1_batch_payload_includes_unsupported_capability_policy(monkeypatch):
+    captured = {}
+
+    class _CaptureClient(_FakeLiveReasonerClient):
+        def generate_text(self, system_prompt, payload, temperature=0.35, override_model=None):
+            captured["system_prompt"] = system_prompt
+            captured["payload"] = payload
+            return '{"title_recipe":{"lead_keyword":"action camera","differentiators":["150-minute runtime","1080P recording"],"use_cases":["daily recording use"]},"bullets":["B1 — one","B2 — two","B3 — three","B4 — four","B5 — five"]}'
+
+    monkeypatch.setattr(cg, "get_llm_client", lambda: _CaptureClient())
+    monkeypatch.setattr(
+        cg,
+        "_generate_and_audit_title",
+        lambda payload, audit_log, assignment_tracker, required_keywords, max_retries=3: payload["_prefetched_title_candidates"][0],
+    )
+
+    policy = _sample_policy()
+    policy["bullet_slot_rules"] = {
+        "B4": {
+            "unsupported_capability_policy": {
+                "expression_mode": "positive_guidance_only",
+                "capabilities": ["stabilization_supported"],
+            }
+        }
+    }
+
+    cg._r1_batch_generate_listing(
+        _sample_preprocessed(),
+        policy,
+        {"l1": ["action camera", "mini camera", "body camera"], "l2": ["bike camera"], "l3": ["travel camera"]},
+        {"entries": [{"slot": idx, "theme": f"Bullet {idx}", "assigned_keywords": []} for idx in range(1, 6)]},
+        "English",
+        [],
+        audit_log=[],
+    )
+
+    bullet_plan = captured["payload"]["bullet_plan"]
+    b4 = next(row for row in bullet_plan if row["slot"] == "B4")
+    assert b4["unsupported_capability_policy"]["expression_mode"] == "positive_guidance_only"
+    assert "stabilization_supported" in b4["unsupported_capability_policy"]["capabilities"]
+    assert "positive_guidance_only" in captured["system_prompt"]
 
 
 def test_r1_batch_uses_recipe_assembly_before_shared_title_audit(monkeypatch):
@@ -2273,6 +2480,15 @@ def test_r1_batch_uses_recipe_assembly_before_shared_title_audit(monkeypatch):
     normalized = cg._normalize_keyword_text(result["title"])
     assert "mini camera" in normalized
     assert "body camera" in normalized
+
+def test_experimental_stage_timeout_seconds_uses_extended_budget_for_deepseek_v4_pro(monkeypatch):
+    monkeypatch.delenv("DEEPSEEK_V4_PRO_TIMEOUT_SEC", raising=False)
+    monkeypatch.delenv("R1_STAGE_TIMEOUT_SEC", raising=False)
+
+    assert cg._experimental_stage_timeout_seconds("title", "deepseek-v4-pro") == 180
+    assert cg._experimental_stage_timeout_seconds("bullets", "deepseek-v4-pro") == 180
+    assert cg._experimental_stage_timeout_seconds("title", None) == 75
+
 
 def test_generate_listing_copy_uses_pure_r1_batch_for_visible_copy(monkeypatch):
     client = _FakeLiveReasonerClient(
@@ -2321,7 +2537,7 @@ def test_generate_listing_copy_uses_pure_r1_batch_for_visible_copy(monkeypatch):
         _sample_preprocessed(),
         _sample_policy(),
         language="English",
-        model_overrides={"title": "deepseek-reasoner", "bullets": "deepseek-reasoner"},
+        model_overrides={"title": "deepseek-v4-pro", "bullets": "deepseek-v4-pro"},
     )
 
     assert result["title"].startswith("TestBrand action camera")
@@ -2331,8 +2547,799 @@ def test_generate_listing_copy_uses_pure_r1_batch_for_visible_copy(monkeypatch):
     assert result["metadata"]["field_generation_trace"]["visible_copy_batch"]["status"] == "success"
     assert result["metadata"]["field_generation_trace"]["title"]["status"] == "success"
     assert result["metadata"]["field_generation_trace"]["bullet_b1"]["status"] == "success"
+    assert len(result["bullet_packets"]) == 5
+    assert result["bullet_packets"][0]["slot"] == "B1"
+    assert len(result["slot_quality_packets"]) == 5
+    assert result["slot_quality_packets"][0]["slot"] == "B1"
 
 
+def test_pure_r1_batch_records_visible_title_and_bullet_keyword_assignments(monkeypatch):
+    metadata = {
+        "action camera": {"keyword": "action camera", "tier": "L1", "source_type": "keyword_table", "search_volume": 100000},
+        "mini camera": {"keyword": "mini camera", "tier": "L1", "source_type": "keyword_table", "search_volume": 90000},
+        "body camera": {"keyword": "body camera", "tier": "L1", "source_type": "keyword_table", "search_volume": 80000},
+        "travel camera": {"keyword": "travel camera", "tier": "L2", "source_type": "keyword_table", "search_volume": 7000},
+        "body camera with audio": {"keyword": "body camera with audio", "tier": "L2", "source_type": "keyword_table", "search_volume": 6500},
+        "thumb camera": {"keyword": "thumb camera", "tier": "L2", "source_type": "keyword_table", "search_volume": 5000},
+    }
+    client = _FakeLiveReasonerClient(
+        text=(
+            '{"title_recipe":{"lead_keyword":"action camera","differentiators":["150-minute runtime"],'
+            '"use_cases":["travel camera use"]},'
+            '"bullet_packets":['
+            '{"slot":"B1","header":"TRAVEL CAMERA","benefit":"Use this travel camera all day.",'
+            '"proof":"150 minutes of runtime.","guidance":"Clip it on.","required_keywords":["travel camera"],'
+            '"capability_mapping":["long battery"],"scene_mapping":["travel_documentation"]},'
+            '{"slot":"B2","header":"BODY CAMERA WITH AUDIO","benefit":"Use this body camera with audio at work.",'
+            '"proof":"Clear 1080p video.","guidance":"Wear it on a lanyard.","required_keywords":["body camera with audio"],'
+            '"capability_mapping":["audio"],"scene_mapping":["professional_use"]},'
+            '{"slot":"B3","header":"THUMB CAMERA","benefit":"Use this thumb camera for commutes.",'
+            '"proof":"Lightweight design.","guidance":"Attach the magnetic clip.","required_keywords":["thumb camera"],'
+            '"capability_mapping":["lightweight"],"scene_mapping":["commuting_capture"]},'
+            '{"slot":"B4","header":"STEADY DAILY SHOTS","benefit":"Frame smooth walking scenes.",'
+            '"proof":"180 degree lens.","guidance":"Avoid high vibration.","required_keywords":[],'
+            '"capability_mapping":["rotating lens"],"scene_mapping":["daily_use"]},'
+            '{"slot":"B5","header":"READY KIT","benefit":"Start with the included card.",'
+            '"proof":"32GB card included.","guidance":"Charge before use.","required_keywords":[],'
+            '"capability_mapping":["kit"],"scene_mapping":["package"]}'
+            ']}'
+        )
+    )
+    monkeypatch.setattr(cg, "get_llm_client", lambda: client)
+    monkeypatch.setattr(
+        cg,
+        "extract_tiered_keywords",
+        lambda *_args, **_kwargs: {
+            "l1": ["action camera", "mini camera", "body camera"],
+            "l2": ["travel camera", "body camera with audio", "thumb camera"],
+            "l3": [],
+            "_metadata": metadata,
+            "_preferred_locale": "en",
+        },
+    )
+    monkeypatch.setattr(cg, "build_keyword_slots", lambda *_args, **_kwargs: {"search_terms": {"keywords": []}})
+    monkeypatch.setattr(cg, "_generate_and_audit_title", lambda payload, audit_log, assignment_tracker, required_keywords, max_retries=3: payload["_prefetched_title_candidates"][0])
+    monkeypatch.setattr(cg, "generate_description", lambda *args, **kwargs: "Description text.")
+    monkeypatch.setattr(cg, "generate_faq", lambda *args, **kwargs: [{"q": "Q", "a": "A"}])
+    monkeypatch.setattr(cg, "generate_search_terms", lambda *args, **kwargs: ([], {"byte_length": 0, "max_bytes": 249, "backend_only_used": 0}))
+    monkeypatch.setattr(cg, "generate_aplus_content", lambda *args, **kwargs: ("## A+\nBody", True, []))
+    monkeypatch.setattr(cg, "build_evidence_bundle", lambda *_args, **_kwargs: {"claim_support_matrix": [], "rufus_readiness": {"score": 1.0}})
+
+    result = cg.generate_listing_copy(
+        _sample_preprocessed(),
+        _sample_policy(),
+        language="English",
+        bullet_blueprint={
+            "entries": [
+                {"slot": idx, "theme": f"Bullet {idx}", "assigned_l2_keywords": keywords}
+                for idx, keywords in enumerate(
+                    [["travel camera"], ["body camera with audio"], ["thumb camera"], [], []],
+                    start=1,
+                )
+            ]
+        },
+        model_overrides={"title": "deepseek-v4-pro", "bullets": "deepseek-v4-pro"},
+    )
+
+    assignments = {
+        row["keyword"]: set(row.get("assigned_fields") or [])
+        for row in (result.get("decision_trace") or {}).get("keyword_assignments") or []
+    }
+    assert assignments["action camera"] == {"title"}
+    assert assignments["mini camera"] == {"title"}
+    assert assignments["body camera"] == {"bullet_2", "title"}
+    assert "bullet_1" in assignments["travel camera"]
+    assert "bullet_2" in assignments["body camera with audio"]
+    assert "bullet_3" in assignments["thumb camera"]
+
+
+def test_generate_listing_copy_reconciles_keyword_assignments_after_slot_rerender(monkeypatch):
+    metadata = {
+        "action camera": {"keyword": "action camera", "tier": "L1", "source_type": "keyword_table", "search_volume": 100000},
+        "mini camera": {"keyword": "mini camera", "tier": "L1", "source_type": "keyword_table", "search_volume": 90000},
+        "body camera": {"keyword": "body camera", "tier": "L1", "source_type": "keyword_table", "search_volume": 80000},
+        "body camera with audio": {"keyword": "body camera with audio", "tier": "L2", "source_type": "keyword_table", "search_volume": 6500},
+    }
+    client = _FakeLiveReasonerClient(
+        text=(
+            '{"title_recipe":{"lead_keyword":"action camera","differentiators":["150-minute runtime"],'
+            '"use_cases":["mini camera use","body camera use"]},'
+            '"bullet_packets":['
+            '{"slot":"B1","header":"DAILY ACTION CAMERA","benefit":"Use this action camera all day.",'
+            '"proof":"150 minutes of runtime.","guidance":"Clip it on.","required_keywords":[],'
+            '"capability_mapping":["long battery"],"scene_mapping":["daily_use"]},'
+            '{"slot":"B2","header":"WORK RECORDING","benefit":"Capture work shifts hands-free.",'
+            '"proof":"Clear 1080p video.","guidance":"Wear it on a lanyard.","required_keywords":[],'
+            '"capability_mapping":["audio"],"scene_mapping":["professional_use"]},'
+            '{"slot":"B3","header":"COMMUTE READY","benefit":"Carry it on commutes.",'
+            '"proof":"Lightweight design.","guidance":"Attach the magnetic clip.","required_keywords":[],'
+            '"capability_mapping":["lightweight"],"scene_mapping":["commuting_capture"]},'
+            '{"slot":"B4","header":"STEADY DAILY SHOTS","benefit":"Frame smooth walking scenes.",'
+            '"proof":"180 degree lens.","guidance":"Avoid high vibration.","required_keywords":[],'
+            '"capability_mapping":["rotating lens"],"scene_mapping":["daily_use"]},'
+            '{"slot":"B5","header":"READY KIT","benefit":"Start with the included card.",'
+            '"proof":"32GB card included.","guidance":"Charge before use.","required_keywords":[],'
+            '"capability_mapping":["kit"],"scene_mapping":["package"]}'
+            ']}'
+        )
+    )
+    monkeypatch.setattr(cg, "get_llm_client", lambda: client)
+    monkeypatch.setattr(
+        cg,
+        "extract_tiered_keywords",
+        lambda *_args, **_kwargs: {
+            "l1": ["action camera", "mini camera", "body camera"],
+            "l2": ["body camera with audio"],
+            "l3": [],
+            "_metadata": metadata,
+            "_preferred_locale": "en",
+        },
+    )
+    monkeypatch.setattr(cg, "build_keyword_slots", lambda *_args, **_kwargs: {"search_terms": {"keywords": []}})
+    monkeypatch.setattr(cg, "_generate_and_audit_title", lambda payload, audit_log, assignment_tracker, required_keywords, max_retries=3: payload["_prefetched_title_candidates"][0])
+    monkeypatch.setattr(cg, "generate_description", lambda *args, **kwargs: "Description text.")
+    monkeypatch.setattr(cg, "generate_faq", lambda *args, **kwargs: [{"q": "Q", "a": "A"}])
+    monkeypatch.setattr(cg, "generate_search_terms", lambda *args, **kwargs: ([], {"byte_length": 0, "max_bytes": 249, "backend_only_used": 0}))
+    monkeypatch.setattr(cg, "generate_aplus_content", lambda *args, **kwargs: ("## A+\nBody", True, []))
+    monkeypatch.setattr(cg, "build_evidence_bundle", lambda *_args, **_kwargs: {"claim_support_matrix": [], "rufus_readiness": {"score": 1.0}})
+    monkeypatch.setattr(cg, "build_slot_rerender_plan", lambda *_args, **_kwargs: [{"slot": "B2", "strategy": "slot_packet_rerender"}])
+
+    def _fake_rerender(generated_copy, *_args, **_kwargs):
+        updated = dict(generated_copy)
+        bullets = list(generated_copy["bullets"])
+        bullets[1] = "BODY CAMERA WITH AUDIO — Capture work shifts hands-free with this body camera with audio."
+        updated["bullets"] = bullets
+        updated["slot_rerender_plan"] = []
+        updated["slot_rerender_results"] = [{"slot": "B2", "status": "applied"}]
+        return updated
+
+    monkeypatch.setattr(cg, "_run_slot_rerender_pass", _fake_rerender)
+
+    result = cg.generate_listing_copy(
+        _sample_preprocessed(),
+        _sample_policy(),
+        language="English",
+        bullet_blueprint={
+            "entries": [
+                {"slot": idx, "theme": f"Bullet {idx}", "assigned_l2_keywords": keywords}
+                for idx, keywords in enumerate([[], ["body camera with audio"], [], [], []], start=1)
+            ]
+        },
+        model_overrides={"title": "deepseek-v4-pro", "bullets": "deepseek-v4-pro"},
+    )
+
+    assignments = {
+        row["keyword"]: set(row.get("assigned_fields") or [])
+        for row in (result.get("decision_trace") or {}).get("keyword_assignments") or []
+    }
+    assert "body camera with audio" in result["bullets"][1].lower()
+    assert result["keyword_reconciliation"]["status"] == "complete"
+    assert result["decision_trace"]["keyword_reconciliation_coverage"]["l2_bullet_slots"] >= 1
+    assert "bullet_2" in assignments["body camera with audio"]
+
+
+def test_search_terms_preserve_existing_tier_metadata_for_shared_keywords():
+    tracker = cg.KeywordAssignmentTracker(
+        {
+            "travel camera": {
+                "keyword": "travel camera",
+                "tier": "L2",
+                "source_type": "keyword_table",
+                "search_volume": 7000,
+            }
+        }
+    )
+
+    cg.generate_search_terms(
+        _sample_preprocessed(),
+        {
+            **_sample_policy(),
+            "search_term_plan": {"backend_longtail_keywords": ["travel camera"], "priority_tiers": ["l3"]},
+            "keyword_metadata": [
+                {
+                    "keyword": "travel camera",
+                    "tier": "L3",
+                    "source_type": "synthetic",
+                    "search_volume": 7000,
+                }
+            ],
+        },
+        title="TestBrand action camera",
+        bullets=[],
+        description="",
+        language="English",
+        tiered_keywords={
+            "l1": [],
+            "l2": ["travel camera"],
+            "l3": [],
+            "_metadata": {
+                "travel camera": {
+                    "keyword": "travel camera",
+                    "tier": "L2",
+                    "source_type": "keyword_table",
+                    "search_volume": 7000,
+                }
+            },
+            "_preferred_locale": "en",
+        },
+        keyword_slots={"search_terms": {"keywords": []}},
+        assignment_tracker=tracker,
+    )
+
+    [record] = tracker.as_list()
+    assert record["keyword"] == "travel camera"
+    assert record["tier"] == "L2"
+    assert record["source_type"] == "keyword_table"
+    assert record["assigned_fields"] == ["search_terms"]
+
+
+def test_keyword_assignment_tracker_uses_normalized_keyword_when_metadata_lacks_keyword():
+    tracker = cg.KeywordAssignmentTracker({"body camera": {"tier": "L1"}})
+
+    tracker.record("title", ["body camera"])
+
+    [record] = tracker.as_list()
+    assert record["keyword"] == "body camera"
+    assert record["traffic_tier"] == "L1"
+    assert record["assigned_fields"] == ["title"]
+
+
+def test_final_keyword_metadata_merge_preserves_protocol_fields_for_table_keywords():
+    tracker = cg.KeywordAssignmentTracker(
+        {
+            "travel camera": {
+                "keyword": "travel camera",
+                "tier": "L2",
+                "source_type": "keyword_table",
+                "search_volume": 7000,
+                "routing_role": "bullet",
+                "quality_status": "qualified",
+                "blue_ocean_score": 0.8,
+            }
+        }
+    )
+
+    cg._reconcile_final_keyword_assignments(
+        tracker,
+        title="",
+        bullets=["Travel camera setup with clip support"],
+        search_terms=[],
+        tiered_keywords={
+            "l1": [],
+            "l2": ["travel camera"],
+            "l3": [],
+            "_metadata": {
+                "travel camera": {
+                    "keyword": "travel camera",
+                    "tier": "L2",
+                    "source_type": "keyword_table",
+                    "search_volume": 7000,
+                }
+            },
+        },
+        writing_policy={
+            "keyword_metadata": [
+                {
+                    "keyword": "travel camera",
+                    "tier": "L3",
+                    "source_type": "synthetic",
+                    "routing_role": "bullet",
+                    "quality_status": "qualified",
+                    "blue_ocean_score": 0.8,
+                    "search_volume": 100,
+                }
+            ]
+        },
+    )
+
+    [record] = tracker.as_list()
+    assert record["keyword"] == "travel camera"
+    assert record["tier"] == "L2"
+    assert record["traffic_tier"] == "L2"
+    assert record["source_type"] == "keyword_table"
+    assert record["search_volume"] == 7000
+    assert record["routing_role"] == "bullet"
+    assert record["quality_status"] == "qualified"
+    assert record["blue_ocean_score"] == 0.8
+    assert record["assigned_fields"] == ["bullet_1"]
+
+
+def test_final_keyword_metadata_merge_handles_prepopulated_assignment_records():
+    tracker = cg.KeywordAssignmentTracker(
+        {
+            "travel camera": {
+                "keyword": "travel camera",
+                "tier": "L2",
+                "routing_role": "bullet",
+                "quality_status": "qualified",
+            }
+        }
+    )
+    tracker.record("bullet_1", ["travel camera"])
+
+    cg._reconcile_final_keyword_assignments(
+        tracker,
+        title="",
+        bullets=["Travel camera setup with clip support"],
+        search_terms=[],
+        tiered_keywords={
+            "l1": [],
+            "l2": ["travel camera"],
+            "l3": [],
+            "_metadata": {"travel camera": {"keyword": "travel camera", "tier": "L2"}},
+        },
+        writing_policy={},
+    )
+
+    [record] = tracker.as_list()
+    assert record["keyword"] == "travel camera"
+    assert record["assigned_fields"] == ["bullet_1"]
+
+
+def test_final_keyword_reconciliation_preserves_protocol_fields():
+    metadata = {
+        "body camera": {
+            "keyword": "body camera",
+            "tier": "L1",
+            "traffic_tier": "L1",
+            "routing_role": "title",
+            "quality_status": "qualified",
+            "opportunity_score": 0.9,
+        },
+        "travel camera": {
+            "keyword": "travel camera",
+            "tier": "L2",
+            "traffic_tier": "L2",
+            "routing_role": "bullet",
+            "quality_status": "qualified",
+            "blue_ocean_score": 0.8,
+        },
+        "mini cam synonym": {
+            "keyword": "mini cam synonym",
+            "tier": "L3",
+            "traffic_tier": "L3",
+            "routing_role": "backend",
+            "quality_status": "qualified",
+        },
+    }
+    generated = {
+        "title": "Body Camera for Travel Recording",
+        "bullets": ["Travel camera setup with clip support"],
+        "search_terms": ["mini cam synonym wearable recorder"],
+    }
+
+    assignments = cg.reconcile_final_keyword_assignments(generated, metadata)
+    by_keyword = {row["keyword"]: row for row in assignments}
+
+    assert by_keyword["body camera"]["traffic_tier"] == "L1"
+    assert by_keyword["body camera"]["routing_role"] == "title"
+    assert by_keyword["travel camera"]["quality_status"] == "qualified"
+    assert by_keyword["travel camera"]["blue_ocean_score"] == 0.8
+    assert "title" in by_keyword["body camera"]["assigned_fields"]
+    assert "bullet_1" in by_keyword["travel camera"]["assigned_fields"]
+    assert "search_terms" in by_keyword["mini cam synonym"]["assigned_fields"]
+
+
+def test_generate_listing_copy_exposes_slot_rerender_plan(monkeypatch):
+    client = _FakeLiveReasonerClient(
+        text=(
+            '{"title":"TestBrand Action Camera for Daily Rides with 150-Minute Runtime",'
+            '"bullets":['
+            '"READY TO RIDE — Capture every commute with stable 1080P footage and 150 minutes of runtime.",'
+            '"EVIDENCE READY — Clip on for work shifts when clear first-person recording matters.",'
+            '"TRAVEL LIGHT — Slip the mini camera into a pocket for quick scenic clips.",'
+            '"USE IT RIGHT — Best for walking, commuting, and steady handheld moments.",'
+            '"VALUE KIT — Start fast with the included essentials for everyday recording."'
+            "]}"
+        )
+    )
+    monkeypatch.setattr(cg, "get_llm_client", lambda: client)
+    monkeypatch.setattr(
+        cg,
+        "extract_tiered_keywords",
+        lambda *_args, **_kwargs: {
+            "l1": ["action camera", "mini camera", "body camera"],
+            "l2": ["bike camera"],
+            "l3": ["travel camera"],
+            "_metadata": {},
+            "_preferred_locale": "en",
+        },
+    )
+    monkeypatch.setattr(cg, "build_keyword_slots", lambda *_args, **_kwargs: {"search_terms": {"keywords": []}})
+    monkeypatch.setattr(cg, "generate_title", lambda *args, **kwargs: pytest.fail("single-field title path should be skipped"))
+    monkeypatch.setattr(cg, "generate_bullet_points", lambda *args, **kwargs: pytest.fail("single-field bullet path should be skipped"))
+    monkeypatch.setattr(cg, "_generate_and_audit_title", lambda payload, audit_log, assignment_tracker, required_keywords, max_retries=3: payload["_prefetched_title_candidates"][0])
+    monkeypatch.setattr(cg, "_polish_bullet_quality_with_llm", lambda *args, **kwargs: pytest.fail("pure R1 batch bullets should not be re-polished"))
+    monkeypatch.setattr(cg, "generate_description", lambda *args, **kwargs: "Description text.")
+    monkeypatch.setattr(cg, "generate_faq", lambda *args, **kwargs: [{"q": "Q", "a": "A"}])
+    monkeypatch.setattr(cg, "generate_search_terms", lambda *args, **kwargs: (["travel camera"], {"byte_length": 12, "max_bytes": 249, "backend_only_used": 0}))
+    monkeypatch.setattr(cg, "generate_aplus_content", lambda *args, **kwargs: ("## A+\nBody", True, []))
+    monkeypatch.setattr(
+        cg,
+        "build_evidence_bundle",
+        lambda *_args, **_kwargs: {
+            "claim_support_matrix": [],
+            "rufus_readiness": {"score": 1.0},
+        },
+    )
+    monkeypatch.setattr(
+        cg,
+        "build_slot_rerender_plan",
+        lambda generated_copy, writing_policy: [
+            {
+                "slot": "B4",
+                "strategy": "slot_packet_rerender",
+                "rerender_reasons": ["dash_tail_without_predicate"],
+            }
+        ],
+        raising=False,
+    )
+
+    result = cg.generate_listing_copy(
+        _sample_preprocessed(),
+        _sample_policy(),
+        language="English",
+        model_overrides={"title": "deepseek-v4-pro", "bullets": "deepseek-v4-pro"},
+    )
+
+    assert "slot_rerender_plan" in result
+    assert result["slot_rerender_plan"][0]["slot"] == "B4"
+    assert result["slot_rerender_plan"][0]["strategy"] == "slot_packet_rerender"
+
+
+def test_run_slot_rerender_pass_updates_target_slot_and_clears_plan(monkeypatch):
+    client = _FakeLiveReasonerClient(
+        text=(
+            '{"slot":"B4","header":"STEADY COMMUTE FOOTAGE","benefit":"Keep this travel camera steady on a stable mount during daily walks.","proof":"A secure clip helps preserve clear framing through daily movement.","guidance":"Use it for desk vlogs and other fixed-position scenes.","required_keywords":["travel camera"],"capability_mapping":["usage_guidance"],"scene_mapping":["travel_documentation"]}'
+        )
+    )
+    monkeypatch.setattr(cg, "get_llm_client", lambda: client)
+
+    generated_copy = {
+        "bullets": [
+            "B1 good",
+            "B2 good",
+            "B3 good",
+            "USE IT RIGHT — Best for walking, commuting, and steady handheld moments - travel camera.",
+            "B5 good",
+        ],
+        "bullet_packets": [
+            {"slot": "B1", "header": "B1", "benefit": "good", "proof": "good", "guidance": ""},
+            {"slot": "B2", "header": "B2", "benefit": "good", "proof": "good", "guidance": ""},
+            {"slot": "B3", "header": "B3", "benefit": "good", "proof": "good", "guidance": ""},
+            {
+                "slot": "B4",
+                "header": "USE IT RIGHT",
+                "benefit": "Best for walking, commuting, and steady handheld moments.",
+                "proof": "",
+                "guidance": "travel camera",
+                "required_keywords": ["travel camera"],
+                "capability_mapping": ["usage_guidance"],
+                "scene_mapping": ["travel_documentation"],
+            },
+            {"slot": "B5", "header": "B5", "benefit": "good", "proof": "good", "guidance": ""},
+        ],
+        "slot_quality_packets": [
+            {"slot": "B1", "contract_pass": True, "fluency_pass": True, "unsupported_policy_pass": True, "issues": [], "rerender_count": 0},
+            {"slot": "B2", "contract_pass": True, "fluency_pass": True, "unsupported_policy_pass": True, "issues": [], "rerender_count": 0},
+            {"slot": "B3", "contract_pass": True, "fluency_pass": True, "unsupported_policy_pass": True, "issues": [], "rerender_count": 0},
+            {"slot": "B4", "contract_pass": False, "fluency_pass": False, "unsupported_policy_pass": True, "issues": ["missing_keywords", "dash_tail_without_predicate"], "rerender_count": 0},
+            {"slot": "B5", "contract_pass": True, "fluency_pass": True, "unsupported_policy_pass": True, "issues": [], "rerender_count": 0},
+        ],
+    }
+    writing_policy = {
+        "copy_contracts": {
+            "bullet_opening": {"header_required": True, "frontload_window_tokens": 16},
+            "scene_capability_numeric_binding": {
+                "require_scene_and_capability": False,
+                "require_numeric_or_condition_slots": [],
+                "condition_markers": [],
+            },
+        },
+        "bullet_slot_rules": {
+            "B4": {
+                "sentence_contract": {
+                    "headline_type": "benefit_plus_usecase",
+                    "body_components": ["benefit", "proof", "guidance"],
+                    "forbid_patterns": ["dash_tail_fragment"],
+                },
+                "repair_policy": {
+                    "on_contract_fail": "rerender_slot",
+                    "on_fluency_fail": "rerender_slot",
+                },
+            }
+        },
+    }
+
+    updated = cg._run_slot_rerender_pass(
+        generated_copy,
+        writing_policy,
+        target_language="English",
+        model_overrides={"bullets": "deepseek-v4-pro"},
+    )
+
+    assert updated["bullets"][3].startswith("STEADY COMMUTE FOOTAGE")
+    assert updated["slot_quality_packets"][3]["fluency_pass"] is True
+    assert updated["slot_quality_packets"][3]["rerender_count"] == 1
+    assert updated["slot_rerender_plan"] == []
+    assert updated["slot_rerender_results"] == [{"slot": "B4", "status": "applied"}]
+
+
+def test_run_slot_rerender_pass_uses_local_fallback_when_live_rerender_times_out(monkeypatch):
+    class _TimeoutClient:
+        def generate_text(self, system_prompt, payload, temperature=0.35, override_model=None):
+            raise RuntimeError("Live LLM request returned no usable text (timeout).")
+
+    monkeypatch.setattr(cg, "get_llm_client", lambda: _TimeoutClient())
+
+    generated_copy = {
+        "bullets": [
+            "B1 good",
+            "B2 good",
+            "B3 good",
+            "USE IT RIGHT — Best for walking, commuting, and steady handheld moments - travel camera.",
+            "B5 good",
+        ],
+        "bullet_packets": [
+            {"slot": "B1", "header": "B1", "benefit": "good", "proof": "good", "guidance": ""},
+            {"slot": "B2", "header": "B2", "benefit": "good", "proof": "good", "guidance": ""},
+            {"slot": "B3", "header": "B3", "benefit": "good", "proof": "good", "guidance": ""},
+            {
+                "slot": "B4",
+                "header": "USE IT RIGHT",
+                "benefit": "Best for walking, commuting, and steady handheld moments.",
+                "proof": "",
+                "guidance": "travel camera",
+                "required_keywords": ["travel camera"],
+                "capability_mapping": ["usage_guidance"],
+                "scene_mapping": ["travel_documentation"],
+            },
+            {"slot": "B5", "header": "B5", "benefit": "good", "proof": "good", "guidance": ""},
+        ],
+        "slot_quality_packets": [
+            {"slot": "B1", "contract_pass": True, "fluency_pass": True, "unsupported_policy_pass": True, "issues": [], "rerender_count": 0},
+            {"slot": "B2", "contract_pass": True, "fluency_pass": True, "unsupported_policy_pass": True, "issues": [], "rerender_count": 0},
+            {"slot": "B3", "contract_pass": True, "fluency_pass": True, "unsupported_policy_pass": True, "issues": [], "rerender_count": 0},
+            {"slot": "B4", "contract_pass": False, "fluency_pass": False, "unsupported_policy_pass": True, "issues": ["missing_keywords", "dash_tail_without_predicate"], "rerender_count": 0},
+            {"slot": "B5", "contract_pass": True, "fluency_pass": True, "unsupported_policy_pass": True, "issues": [], "rerender_count": 0},
+        ],
+    }
+    writing_policy = {
+        "copy_contracts": {
+            "bullet_opening": {"header_required": True, "frontload_window_tokens": 16},
+            "scene_capability_numeric_binding": {
+                "require_scene_and_capability": False,
+                "require_numeric_or_condition_slots": [],
+                "condition_markers": [],
+            },
+        },
+        "bullet_slot_rules": {
+            "B4": {
+                "sentence_contract": {
+                    "headline_type": "benefit_plus_usecase",
+                    "body_components": ["benefit", "proof", "guidance"],
+                    "forbid_patterns": ["dash_tail_fragment"],
+                },
+                "repair_policy": {
+                    "on_contract_fail": "rerender_slot",
+                    "on_fluency_fail": "rerender_slot",
+                },
+            }
+        },
+    }
+
+    updated = cg._run_slot_rerender_pass(
+        generated_copy,
+        writing_policy,
+        target_language="English",
+        model_overrides={"bullets": "deepseek-v4-pro"},
+    )
+
+    assert updated["slot_rerender_results"] == [{"slot": "B4", "status": "applied_local_fallback"}]
+    assert updated["slot_quality_packets"][3]["fallback_used"] is True
+    assert updated["slot_quality_packets"][3]["fluency_pass"] is True
+
+
+
+
+def test_run_slot_rerender_pass_local_fallback_frontloads_localized_anchors(monkeypatch):
+    class _TimeoutClient:
+        def generate_text(self, system_prompt, payload, temperature=0.35, override_model=None):
+            raise RuntimeError("Live LLM request returned no usable text (timeout).")
+
+    monkeypatch.setattr(cg, "get_llm_client", lambda: _TimeoutClient())
+
+    generated_copy = {
+        "bullets": [
+            "B1 good",
+            "B2 good",
+            "USE IT RIGHT — Keep footage steady on a stable clip for daily recording. Compact design stays easy to carry. Best for simple daily capture.",
+            "B4 good",
+            "B5 good",
+        ],
+        "bullet_packets": [
+            {"slot": "B1", "header": "B1", "benefit": "good", "proof": "good", "guidance": ""},
+            {"slot": "B2", "header": "B2", "benefit": "good", "proof": "good", "guidance": ""},
+            {
+                "slot": "B3",
+                "header": "USE IT RIGHT",
+                "benefit": "Keep footage steady on a stable clip for daily recording.",
+                "proof": "Compact design stays easy to carry.",
+                "guidance": "Best for simple daily capture.",
+                "required_keywords": ["travel camera"],
+                "capability_mapping": ["high definition"],
+                "scene_mapping": ["travel_documentation"],
+            },
+            {"slot": "B4", "header": "B4", "benefit": "good", "proof": "good", "guidance": ""},
+            {"slot": "B5", "header": "B5", "benefit": "good", "proof": "good", "guidance": ""},
+        ],
+        "slot_quality_packets": [
+            {"slot": "B1", "contract_pass": True, "fluency_pass": True, "unsupported_policy_pass": True, "issues": [], "rerender_count": 0},
+            {"slot": "B2", "contract_pass": True, "fluency_pass": True, "unsupported_policy_pass": True, "issues": [], "rerender_count": 0},
+            {"slot": "B3", "contract_pass": False, "fluency_pass": True, "unsupported_policy_pass": True, "issues": ["missing_keywords"], "rerender_count": 0},
+            {"slot": "B4", "contract_pass": True, "fluency_pass": True, "unsupported_policy_pass": True, "issues": [], "rerender_count": 0},
+            {"slot": "B5", "contract_pass": True, "fluency_pass": True, "unsupported_policy_pass": True, "issues": [], "rerender_count": 0},
+        ],
+    }
+    writing_policy = {
+        "copy_contracts": {
+            "bullet_opening": {"header_required": True, "frontload_window_tokens": 16},
+            "scene_capability_numeric_binding": {
+                "require_scene_and_capability": True,
+                "require_numeric_or_condition_slots": [],
+                "condition_markers": [],
+            },
+        },
+        "bullet_slot_rules": {
+            "B3": {
+                "sentence_contract": {
+                    "headline_type": "benefit_plus_usecase",
+                    "body_components": ["benefit", "proof", "guidance"],
+                    "forbid_patterns": [],
+                },
+                "repair_policy": {
+                    "on_contract_fail": "rerender_slot",
+                    "on_fluency_fail": "rerender_slot",
+                },
+            }
+        },
+    }
+
+    updated = cg._run_slot_rerender_pass(
+        generated_copy,
+        writing_policy,
+        target_language="English",
+        model_overrides={"bullets": "deepseek-v4-pro"},
+    )
+
+    assert updated["slot_rerender_results"] == [{"slot": "B3", "status": "applied_local_fallback"}]
+    assert updated["slot_quality_packets"][2]["issues"] == []
+    assert updated["slot_rerender_plan"] == []
+    assert "travel camera" in updated["bullets"][2].lower()
+    assert "travel" in updated["bullets"][2].lower()
+    assert any(anchor in updated["bullets"][2].lower() for anchor in ["1080p", "high definition", "hd"])
+
+
+def test_run_slot_rerender_pass_local_fallback_repairs_b5_multi_topic_contract(monkeypatch):
+    class _TimeoutClient:
+        def generate_text(self, system_prompt, payload, temperature=0.35, override_model=None):
+            raise RuntimeError("Live LLM request returned no usable text (timeout).")
+
+    monkeypatch.setattr(cg, "get_llm_client", lambda: _TimeoutClient())
+
+    b5 = (
+        "Open Box, Start Recording — Includes the wearable camera, USB-C cable, magnetic pendant, "
+        "and back clip. With 150 minutes of battery life, this camera keeps up with daily travel. "
+        "Supports micro SD cards up to 256GB."
+    )
+    generated_copy = {
+        "bullets": ["B1", "B2", "B3", "B4", b5],
+        "bullet_packets": [
+            {"slot": "B1", "header": "B1", "benefit": "ok", "proof": "ok", "guidance": ""},
+            {"slot": "B2", "header": "B2", "benefit": "ok", "proof": "ok", "guidance": ""},
+            {"slot": "B3", "header": "B3", "benefit": "ok", "proof": "ok", "guidance": ""},
+            {"slot": "B4", "header": "B4", "benefit": "ok", "proof": "ok", "guidance": ""},
+            cg._build_bullet_packet("B5", b5),
+        ],
+        "slot_quality_packets": [
+            {"slot": "B1", "contract_pass": True, "fluency_pass": True, "unsupported_policy_pass": True, "issues": [], "rerender_count": 0},
+            {"slot": "B2", "contract_pass": True, "fluency_pass": True, "unsupported_policy_pass": True, "issues": [], "rerender_count": 0},
+            {"slot": "B3", "contract_pass": True, "fluency_pass": True, "unsupported_policy_pass": True, "issues": [], "rerender_count": 0},
+            {"slot": "B4", "contract_pass": True, "fluency_pass": True, "unsupported_policy_pass": True, "issues": [], "rerender_count": 0},
+            {
+                "slot": "B5",
+                "contract_pass": False,
+                "fluency_pass": True,
+                "unsupported_policy_pass": True,
+                "issues": ["slot_contract_failed:multiple_primary_promises"],
+                "rerender_count": 0,
+            },
+        ],
+    }
+    writing_policy = {
+        "bullet_slot_rules": {
+            "B5": {
+                "repair_policy": {"on_contract_fail": "rerender_slot", "on_fluency_fail": "rerender_slot"},
+            }
+        }
+    }
+
+    updated = cg._run_slot_rerender_pass(generated_copy, writing_policy, target_language="English")
+
+    assert updated["slot_rerender_results"] == [{"slot": "B5", "status": "applied_local_fallback"}]
+    assert "150 minutes" not in updated["bullets"][4].lower()
+    assert "support team" not in updated["bullets"][4].lower()
+    assert updated["slot_quality_packets"][4]["issues"] == []
+
+
+def test_generate_listing_copy_prefers_visible_copy_model_in_metadata(monkeypatch):
+    client = _FakeLiveReasonerClient(
+        text=(
+            '{"title_recipe":{"lead_keyword":"action camera","differentiators":["150-minute runtime","1080P recording"],"use_cases":["daily recording use"]},"bullets":['
+            '"BATTERY POWER — Up to 150 minutes for daily recording.",'
+            '"BODY CAMERA AUDIO — Crisp 1080P with AAC audio.",'
+            '"COMMUTE READY — Compact clip-on design for everyday use.",'
+            '"USE IT RIGHT — Best for steady walking and vlogging.",'
+            '"KIT CONTENTS — Camera body and USB-C cable included."'
+            ']}'
+        )
+    )
+    client.active_model = "deepseek-v4-flash"
+
+    def _touch_flash_meta(result):
+        client._meta = {
+            "configured_model": "deepseek-v4-flash",
+            "returned_model": "deepseek-v4-flash",
+            "success": True,
+            "error": "",
+        }
+        return result
+
+    monkeypatch.setattr(cg, "get_llm_client", lambda: client)
+    monkeypatch.setattr(
+        cg,
+        "extract_tiered_keywords",
+        lambda *_args, **_kwargs: {
+            "l1": ["action camera", "mini camera", "body camera"],
+            "l2": ["bike camera"],
+            "l3": ["travel camera"],
+            "_metadata": {},
+            "_preferred_locale": "en",
+        },
+    )
+    monkeypatch.setattr(cg, "build_keyword_slots", lambda *_args, **_kwargs: {"search_terms": {"keywords": []}})
+    monkeypatch.setattr(cg, "generate_title", lambda *args, **kwargs: pytest.fail("single-field title path should be skipped"))
+    monkeypatch.setattr(cg, "generate_bullet_points", lambda *args, **kwargs: pytest.fail("single-field bullet path should be skipped"))
+    monkeypatch.setattr(cg, "_generate_and_audit_title", lambda payload, audit_log, assignment_tracker, required_keywords, max_retries=3: payload["_prefetched_title_candidates"][0])
+    monkeypatch.setattr(cg, "_polish_bullet_quality_with_llm", lambda *args, **kwargs: pytest.fail("pure R1 batch bullets should not be re-polished"))
+    monkeypatch.setattr(cg, "generate_description", lambda *args, **kwargs: _touch_flash_meta("Description text."))
+    monkeypatch.setattr(cg, "generate_faq", lambda *args, **kwargs: _touch_flash_meta([{"q": "Q", "a": "A"}]))
+    monkeypatch.setattr(
+        cg,
+        "generate_search_terms",
+        lambda *args, **kwargs: _touch_flash_meta((["travel camera"], {"byte_length": 12, "max_bytes": 249, "backend_only_used": 0})),
+    )
+    monkeypatch.setattr(cg, "generate_aplus_content", lambda *args, **kwargs: _touch_flash_meta(("## A+\nBody", True, [])))
+    monkeypatch.setattr(
+        cg,
+        "build_evidence_bundle",
+        lambda *_args, **_kwargs: {
+            "claim_support_matrix": [],
+            "rufus_readiness": {"score": 1.0},
+        },
+    )
+
+    result = cg.generate_listing_copy(
+        _sample_preprocessed(),
+        _sample_policy(),
+        language="English",
+        model_overrides={"title": "deepseek-v4-pro", "bullets": "deepseek-v4-pro"},
+    )
+
+    assert result["metadata"]["configured_model"] == "deepseek-v4-pro"
+    assert result["metadata"]["returned_model"] == "deepseek-v4-pro"
+    assert result["metadata"]["last_stage_configured_model"] == "deepseek-v4-flash"
+    assert result["metadata"]["last_stage_returned_model"] == "deepseek-v4-flash"
 
 
 def test_generate_listing_copy_persists_r1_batch_debug_context_on_failure(monkeypatch, tmp_path):
@@ -2362,7 +3369,7 @@ def test_generate_listing_copy_persists_r1_batch_debug_context_on_failure(monkey
             _sample_policy(),
             language="English",
             artifact_dir=str(artifact_dir),
-            model_overrides={"title": "deepseek-reasoner", "bullets": "deepseek-reasoner"},
+            model_overrides={"title": "deepseek-v4-pro", "bullets": "deepseek-v4-pro"},
         )
 
     batch_artifact = json.loads((artifact_dir / "visible_copy_batch.json").read_text())
@@ -2396,7 +3403,7 @@ def test_generate_listing_copy_raises_when_pure_r1_batch_times_out(monkeypatch):
             _sample_preprocessed(),
             _sample_policy(),
             language="English",
-            model_overrides={"title": "deepseek-reasoner", "bullets": "deepseek-reasoner"},
+            model_overrides={"title": "deepseek-v4-pro", "bullets": "deepseek-v4-pro"},
         )
 
 
@@ -2456,3 +3463,91 @@ def test_bullet_fallback_rotates_template_shapes_by_slot():
     assert bullet_b1 != bullet_b2 != bullet_b3
     assert "—" in bullet_b1 and "—" in bullet_b2 and "—" in bullet_b3
     assert not all("so every clip feels ready to share" in bullet for bullet in [bullet_b1, bullet_b2, bullet_b3])
+
+
+def test_description_with_repairable_best_becomes_repaired_live_not_fallback(monkeypatch):
+    monkeypatch.setattr(
+        cg,
+        "_llm_generate_description",
+        lambda payload: "This is the best body camera for travel recording with 1080P video.",
+    )
+    audit_log = []
+    payload = {
+        "target_language": "English",
+        "canonical_facts": {
+            "fact_map": {
+                "video_resolution": {"value": "1080P", "claim_permission": "visible_allowed"}
+            }
+        },
+    }
+
+    description = cg._generate_and_audit_description(payload, audit_log)
+
+    assert "best" not in description.lower()
+    assert "travel" in description.lower()
+    assert "body camera" in description.lower()
+    assert any(
+        entry.get("field") == "description_llm"
+        and entry.get("action") == "llm_success"
+        and entry.get("provenance_tier") == "repaired_live"
+        for entry in audit_log
+    )
+    assert not any(
+        entry.get("field") == "description_llm" and entry.get("action") == "llm_fallback"
+        for entry in audit_log
+    )
+
+
+def test_description_fallback_does_not_silently_strip_blocking_claims(monkeypatch):
+    monkeypatch.setattr(cg, "_llm_generate_description", lambda payload: "")
+    monkeypatch.setattr(
+        cg,
+        "_fallback_text_for_field",
+        lambda field, payload, keywords: "Fallback includes guaranteed results and warranty support.",
+    )
+    audit_log = []
+
+    description = cg._generate_and_audit_description({"target_language": "English"}, audit_log)
+
+    lowered = description.lower()
+    assert "guaranteed" in lowered
+    assert "warranty" in lowered
+    assert any(
+        entry.get("field") == "description_llm"
+        and entry.get("action") == "claim_language_blocked"
+        and set(entry.get("blocking_reasons") or []) >= {"guarantee_claim", "warranty_claim"}
+        for entry in audit_log
+    )
+    assert any(
+        entry.get("field") == "description_llm"
+        and entry.get("action") == "llm_fallback"
+        and entry.get("provenance_tier") == "unsafe_fallback"
+        for entry in audit_log
+    )
+
+
+def test_description_provenance_extraction_reads_fallback_tier():
+    entries = [
+        {"field": "description_llm", "action": "llm_retry"},
+        {"field": "description_llm", "action": "llm_fallback", "provenance_tier": "unsafe_fallback"},
+    ]
+
+    assert cg._description_provenance_from_audit_entries(entries) == "unsafe_fallback"
+
+
+def test_finalize_visible_text_uses_canonical_facts_for_guarded_claims():
+    audit_log = []
+    cleaned = cg._finalize_visible_text(
+        "IPX7 waterproof camera for rainy commutes",
+        "description",
+        "English",
+        audit_log=audit_log,
+        canonical_facts={
+            "fact_map": {
+                "waterproof_supported": {"value": True, "claim_permission": "visible_allowed"}
+            }
+        },
+    )
+
+    assert "waterproof" in cleaned.lower()
+    assert not any(entry.get("action") == "claim_language_blocked" for entry in audit_log)

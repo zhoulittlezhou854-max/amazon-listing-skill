@@ -25,6 +25,7 @@ from modules.language_utils import (
 )
 from modules.entity_profile import build_entity_profile
 from modules.intent_weights import load_intent_weight_snapshot
+from modules.canonical_facts import build_canonical_facts, summarize_fact_readiness
 
 
 # ==================== 常量定义 ====================
@@ -187,6 +188,8 @@ class PreprocessedData:
     asin_entity_profile: Dict[str, Any] = field(default_factory=dict)
     intent_weight_snapshot: Dict[str, Any] = field(default_factory=dict)
     bundle_variant: Dict[str, Any] = field(default_factory=dict)
+    canonical_facts: Dict[str, Any] = field(default_factory=dict)
+    fact_readiness: Dict[str, Any] = field(default_factory=dict)
 
 
 def _load_feedback_context(snapshot_path: str) -> Dict[str, Any]:
@@ -1976,6 +1979,13 @@ def preprocess_data(
         supplement_signals=supplement_signals,
     )
     standardized_attribute_data = capability_constraints.get("standardized_attributes") or standardize_attribute_data(attribute_data)
+    canonical_facts = build_canonical_facts(
+        attribute_data,
+        supplemental_data=supplement_signals,
+        capability_constraints=capability_constraints,
+    )
+    category_type = "wearable_body_camera" if "body" in str(attribute_data).lower() else "generic"
+    fact_readiness = summarize_fact_readiness(canonical_facts, category_type=category_type)
 
     # 7. PRD v8.2: 诊断 data_mode
     # DATA_DRIVEN: ABA + review 总有效行数 >= 10
@@ -2015,6 +2025,8 @@ def preprocess_data(
         feedback_context=feedback_context,
         intent_weight_snapshot=intent_weight_snapshot,
         bundle_variant=supplement_signals.get("bundle_variant") or {},
+        canonical_facts=canonical_facts,
+        fact_readiness=fact_readiness,
     )
     preprocessed.data_alerts = data_alerts
     preprocessed.asin_entity_profile = build_entity_profile(preprocessed)
@@ -2071,6 +2083,8 @@ def preprocess_data(
                 "processed_at": preprocessed.processed_at,
                 "capability_constraints": capability_constraints,
                 "canonical_capability_notes": canonical_capability_notes,
+                "canonical_facts": preprocessed.canonical_facts,
+                "fact_readiness": preprocessed.fact_readiness,
                 "raw_human_insights": raw_human_insights,
                 "ingestion_audit": ingestion_audit,
                 "feedback_context": feedback_context,

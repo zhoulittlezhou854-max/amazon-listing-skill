@@ -18,8 +18,15 @@ tests/
 | unit/ | 单元测试文件 | 空 | - |
 | integration/ | 集成测试文件 | 空 | - |
 | fixtures/ | 测试夹具数据 | 空 | - |
+| test_canonical_facts.py | 产品事实标准化、H91 alias、claim permission 与 fact readiness 测试 | 小 | 2026-04-29 |
+| test_claim_language_contract.py | 合规语言审计、repairable claim 与 blocking claim 测试 | 小 | 2026-04-29 |
+| test_field_provenance.py | 字段 provenance tier、fallback eligibility 与规范化匹配测试 | 小 | 2026-04-29 |
+| test_keyword_reconciliation.py | 最终候选文案关键词复核、覆盖统计与 metadata 保真测试 | 小 | 2026-04-29 |
 | test_keyword_protocol.py | 关键词协议质量过滤、蓝海机会、相对分层与路由测试 | 小 | 2026-04-28 |
-| test_writing_policy.py | 写作策略关键词路由角色测试 | 小 | 2026-04-28 |
+| test_listing_candidate.py | Listing 候选对象 reviewable/paste-ready 契约测试 | 小 | 2026-04-29 |
+| test_readiness_verdict.py | ReadinessVerdict 候选排名、fallback 与 launch gate 契约测试 | 小 | 2026-04-29 |
+| test_runtime_bootstrap.py | 虚拟环境自举入口测试 | 小 | 2026-04-28 |
+| test_slot_contracts.py | bullet slot 单一语义 promise、B5 断裂检测与 repair payload 测试 | 小 | 2026-04-29 |
 
 ## 测试结构
 
@@ -62,6 +69,10 @@ pytest tests/integration/
 - [data/fixtures/](../data/fixtures/): 测试数据
 
 ## 最后更新
+2026-04-29: 增加 canonical facts、claim language、field provenance、slot contracts 合同层测试索引
+2026-04-29: 增加 ReadinessVerdict 契约测试索引
+2026-04-29: 增加最终关键词复核测试索引
+2026-04-29: 增加 Listing 候选对象契约测试索引
 2026-04-03: 初始创建
 2026-04-28: 增加关键词协议核心测试索引
-2026-04-28: 增加写作策略关键词路由测试索引
+2026-04-28: 增加虚拟环境自举测试索引

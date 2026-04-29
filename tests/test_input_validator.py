@@ -57,3 +57,13 @@ def test_validate_input_tables_warns_when_numeric_columns_invalid(tmp_path: Path
     warning = next(w for w in warnings if w.table == 'keyword_table')
     assert 'search_volume' in warning.message
     assert '数值类型' in warning.message
+
+
+def test_validate_input_tables_accepts_old_bullet_1_bullet_2_review_schema(tmp_path: Path):
+    review_path = tmp_path / 'review.csv'
+    review_path.write_text('ASIN,Bullet_1,Bullet_2\nA1,Records commutes,Clips to bags\n', encoding='utf-8')
+    run_config = _run_config(tmp_path, review_table=str(review_path))
+
+    warnings = iv.validate_input_tables(run_config)
+
+    assert not any(w.table == 'review_table' and '缺少必填列' in w.message for w in warnings)

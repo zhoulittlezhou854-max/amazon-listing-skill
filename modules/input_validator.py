@@ -20,6 +20,21 @@ REQUIRED_COLUMNS: Dict[str, List[str]] = {
     "review_table": ["ASIN", "Bullet_1", "BSR_Rank"],
     "aba_merged": ["keyword", "search_volume"],
 }
+ALIASED_COLUMNS: Dict[str, Dict[str, List[str]]] = {
+    "keyword_table": {
+        "keyword": ["keyword", "关键词"],
+        "search_volume": ["search_volume", "月搜索量"],
+    },
+    "aba_merged": {
+        "keyword": ["keyword", "关键词"],
+        "search_volume": ["search_volume", "月搜索量"],
+    },
+}
+REVIEW_TABLE_SCHEMAS: List[List[str]] = [
+    ["ASIN", "Bullet_1", "BSR_Rank"],
+    ["ASIN", "Bullet_1", "Bullet_2"],
+    ["ASIN", "Data_Type", "Field_Name", "Content_Text"],
+]
 REQUIRED_NUMERIC_COLUMNS: Dict[str, List[str]] = {
     "keyword_table": ["search_volume"],
     "review_table": ["BSR_Rank"],
@@ -108,6 +123,26 @@ def _read_sample_rows(path: Path, limit: int = 5) -> List[Dict[str, Any]]:
     return samples
 
 
+def _column_aliases(table_name: str, column: str) -> List[str]:
+    return ALIASED_COLUMNS.get(table_name, {}).get(column, [column])
+
+
+def _resolve_header_name(header: List[str], table_name: str, column: str) -> Optional[str]:
+    for alias in _column_aliases(table_name, column):
+        if alias in header:
+            return alias
+    return None
+
+
+def _missing_required_columns(table_name: str, header: List[str], required_cols: List[str]) -> List[str]:
+    if table_name == "review_table":
+        for schema in REVIEW_TABLE_SCHEMAS:
+            if all(col in header for col in schema):
+                return []
+        return required_cols
+    return [col for col in required_cols if _resolve_header_name(header, table_name, col) is None]
+
+
 def validate_input_tables(run_config: Any) -> List[ValidationWarning]:
     warnings: List[ValidationWarning] = []
     for table_name, required_cols in REQUIRED_COLUMNS.items():
@@ -135,7 +170,7 @@ def validate_input_tables(run_config: Any) -> List[ValidationWarning]:
         if not header:
             # Legacy text tables are still accepted by the current pipeline.
             continue
-        missing = [col for col in required_cols if col not in header]
+        missing = _missing_required_columns(table_name, header, required_cols)
         if missing:
             warnings.append(
                 ValidationWarning(
@@ -160,9 +195,12 @@ def validate_input_tables(run_config: Any) -> List[ValidationWarning]:
             )
             continue
         for column in numeric_columns:
+            header_column = _resolve_header_name(header, table_name, column)
+            if not header_column:
+                continue
             bad_examples: List[str] = []
             for row in sample_rows:
-                value = row.get(column)
+                value = row.get(header_column)
                 if value in {None, ""}:
                     bad_examples.append("<empty>")
                 elif _coerce_float(value) is None:

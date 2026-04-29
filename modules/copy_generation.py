@@ -38,15 +38,24 @@ from modules.language_utils import (
     get_localized_accessory_experience_by_key,
     _normalize_to_canonical_english,
 )
-from modules.llm_client import get_llm_client, LLMClientUnavailable
+from modules.llm_client import (
+    DEEPSEEK_R1_EXPERIMENT_MODEL,
+    get_llm_client,
+    is_r1_experiment_model,
+    LLMClientUnavailable,
+)
 from modules.stag_locale import get_stag_display
 from modules.intent_translator import write_visual_briefs_to_intent_graph
 from modules.evidence_engine import build_evidence_bundle
 from modules.question_bank import build_question_bank_context
 from modules.compute_tiering import build_compute_tier_map
+from modules.keyword_reconciliation import reconcile_keyword_assignments as reconcile_final_text_keyword_assignments
+from modules.packet_rerender import build_slot_rerender_plan, execute_slot_rerender_plan
 from modules.writing_policy import LENGTH_RULES
 from modules import fluency_check as fc
 from modules import repair_logger
+from modules.claim_language_contract import audit_claim_language, repair_claim_language
+from modules.slot_contracts import build_slot_contract, validate_bullet_against_contract
 
 try:  # Optional external translator (falls back to rule-based localization if unavailable)
     from deep_translator import GoogleTranslator  # type: ignore
@@ -183,7 +192,6 @@ def _keyword_metadata_row(keyword: str, row: Optional[Dict[str, Any]] = None, *,
     return metadata
 
 
-
 def _metadata_value_is_empty(value: Any) -> bool:
     return value is None or value == ""
 
@@ -192,41 +200,33 @@ def reconcile_final_keyword_assignments(
     generated_copy: Dict[str, Any],
     metadata_map: Dict[str, Dict[str, Any]],
 ) -> List[Dict[str, Any]]:
-    title = str((generated_copy or {}).get("title") or "")
-    bullets = [str(item or "") for item in ((generated_copy or {}).get("bullets") or [])]
-    search_terms = [str(item or "") for item in ((generated_copy or {}).get("search_terms") or [])]
-    assignments: List[Dict[str, Any]] = []
+    reconciliation = reconcile_final_text_keyword_assignments(generated_copy or {}, metadata_map or {})
+    return _group_reconciled_keyword_assignments(reconciliation.get("assignments") or [])
 
-    for keyword_key, meta in (metadata_map or {}).items():
-        source_meta = dict(meta or {})
-        keyword = str(source_meta.get("keyword") or keyword_key or "").strip()
+
+def _group_reconciled_keyword_assignments(assignments: Sequence[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    grouped: Dict[str, Dict[str, Any]] = {}
+    for row in assignments or []:
+        keyword = str((row or {}).get("keyword") or "").strip()
         if not keyword:
             continue
-        fields: List[str] = []
-        traffic_tier = str(
-            source_meta.get("traffic_tier")
-            or source_meta.get("tier")
-            or source_meta.get("level")
-            or ""
-        ).upper()
-        if _keyword_present_in_visible_text(title, keyword):
-            fields.append("title")
-        for idx, bullet in enumerate(bullets, start=1):
-            if _keyword_present_in_visible_text(bullet, keyword):
-                fields.append(f"bullet_{idx}")
-        if any(_keyword_present_in_visible_text(term, keyword) for term in search_terms):
-            fields.append("search_terms")
+        key = str((row or {}).get("normalized_keyword") or keyword).strip().lower()
+        fields = list((row or {}).get("assigned_fields") or [])
+        field = str((row or {}).get("field") or "").strip()
+        if field and field not in fields:
+            fields.append(field)
         if not fields:
             continue
-        row = dict(source_meta)
-        row["keyword"] = keyword
-        if traffic_tier:
-            row["traffic_tier"] = traffic_tier
-            row["tier"] = traffic_tier
-        row["assigned_fields"] = fields
-        assignments.append(row)
-
-    return assignments
+        record = grouped.get(key)
+        if not record:
+            record = dict(row)
+            record["keyword"] = keyword
+            record["assigned_fields"] = []
+            grouped[key] = record
+        for assigned_field in fields:
+            if assigned_field not in record["assigned_fields"]:
+                record["assigned_fields"].append(assigned_field)
+    return list(grouped.values())
 
 
 def _prepare_final_keyword_metadata(
@@ -314,16 +314,27 @@ def _reconcile_final_keyword_assignments(
     title: str,
     bullets: Sequence[str],
     search_terms: Sequence[str],
+    description: str = "",
     tiered_keywords: Dict[str, Any],
     writing_policy: Dict[str, Any],
-) -> None:
+) -> Dict[str, Any]:
     _prepare_final_keyword_metadata(assignment_tracker, tiered_keywords, writing_policy)
     metadata_map = getattr(assignment_tracker, "_metadata_map", {}) or {}
-    assignments = reconcile_final_keyword_assignments(
-        {"title": title, "bullets": list(bullets or []), "search_terms": list(search_terms or [])},
+    reconciliation = reconcile_final_text_keyword_assignments(
+        {
+            "title": title,
+            "bullets": list(bullets or []),
+            "description": description,
+            "search_terms": list(search_terms or []),
+        },
         metadata_map,
     )
+    assignments = _group_reconciled_keyword_assignments(reconciliation.get("assignments") or [])
     assignment_tracker.load_from_records(assignments)
+    return {
+        **reconciliation,
+        "assignments": assignments,
+    }
 
 
 def _normalize_core_selling_points(points: Sequence[str]) -> List[str]:
@@ -396,13 +407,13 @@ def _format_scene_label(scene_code: Optional[str], language: str) -> str:
 
 
 _NEGATIVE_FRAGMENT_PREFIX_RE = re.compile(
-    r"(?i)^(?:(?:explicit\s+)?note:\s*)?(?:(?:it|this camera|the camera|machine)\s+)?(?:has\s+no|no|without)\s+\w+(?:\s+\w+){0,2}\s*[,;:\.-]?\s*"
+    r"(?i)^(?:(?:explicit\s+)?note:\s*)?(?:(?:it|this camera|the camera|machine)\s+)?(?:(?:does\s+not\s+(?:include|feature|support|offer))(?:\s+\w+){0,3}|(?:has\s+no\b|no\b|without\b|lacks\b)(?:\s+\w+){0,3})\s*[,;:\.-]?\s*"
 )
 _NEGATIVE_FRAGMENT_SUFFIX_RE = re.compile(
-    r"(?i)\s*[,;:-]?\s*(?:as\s+it\s+)?(?:lacks|has\s+no|without)\s+\w+(?:\s+\w+){0,2}\s*\.?\s*$"
+    r"(?i)\s*[,;:-]?\s*(?:as\s+it\s+)?(?:(?:does\s+not\s+(?:include|feature|support|offer))(?:\s+\w+){0,3}|(?:lacks\b|has\s+no\b|without\b)(?:\s+\w+){0,3})\s*\.?\s*$"
 )
 _NEGATIVE_FRAGMENT_ONLY_RE = re.compile(
-    r"(?i)^(?:(?:explicit\s+)?note:\s*)?(?:(?:it|this camera|the camera|machine)\s+)?(?:lacks|has\s+no|no|without)\s+\w+(?:\s+\w+){0,2}\s*\.?$"
+    r"(?i)^(?:(?:explicit\s+)?note:\s*)?(?:(?:it|this camera|the camera|machine)\s+)?(?:(?:does\s+not\s+(?:include|feature|support|offer))(?:\s+\w+){0,3}|(?:lacks\b|has\s+no\b|no\b|without\b)(?:\s+\w+){0,3})\s*\.?$"
 )
 _MID_SENTENCE_NEGATIVE_REPAIRS = [
     (
@@ -413,7 +424,113 @@ _MID_SENTENCE_NEGATIVE_REPAIRS = [
         re.compile(r"(?i)(?:,\s*)?(?:note:\s*)?(?:(?:it|this camera|the camera|machine)\s+)?(?:has\s+no|no)\s+image\s+and\s+"),
         ", ",
     ),
+    (
+        re.compile(r"(?i)(?:,\s*)?(?:note:\s*)?(?:(?:it|this camera|the camera|machine)\s+)?does\s+not\s+(?:include|feature|support|offer)\s+image\s+and\s+"),
+        ", ",
+    ),
 ]
+
+_UNSUPPORTED_STABILIZATION_CLAUSE_PATTERNS = [
+    re.compile(
+        r"(?i)(?:,\s*)?(?:note:\s*)?(?:(?:it|this body camera|this camera|the camera|machine)\s+)?"
+        r"(?:does\s+not\s+(?:include|feature|support|offer)|lacks|has\s+no|no)\s+"
+        r"(?:(?:electronic|digital|image)\s+)?stabilization\b(?:,\s*so)?"
+    ),
+    re.compile(
+        r"(?i)(?:,\s*)?(?:note:\s*)?(?:(?:it|this body camera|this camera|the camera|machine)\s+)?"
+        r"(?:does\s+not\s+(?:include|feature|support|offer)|lacks|has\s+no|no)\s+eis\b(?:,\s*so)?"
+    ),
+]
+_UNSUPPORTED_STABILIZATION_NEGATIVE_GUIDANCE_PATTERNS = [
+    re.compile(
+        r"(?i)(?:,\s*)?(?:and\s+)?(?:it\s+is\s+)?not\s+suitable\s+for\s+high[- ]vibration\s+environments?(?:\s+such\s+as\s+[^.]+)?\.?"
+    ),
+    re.compile(
+        r"(?i)(?:,\s*)?(?:and\s+)?avoid\s+high[- ]vibration\s+(?:surfaces|mounts|use)(?:\s+like\s+[^.]+)?\.?"
+    ),
+    re.compile(
+        r"(?i)\b(?:suitable|best)\s+for\s+stable\s+professional\s+scenes\.?"
+    ),
+]
+_STEADY_RECORDING_GUIDANCE = "Suitable for steady recording, fixed-position shots, and smooth daily scenes."
+_STEADY_MOUNT_GUIDANCE = "Use a stable mount or a gentle handheld hold for the clearest footage."
+
+
+def _cleanup_sentence_spacing(text: str) -> str:
+    cleaned = re.sub(r"\s+", " ", str(text or ""))
+    cleaned = re.sub(r"\s+([,;:.!?])", r"\1", cleaned)
+    cleaned = re.sub(r"([,;:]){2,}", r"\1", cleaned)
+    cleaned = re.sub(r"\s*—\s*", " — ", cleaned)
+    cleaned = re.sub(r"\s+", " ", cleaned)
+    return cleaned.strip(" ,;:-")
+
+
+def _rewrite_unsupported_stabilization_guidance(text: str) -> tuple[str, bool]:
+    original = str(text or "").strip()
+    if not original:
+        return original, False
+    lowered = original.lower()
+    if not any(
+        token in lowered
+        for token in (
+            "stabilization",
+            "image stabilization",
+            "digital stabilization",
+            "electronic image stabilization",
+            "eis",
+        )
+    ):
+        return original, False
+
+    header, body = _split_bullet_header_body(original)
+    working = body or original
+    for pattern in _UNSUPPORTED_STABILIZATION_CLAUSE_PATTERNS:
+        working = pattern.sub(" ", working)
+    for pattern in _UNSUPPORTED_STABILIZATION_NEGATIVE_GUIDANCE_PATTERNS:
+        working = pattern.sub(" ", working)
+    working = re.sub(r"(?i)\b(?:this body camera|this camera|the camera|it)\s+does\s+not\s+include\b", " ", working)
+    working = _cleanup_sentence_spacing(working)
+
+    body_lower = working.lower()
+    guidance_parts: List[str] = []
+    if "steady recording" not in body_lower:
+        guidance_parts.append(_STEADY_RECORDING_GUIDANCE)
+    if not any(
+        phrase in body_lower
+        for phrase in (
+            "stable mount",
+            "steady mount",
+            "steady surface",
+            "stable surface",
+            "gentle handheld",
+            "fixed-position",
+            "fixed position",
+        )
+    ):
+        guidance_parts.append(_STEADY_MOUNT_GUIDANCE)
+
+    rewritten_body = working
+    if guidance_parts:
+        rewritten_body = f"{rewritten_body} {' '.join(guidance_parts)}".strip()
+    rewritten_body = _cleanup_sentence_spacing(rewritten_body)
+    if rewritten_body and rewritten_body[-1] not in ".!?":
+        rewritten_body += "."
+
+    rewritten = f"{header} — {rewritten_body}" if header and body else rewritten_body
+    rewritten = _cleanup_sentence_spacing(rewritten)
+    return rewritten or original, rewritten != original
+
+
+def _rewrite_unsupported_capability_guidance(
+    text: str,
+    unsupported_capabilities: Optional[Sequence[str]],
+) -> tuple[str, Optional[str]]:
+    capabilities = {str(item or "").strip().lower() for item in (unsupported_capabilities or []) if str(item or "").strip()}
+    if "stabilization_supported" in capabilities:
+        rewritten, changed = _rewrite_unsupported_stabilization_guidance(text)
+        if changed:
+            return rewritten, "stabilization_supported"
+    return str(text or ""), None
 
 
 def _repair_scrubbed_visible_fragments(text: str) -> tuple[str, bool]:
@@ -452,10 +569,44 @@ def _scrub_visible_field(
     audit_log: Optional[List[Dict[str, Any]]],
     fallback: str = "",
     forbidden_terms: Optional[Sequence[str]] = None,
+    unsupported_capabilities: Optional[Sequence[str]] = None,
 ) -> str:
+    rewritten_text, rewritten_capability = _rewrite_unsupported_capability_guidance(
+        text,
+        unsupported_capabilities,
+    )
+    if rewritten_capability:
+        cleaned = rewritten_text
+        if audit_log is not None:
+            _log_action(
+                audit_log,
+                field,
+                "rewrite",
+                {"reason": "unsupported_capability_semantic_rewrite", "capability": rewritten_capability},
+            )
+        terms = find_blocklisted_terms(cleaned)
+        if not terms:
+            return cleaned
+        cleaned = remove_blocklisted_terms(cleaned).strip()
+        if not cleaned:
+            cleaned = fallback.strip()
+        if audit_log is not None:
+            _log_action(
+                audit_log,
+                field,
+                "brand_visible_violation",
+                {"terms": sorted(set(terms))},
+            )
+        return cleaned
+
     cleaned = text
     removed_terms: List[str] = []
-    for term in forbidden_terms or []:
+    ordered_terms = sorted(
+        {str(term or "").strip() for term in (forbidden_terms or []) if str(term or "").strip()},
+        key=len,
+        reverse=True,
+    )
+    for term in ordered_terms:
         candidate = str(term or "").strip()
         if not candidate:
             continue
@@ -502,7 +653,18 @@ def _forbidden_visible_terms(directives: Dict[str, Any]) -> List[str]:
     if not waterproof.get("allow_visible", True):
         terms.extend(["waterproof", "underwater", "étanche", "wasserdicht", "impermeabile", "resistente al agua", "防水"])
     if not stabilization.get("allow_visible", True):
-        terms.extend(["stabilization", "stabilisation", "stabilisierung", "stabilizzazione", "防抖"])
+        terms.extend(
+            [
+                "electronic image stabilization",
+                "image stabilization",
+                "digital stabilization",
+                "stabilization",
+                "stabilisation",
+                "stabilisierung",
+                "stabilizzazione",
+                "防抖",
+            ]
+        )
     deduped: List[str] = []
     seen = set()
     for term in terms:
@@ -514,6 +676,20 @@ def _forbidden_visible_terms(directives: Dict[str, Any]) -> List[str]:
     return deduped
 
 
+def _unsupported_capability_rewrites(
+    directives: Dict[str, Any],
+    *,
+    enable_semantic_rewrite: bool,
+) -> List[str]:
+    if not enable_semantic_rewrite:
+        return []
+    rewrites: List[str] = []
+    stabilization = (directives or {}).get("stabilization", {}) or {}
+    if not stabilization.get("allow_visible", True):
+        rewrites.append("stabilization_supported")
+    return rewrites
+
+
 def _log_action(audit_log: Optional[List[Dict[str, Any]]],
                 field: str,
                 action: str,
@@ -523,6 +699,17 @@ def _log_action(audit_log: Optional[List[Dict[str, Any]]],
     payload = {"field": field, "action": action}
     payload.update(detail)
     audit_log.append(payload)
+
+
+def _description_provenance_from_audit_entries(entries: List[Dict[str, Any]]) -> str:
+    for entry in reversed(entries or []):
+        if (
+            (entry or {}).get("field") == "description_llm"
+            and (entry or {}).get("action") in {"llm_success", "llm_fallback"}
+            and (entry or {}).get("provenance_tier")
+        ):
+            return str((entry or {}).get("provenance_tier") or "")
+    return ""
 
 
 def _log_retryable_llm_exception(
@@ -603,6 +790,9 @@ def _build_localized_capability_anchors(
         slug = canonicalize_capability(str(capability or ""))
         alias_candidates = []
         canonical_entry = CANONICAL_CAPABILITIES.get(slug) or {}
+        raw_capability = str(capability or "").strip()
+        if not canonical_entry and raw_capability and re.search(r"[_-]", raw_capability):
+            continue
         for alias in canonical_entry.get("aliases", []) or []:
             alias_text = str(alias or "").strip()
             if not alias_text:
@@ -3022,6 +3212,465 @@ def _normalize_blueprint_entries(blueprint: Any) -> List[Dict[str, Any]]:
     return normalized[:5]
 
 
+def _normalize_bullet_packet(packet: Dict[str, Any]) -> Dict[str, Any]:
+    packet = dict(packet or {})
+
+    def _clean_text(value: Any) -> str:
+        return re.sub(r"\s+", " ", str(value or "")).strip()
+
+    def _clean_list(value: Any) -> List[str]:
+        cleaned: List[str] = []
+        for item in value or []:
+            normalized = _clean_text(item)
+            if normalized:
+                cleaned.append(normalized)
+        return cleaned
+
+    unsupported_policy = packet.get("unsupported_capability_policy") or {}
+    normalized_unsupported_policy = {
+        "expression_mode": _clean_text(unsupported_policy.get("expression_mode")) or "",
+        "capabilities": _clean_list(unsupported_policy.get("capabilities")),
+    }
+
+    return {
+        "slot": _clean_text(packet.get("slot")) or "B1",
+        "header": _clean_text(packet.get("header")),
+        "benefit": _clean_text(packet.get("benefit")),
+        "proof": _clean_text(packet.get("proof")),
+        "guidance": _clean_text(packet.get("guidance")),
+        "required_keywords": _clean_list(packet.get("required_keywords")),
+        "required_facts": _clean_list(packet.get("required_facts")),
+        "capability_mapping": _clean_list(packet.get("capability_mapping")),
+        "scene_mapping": _clean_list(packet.get("scene_mapping")),
+        "unsupported_capability_policy": normalized_unsupported_policy,
+        "contract_version": _clean_text(packet.get("contract_version")) or "slot_packet_v1",
+    }
+
+
+def _assemble_bullet_from_packet(packet: Dict[str, Any]) -> str:
+    normalized = _normalize_bullet_packet(packet)
+    header = normalized.get("header", "")
+    body_parts = [
+        normalized.get("benefit", ""),
+        normalized.get("proof", ""),
+        normalized.get("guidance", ""),
+    ]
+    body = " ".join(part for part in body_parts if part).strip()
+    if header and body:
+        return f"{header} — {body}"
+    return header or body
+
+
+def _build_bullet_packet(
+    slot: str,
+    bullet_text: str,
+    trace_entry: Optional[Dict[str, Any]] = None,
+    slot_rule_contract: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
+    trace_entry = trace_entry or {}
+    slot_rule_contract = slot_rule_contract or {}
+    header, body = _split_bullet_header_body(str(bullet_text or ""))
+    sentences = [segment.strip() for segment in re.split(r"(?<=[.!?])\s+", body or "") if segment.strip()]
+
+    benefit = sentences[0] if sentences else body.strip()
+    proof = sentences[1] if len(sentences) > 1 else ""
+    guidance = " ".join(sentences[2:]).strip() if len(sentences) > 2 else ""
+    if not guidance and any(token in (body or "").lower() for token in ("best for", "use ", "ideal for", "recommended for")):
+        guidance = body.strip() if len(sentences) <= 1 else ""
+
+    packet = {
+        "slot": slot or trace_entry.get("slot") or "B1",
+        "header": header,
+        "benefit": benefit,
+        "proof": proof,
+        "guidance": guidance,
+        "required_keywords": trace_entry.get("keywords") or [],
+        "required_facts": slot_rule_contract.get("required_facts") or [],
+        "capability_mapping": trace_entry.get("capability_mapping") or trace_entry.get("capability_bundle") or [],
+        "scene_mapping": trace_entry.get("scene_mapping") or ([trace_entry.get("scene_code")] if trace_entry.get("scene_code") else []),
+        "unsupported_capability_policy": slot_rule_contract.get("unsupported_capability_policy") or {},
+        "contract_version": "slot_packet_v1",
+    }
+    return _normalize_bullet_packet(packet)
+
+
+def _build_slot_quality_packet(
+    packet: Dict[str, Any],
+    copy_contracts: Optional[Dict[str, Any]] = None,
+    slot_rule_contract: Optional[Dict[str, Any]] = None,
+    target_language: str = "English",
+) -> Dict[str, Any]:
+    normalized = _normalize_bullet_packet(packet)
+    copy_contracts = copy_contracts or {}
+    slot_rule_contract = slot_rule_contract or {}
+    assembled_text = _assemble_bullet_from_packet(normalized)
+    localized_scene_anchors = _build_localized_scene_anchors(
+        normalized.get("scene_mapping") or [],
+        target_language,
+    )
+    localized_capability_anchors = _build_localized_capability_anchors(
+        normalized.get("capability_mapping") or [],
+        target_language,
+    )
+    payload = {
+        "slot": normalized.get("slot"),
+        "mandatory_keywords": normalized.get("required_keywords") or [],
+        "numeric_proof": None,
+        "localized_scene_anchors": localized_scene_anchors,
+        "localized_capability_anchors": localized_capability_anchors,
+        "copy_contracts": copy_contracts,
+        "forbidden_visible_terms": [],
+    }
+    ok, failure_reason = _bullet_candidate_meets_constraints(assembled_text, payload)
+    issues: List[str] = []
+
+    issue_map = {
+        "format_contract": "missing_header_or_em_dash",
+        "missing_keywords": "missing_keywords",
+        "fluency_header_trailing_preposition": "header_trailing_preposition",
+        "fluency_header_body_rupture": "header_body_rupture",
+        "fluency_dash_tail_without_predicate": "dash_tail_without_predicate",
+        "fluency_repeated_word_root": "repeated_word_root",
+        "frontload_anchor_missing": "frontload_anchor_missing",
+        "scene_binding_missing": "scene_binding_missing",
+        "capability_binding_missing": "capability_binding_missing",
+        "numeric_or_condition_missing": "numeric_or_condition_missing",
+        "blocked_terms": "blocked_terms",
+        "forbidden_visible_terms": "forbidden_visible_terms",
+    }
+    for key, issue_name in issue_map.items():
+        if failure_reason.get(key):
+            issues.append(issue_name)
+
+    slot_contract = build_slot_contract(
+        str(normalized.get("slot") or ""),
+        canonical_facts=slot_rule_contract.get("canonical_facts") if isinstance(slot_rule_contract, dict) else None,
+        keyword_metadata=slot_rule_contract.get("keyword_metadata") if isinstance(slot_rule_contract, dict) else None,
+    )
+    slot_contract_result = validate_bullet_against_contract(assembled_text, slot_contract)
+    if not slot_contract_result.get("passed"):
+        for reason in slot_contract_result.get("reasons") or []:
+            issue = f"slot_contract_failed:{reason}"
+            if issue not in issues:
+                issues.append(issue)
+
+    sentence_contract = slot_rule_contract.get("sentence_contract") or {}
+    unsupported_policy = (
+        normalized.get("unsupported_capability_policy")
+        or slot_rule_contract.get("unsupported_capability_policy")
+        or {}
+    )
+    require_proof = "proof" in (sentence_contract.get("body_components") or [])
+    proof_present = bool(normalized.get("proof")) or not require_proof
+
+    guidance = str(normalized.get("guidance") or "").strip()
+    forbid_patterns = set(sentence_contract.get("forbid_patterns") or [])
+    if "dash_tail_fragment" in forbid_patterns and guidance:
+        guidance_tokens = fc._tokenize_words(guidance)  # type: ignore[attr-defined]
+        guidance_has_predicate = fc._contains_predicate(guidance)  # type: ignore[attr-defined]
+        if guidance_tokens and len(guidance_tokens) <= 5 and not guidance_has_predicate:
+            if "dash_tail_without_predicate" not in issues:
+                issues.append("dash_tail_without_predicate")
+
+    unsupported_policy_pass = True
+    if unsupported_policy.get("expression_mode") == "positive_guidance_only" and unsupported_policy.get("capabilities"):
+        negative_literal = re.search(
+            r"\b(?:does not|do not|lacks|has no|not suitable for)\b",
+            assembled_text,
+            flags=re.IGNORECASE,
+        )
+        if negative_literal:
+            unsupported_policy_pass = False
+            if "unsupported_capability_negative_literal" not in issues:
+                issues.append("unsupported_capability_negative_literal")
+    format_pass = "missing_header_or_em_dash" not in issues
+    keyword_coverage_pass = "missing_keywords" not in issues
+    fluency_pass = not any(
+        issue in {
+            "header_trailing_preposition",
+            "header_body_rupture",
+            "dash_tail_without_predicate",
+            "repeated_word_root",
+        }
+        for issue in issues
+    )
+    contract_pass = ok and proof_present and unsupported_policy_pass and bool(slot_contract_result.get("passed"))
+
+    return {
+        "slot": normalized.get("slot"),
+        "contract_pass": contract_pass,
+        "fluency_pass": fluency_pass,
+        "keyword_coverage_pass": keyword_coverage_pass,
+        "proof_present": proof_present,
+        "unsupported_policy_pass": unsupported_policy_pass,
+        "format_pass": format_pass,
+        "fallback_used": False,
+        "rerender_count": 0,
+        "issues": issues,
+        "slot_contract": slot_contract_result,
+    }
+
+
+def _rerender_slot_from_packet_plan(
+    plan_entry: Dict[str, Any],
+    writing_policy: Dict[str, Any],
+    target_language: str,
+    model_overrides: Optional[Dict[str, str]] = None,
+) -> Dict[str, Any]:
+    slot = str(plan_entry.get("slot") or "").strip().upper()
+    if not slot:
+        raise RuntimeError("slot_rerender_missing_slot")
+
+    source_packet = deepcopy(plan_entry.get("source_packet") or {})
+    slot_rule_contract = ((writing_policy.get("bullet_slot_rules") or {}).get(slot) or {})
+    client = get_llm_client()
+    override_model = (model_overrides or {}).get("bullets") or None
+    system_prompt = (
+        "You are repairing exactly one Amazon listing bullet packet.\n"
+        "Return exactly one JSON object with keys: slot, header, benefit, proof, guidance, required_keywords, capability_mapping, scene_mapping.\n"
+        "Rules:\n"
+        "1. Keep the slot fixed.\n"
+        "2. Preserve supported facts only; do not invent specs.\n"
+        "3. Resolve the listed rerender issues.\n"
+        "4. Write natural, fluent English that satisfies the slot contract.\n"
+        "5. If unsupported_capability_policy.expression_mode is positive_guidance_only, avoid literal negatives like does not include or lacks.\n"
+        "6. Output valid JSON only.\n"
+    )
+    payload = {
+        "field": "slot_packet_rerender",
+        "slot": slot,
+        "target_language": target_language,
+        "current_bullet": plan_entry.get("current_bullet") or "",
+        "current_packet": source_packet,
+        "slot_quality": deepcopy(plan_entry.get("slot_quality") or {}),
+        "rerender_reasons": list(plan_entry.get("rerender_reasons") or []),
+        "slot_rule_contract": slot_rule_contract,
+        "copy_contracts": writing_policy.get("copy_contracts") or {},
+        "_request_timeout_seconds": _experimental_stage_timeout_seconds("bullets", override_model),
+        "_disable_fallback": True,
+    }
+    try:
+        text = client.generate_text(
+            system_prompt,
+            payload,
+            temperature=0.2,
+            override_model=override_model,
+        )
+        parsed = _extract_embedded_json_payload(text or "")
+        if not isinstance(parsed, dict):
+            raise RuntimeError("slot_rerender_non_json_payload")
+
+        merged_packet = {
+            **source_packet,
+            **parsed,
+            "slot": slot,
+            "required_keywords": parsed.get("required_keywords") or source_packet.get("required_keywords") or [],
+            "required_facts": parsed.get("required_facts") or source_packet.get("required_facts") or [],
+            "capability_mapping": parsed.get("capability_mapping") or source_packet.get("capability_mapping") or [],
+            "scene_mapping": parsed.get("scene_mapping") or source_packet.get("scene_mapping") or [],
+            "unsupported_capability_policy": (
+                parsed.get("unsupported_capability_policy")
+                or source_packet.get("unsupported_capability_policy")
+                or slot_rule_contract.get("unsupported_capability_policy")
+                or {}
+            ),
+        }
+        packet = _normalize_bullet_packet(merged_packet)
+        bullet = _assemble_bullet_from_packet(packet)
+        quality = _build_slot_quality_packet(
+            packet,
+            copy_contracts=writing_policy.get("copy_contracts") or {},
+            slot_rule_contract=slot_rule_contract,
+            target_language=target_language,
+        )
+        quality["rerender_count"] = int(((plan_entry.get("slot_quality") or {}).get("rerender_count") or 0)) + 1
+        return {
+            "slot": slot,
+            "bullet": bullet,
+            "packet": packet,
+            "quality": quality,
+            "status": "applied",
+        }
+    except Exception:
+        return _build_local_slot_rerender_fallback(
+            plan_entry,
+            writing_policy,
+            target_language,
+        )
+
+
+def _build_local_slot_rerender_fallback(
+    plan_entry: Dict[str, Any],
+    writing_policy: Dict[str, Any],
+    target_language: str,
+) -> Dict[str, Any]:
+    slot = str(plan_entry.get("slot") or "").strip().upper()
+    source_packet = _normalize_bullet_packet(plan_entry.get("source_packet") or {})
+    slot_rule_contract = ((writing_policy.get("bullet_slot_rules") or {}).get(slot) or {})
+    rerender_reasons = set(plan_entry.get("rerender_reasons") or [])
+    slot_quality = deepcopy(plan_entry.get("slot_quality") or {})
+
+    packet = deepcopy(source_packet)
+    if slot == "B5" and (
+        "slot_contract_failed" in rerender_reasons
+        or any(str(issue or "").startswith("slot_contract_failed:") for issue in (slot_quality.get("issues") or []))
+    ):
+        required_keywords = list(packet.get("required_keywords") or [])
+        lead_keyword = str(required_keywords[0] or "wearable camera").strip() if required_keywords else "wearable camera"
+        header = "READY-TO-RECORD KIT"
+        benefit = (
+            f"Includes the {lead_keyword}, USB-C cable, magnetic pendant, and back clip "
+            "so setup stays straightforward."
+        )
+        proof = "Add a compatible microSD card up to 256GB when you need more space for daily recording."
+        rebuilt_packet = _build_bullet_packet(
+            slot,
+            f"{header} — {benefit} {proof}",
+            trace_entry={
+                "slot": slot,
+                "keywords": required_keywords,
+                "capability_mapping": list(packet.get("capability_mapping") or []),
+                "scene_mapping": list(packet.get("scene_mapping") or []),
+            },
+            slot_rule_contract=slot_rule_contract,
+        )
+        rebuilt_packet["required_keywords"] = required_keywords
+        rebuilt_packet["required_facts"] = list(packet.get("required_facts") or [])
+        quality = _build_slot_quality_packet(
+            rebuilt_packet,
+            copy_contracts=writing_policy.get("copy_contracts") or {},
+            slot_rule_contract=slot_rule_contract,
+            target_language=target_language,
+        )
+        quality["rerender_count"] = int(((plan_entry.get("slot_quality") or {}).get("rerender_count") or 0)) + 1
+        quality["fallback_used"] = True
+        return {
+            "slot": slot,
+            "bullet": _assemble_bullet_from_packet(rebuilt_packet),
+            "packet": rebuilt_packet,
+            "quality": quality,
+            "status": "applied_local_fallback",
+        }
+
+    if "contract_fail" in rerender_reasons and not packet.get("proof"):
+        packet["proof"] = "Designed for clear, reliable daily recording."
+    localized_scene_anchors = _build_localized_scene_anchors(
+        packet.get("scene_mapping") or [],
+        target_language,
+    )
+    localized_capability_anchors = _build_localized_capability_anchors(
+        packet.get("capability_mapping") or [],
+        target_language,
+    )
+    if ("fluency_fail" in rerender_reasons or "dash_tail_without_predicate" in rerender_reasons) and packet.get("guidance"):
+        scene_phrase = next((anchor for anchor in localized_scene_anchors if " " not in anchor or len(anchor.split()) <= 3), "")
+        if not scene_phrase:
+            scene_phrase = "steady daily recording"
+        packet["guidance"] = f"Use it for {scene_phrase} and other steady everyday setups."
+
+    frontload_targets = _dedupe_keyword_sequence(
+        list(packet.get("required_keywords") or [])
+        + list(localized_capability_anchors)
+        + list(localized_scene_anchors)
+    )
+    issue_names = set(slot_quality.get("issues") or [])
+    failure_reason: Dict[str, Any] = {}
+    if slot_quality.get("contract_pass") is False and frontload_targets:
+        failure_reason["frontload_anchor_missing"] = frontload_targets[:4]
+    if "missing_keywords" in rerender_reasons or "missing_keywords" in issue_names:
+        failure_reason["missing_keywords"] = list(packet.get("required_keywords") or [])
+    if "dash_tail_without_predicate" in rerender_reasons or "dash_tail_without_predicate" in issue_names:
+        failure_reason["fluency_dash_tail_without_predicate"] = True
+    if "header_trailing_preposition" in rerender_reasons or "header_trailing_preposition" in issue_names:
+        failure_reason["fluency_header_trailing_preposition"] = True
+    if "repeated_word_root" in rerender_reasons or "repeated_word_root" in issue_names:
+        failure_reason["fluency_repeated_word_root"] = True
+
+    bullet = _repair_bullet_candidate_deterministically(
+        _assemble_bullet_from_packet(packet),
+        failure_reason,
+        {
+            "slot": slot,
+            "mandatory_keywords": list(packet.get("required_keywords") or []),
+            "target_language": target_language,
+            "localized_scene_anchors": localized_scene_anchors,
+            "localized_capability_anchors": localized_capability_anchors,
+            "copy_contracts": writing_policy.get("copy_contracts") or {},
+            "numeric_proof": None,
+        },
+    )
+    trace_entry = {
+        "slot": slot,
+        "keywords": list(packet.get("required_keywords") or []),
+        "capability_mapping": list(packet.get("capability_mapping") or []),
+        "scene_mapping": list(packet.get("scene_mapping") or []),
+    }
+    rebuilt_packet = _build_bullet_packet(
+        slot,
+        bullet,
+        trace_entry=trace_entry,
+        slot_rule_contract=slot_rule_contract,
+    )
+    rebuilt_packet["required_keywords"] = list(packet.get("required_keywords") or [])
+    rebuilt_packet["required_facts"] = list(packet.get("required_facts") or [])
+    rebuilt_packet["unsupported_capability_policy"] = deepcopy(
+        packet.get("unsupported_capability_policy")
+        or slot_rule_contract.get("unsupported_capability_policy")
+        or {}
+    )
+    quality = _build_slot_quality_packet(
+        rebuilt_packet,
+        copy_contracts=writing_policy.get("copy_contracts") or {},
+        slot_rule_contract=slot_rule_contract,
+        target_language=target_language,
+    )
+    quality["rerender_count"] = int(((plan_entry.get("slot_quality") or {}).get("rerender_count") or 0)) + 1
+    quality["fallback_used"] = True
+    return {
+        "slot": slot,
+        "bullet": _assemble_bullet_from_packet(rebuilt_packet),
+        "packet": rebuilt_packet,
+        "quality": quality,
+        "status": "applied_local_fallback",
+    }
+
+
+def _run_slot_rerender_pass(
+    generated_copy: Dict[str, Any],
+    writing_policy: Dict[str, Any],
+    *,
+    target_language: str,
+    model_overrides: Optional[Dict[str, str]] = None,
+    progress_callback: Optional[Callable[[str], None]] = None,
+) -> Dict[str, Any]:
+    rerender_plan = list(
+        generated_copy.get("slot_rerender_plan")
+        or build_slot_rerender_plan(generated_copy, writing_policy)
+    )
+    if not rerender_plan:
+        updated = deepcopy(generated_copy)
+        updated["slot_rerender_results"] = []
+        updated["slot_rerender_plan"] = []
+        return updated
+
+    if progress_callback:
+        progress_callback(f"slot_rerender: {len(rerender_plan)} slot(s)")
+
+    updated_copy, rerender_results = execute_slot_rerender_plan(
+        generated_copy,
+        rerender_plan,
+        lambda plan_entry, _current_copy: _rerender_slot_from_packet_plan(
+            plan_entry,
+            writing_policy,
+            target_language,
+            model_overrides=model_overrides,
+        ),
+    )
+    updated_copy["slot_rerender_results"] = rerender_results
+    updated_copy["slot_rerender_plan"] = build_slot_rerender_plan(updated_copy, writing_policy)
+    return updated_copy
+
+
 def _build_blueprint_fallback_text(theme: str,
                                    scene_label: str,
                                    capability: str,
@@ -4310,11 +4959,7 @@ def _generate_and_audit_description(
 ) -> str:
     field = "description_llm"
     forbidden_terms = [term for term in (payload.get("forbidden_visible_terms") or []) if term]
-    compliance_patterns = [
-        re.compile(r"\bbetter than\b", re.IGNORECASE),
-        re.compile(r"\bbest\b", re.IGNORECASE),
-        re.compile(r"\bwarranty\b", re.IGNORECASE),
-    ]
+    canonical_facts = payload.get("canonical_facts")
     last_candidate = ""
     for attempt in range(_llm_retry_budget(3)):
         try:
@@ -4328,15 +4973,49 @@ def _generate_and_audit_description(
             _log_action(audit_log, field, "llm_retry", {"reason": "empty_output", "attempt": attempt + 1})
             continue
         last_candidate = candidate
-        compliance_hits = [pattern.pattern for pattern in compliance_patterns if pattern.search(candidate)]
-        if compliance_hits:
-            _log_action(
-                audit_log,
-                field,
-                "llm_retry",
-                {"reason": "description_compliance_phrase", "patterns": compliance_hits, "attempt": attempt + 1},
-            )
-            continue
+        claim_audit = audit_claim_language(candidate, canonical_facts)
+        if not claim_audit.get("passed"):
+            if claim_audit.get("repairable"):
+                repaired = repair_claim_language(candidate, canonical_facts)
+                repaired_audit = audit_claim_language(repaired, canonical_facts)
+                if repaired and repaired_audit.get("passed"):
+                    _log_action(
+                        audit_log,
+                        field,
+                        "claim_language_repaired",
+                        {
+                            "attempt": attempt + 1,
+                            "violations": claim_audit.get("violations") or [],
+                        },
+                    )
+                    candidate = repaired
+                else:
+                    _log_action(
+                        audit_log,
+                        field,
+                        "llm_retry",
+                        {
+                            "reason": "description_claim_language_repair_failed",
+                            "violations": claim_audit.get("violations") or [],
+                            "post_repair_violations": repaired_audit.get("violations") or [],
+                            "attempt": attempt + 1,
+                        },
+                    )
+                    continue
+            else:
+                _log_action(
+                    audit_log,
+                    field,
+                    "llm_retry",
+                    {
+                        "reason": "description_claim_language_blocked",
+                        "violations": claim_audit.get("violations") or [],
+                        "blocking_reasons": claim_audit.get("blocking_reasons") or [],
+                        "attempt": attempt + 1,
+                    },
+                )
+                continue
+        provenance_tier = "repaired_live" if candidate != last_candidate else "native_live"
         forbidden_hits = [
             term for term in forbidden_terms
             if _normalize_keyword_text(term) and _normalize_keyword_text(term) in _normalize_keyword_text(candidate)
@@ -4368,7 +5047,7 @@ def _generate_and_audit_description(
                     {"reason": "brand_blocked", "terms": blocked_terms, "attempt": attempt + 1},
                 )
                 continue
-        _log_action(audit_log, field, "llm_success", {"attempt": attempt + 1})
+        _log_action(audit_log, field, "llm_success", {"attempt": attempt + 1, "provenance_tier": provenance_tier})
         return candidate
     fallback = _fallback_text_for_field(
         "description",
@@ -4378,16 +5057,34 @@ def _generate_and_audit_description(
         },
         [],
     )
-    fallback = re.sub(r"\s+", " ", (last_candidate or fallback or "").replace("<br>", " ")).strip()
+    fallback = re.sub(r"\s+", " ", (fallback or "").replace("<br>", " ")).strip()
     fallback = remove_blocklisted_terms(fallback).strip() or fallback
-    fallback = re.sub(r"\bbetter than\b|\bbest\b|\bwarranty\b", "", fallback, flags=re.IGNORECASE)
+    fallback = repair_claim_language(fallback, canonical_facts)
     fallback = re.sub(r"\s+", " ", fallback).strip(" ,.-")
     if fallback:
+        fallback_claim_audit = audit_claim_language(fallback, canonical_facts)
+        fallback_provenance_tier = "safe_fallback"
+        if not fallback_claim_audit.get("passed"):
+            fallback_provenance_tier = "unsafe_fallback"
+            _log_action(
+                audit_log,
+                field,
+                "claim_language_blocked",
+                {
+                    "violations": fallback_claim_audit.get("violations") or [],
+                    "blocking_reasons": fallback_claim_audit.get("blocking_reasons") or [],
+                    "fallback": True,
+                },
+            )
         _log_action(
             audit_log,
             field,
             "llm_fallback",
-            {"reason": "description_retry_exhausted", "fallback_preview": fallback[:160]},
+            {
+                "reason": "description_retry_exhausted",
+                "fallback_preview": fallback[:160],
+                "provenance_tier": fallback_provenance_tier,
+            },
         )
         _record_repair_event(
             payload.get("_artifact_dir"),
@@ -4428,6 +5125,7 @@ def generate_description(
         "capability_notes": capability_notes,
         "product_profile": writing_policy.get("product_profile", {}),
         "forbidden_visible_terms": (writing_policy.get("compliance_directives", {}) or {}).get("backend_only_terms", []),
+        "canonical_facts": getattr(preprocessed_data, "canonical_facts", {}) or {},
     }
     if request_timeout_seconds:
         payload["_request_timeout_seconds"] = int(request_timeout_seconds)
@@ -6779,26 +7477,47 @@ def _finalize_visible_text(
     field: str,
     target_language: str,
     audit_log: Optional[List[Dict[str, Any]]] = None,
+    canonical_facts: Optional[Dict[str, Any]] = None,
 ) -> str:
     cleaned = _strip_visible_structured_artifacts(text, field)
     cleaned = _cleanup_localized_artifacts(cleaned, target_language)
     if field == "title":
         cleaned = _dedupe_comma_sections(cleaned)
-    warranty_replaced = False
     absolute_terms_rewritten: List[str] = []
     original_cleaned = cleaned
-    if re.search(r"\bwarranty\b", cleaned, re.IGNORECASE):
-        cleaned = re.sub(r"\bwarranty\b", "support", cleaned, flags=re.IGNORECASE)
-        warranty_replaced = True
+    claim_audit = audit_claim_language(cleaned, canonical_facts)
+    if not claim_audit.get("passed"):
+        if claim_audit.get("repairable"):
+            repaired = repair_claim_language(cleaned, canonical_facts)
+            repaired_audit = audit_claim_language(repaired, canonical_facts)
+            if repaired_audit.get("passed"):
+                absolute_terms_rewritten.extend(
+                    str(item.get("surface") or item.get("reason") or "claim_language")
+                    for item in claim_audit.get("violations") or []
+                )
+                cleaned = repaired
+            elif audit_log is not None:
+                _log_action(
+                    audit_log,
+                    field,
+                    "claim_language_repair_failed",
+                    {
+                        "violations": claim_audit.get("violations") or [],
+                        "post_repair_violations": repaired_audit.get("violations") or [],
+                    },
+                )
+        elif audit_log is not None:
+            _log_action(
+                audit_log,
+                field,
+                "claim_language_blocked",
+                {
+                    "violations": claim_audit.get("violations") or [],
+                    "blocking_reasons": claim_audit.get("blocking_reasons") or [],
+                },
+            )
     rewrite_rules = [
-        (r"#\s*1\b", "top-tier", "#1"),
-        (r"\bnumber\s*1\b", "top-tier", "number 1"),
-        (r"\bguaranteed\b", "reliable", "guaranteed"),
-        (r"\bguarantee\b", "support", "guarantee"),
-        (r"\bfor the best results\b", "for stronger results", "best results"),
-        (r"\bfor best results\b", "for stronger results", "best results"),
-        (r"\bthe best viewing experience\b", "a stronger viewing experience", "best viewing experience"),
-        (r"\bbest\b", "ideal", "best"),
+        (r"\bnumber\s*1\b", "compact", "number 1"),
         (r"\bperfect\b", "ideal", "perfect"),
         (r"\bamazing\b", "standout", "amazing"),
         (r"\bexcellent\b", "strong", "excellent"),
@@ -6820,8 +7539,6 @@ def _finalize_visible_text(
         cleaned += "."
     if cleaned != (text or "") and audit_log is not None:
         _log_action(audit_log, field, "postprocess_cleanup", {"target_language": target_language})
-    if warranty_replaced and audit_log is not None:
-        _log_action(audit_log, field, "compliance_word_swap", {"from": "warranty", "to": "support"})
     if absolute_terms_rewritten and audit_log is not None:
         _log_action(
             audit_log,
@@ -7442,8 +8159,8 @@ def _field_stage_timeout_seconds(stage_name: str) -> int:
 def _uses_pure_r1_visible_batch(model_overrides: Optional[Dict[str, str]]) -> bool:
     overrides = model_overrides or {}
     return (
-        str(overrides.get("title") or "").strip() == "deepseek-reasoner"
-        and str(overrides.get("bullets") or "").strip() == "deepseek-reasoner"
+        is_r1_experiment_model(overrides.get("title"))
+        and is_r1_experiment_model(overrides.get("bullets"))
     )
 
 
@@ -7455,15 +8172,19 @@ def _r1_batch_timeout_seconds() -> int:
         return 180
 
 
+def _deepseek_v4_pro_timeout_seconds() -> int:
+    raw = os.getenv("DEEPSEEK_V4_PRO_TIMEOUT_SEC") or os.getenv("R1_STAGE_TIMEOUT_SEC")
+    try:
+        return max(45, int(raw)) if raw else 180
+    except Exception:
+        return 180
+
+
 def _experimental_stage_timeout_seconds(stage_name: str, override_model: Optional[str]) -> int:
     timeout = _field_stage_timeout_seconds(stage_name)
-    if str(override_model or "").strip() != "deepseek-reasoner":
+    if not is_r1_experiment_model(override_model):
         return timeout
-    caps = {
-        "title": 45,
-        "bullets": 45,
-    }
-    return min(timeout, caps.get(stage_name, timeout))
+    return max(timeout, _deepseek_v4_pro_timeout_seconds())
 
 
 def _field_stage_retry_budget(stage_name: str) -> int:
@@ -7485,7 +8206,7 @@ def _field_stage_retry_budget(stage_name: str) -> int:
 
 def _experimental_stage_retry_budget(stage_name: str, override_model: Optional[str]) -> int:
     budget = _field_stage_retry_budget(stage_name)
-    if str(override_model or "").strip() == "deepseek-reasoner":
+    if is_r1_experiment_model(override_model):
         return 1
     return budget
 
@@ -7548,6 +8269,29 @@ def _ordered_bullet_slot_names(bullet_blueprint: Optional[Any]) -> List[str]:
         if ordered:
             return ordered
     return ["B1", "B2", "B3", "B4", "B5"]
+
+
+def _resolve_primary_visible_llm_meta(
+    field_generation_trace: Optional[Dict[str, Any]],
+    fallback_meta: Optional[Dict[str, Any]],
+) -> Dict[str, Any]:
+    trace = field_generation_trace or {}
+    fallback = fallback_meta or {}
+
+    batch_meta = ((trace.get("visible_copy_batch") or {}).get("llm_response_meta") or {})
+    if batch_meta.get("configured_model") or batch_meta.get("returned_model"):
+        return dict(batch_meta)
+
+    title_meta = ((trace.get("title") or {}).get("llm_response_meta") or {})
+    if title_meta.get("configured_model") or title_meta.get("returned_model"):
+        return dict(title_meta)
+
+    for slot_name in ("bullet_b1", "bullet_b2", "bullet_b3", "bullet_b4", "bullet_b5"):
+        bullet_meta = ((trace.get(slot_name) or {}).get("llm_response_meta") or {})
+        if bullet_meta.get("configured_model") or bullet_meta.get("returned_model"):
+            return dict(bullet_meta)
+
+    return dict(fallback)
 
 
 def _build_r1_batch_bullet_trace(
@@ -7632,7 +8376,7 @@ def _r1_batch_repair_title(
         repair_prompt,
         payload,
         temperature=0.2,
-        override_model="deepseek-reasoner",
+        override_model=DEEPSEEK_R1_EXPERIMENT_MODEL,
     )
     repaired = _extract_embedded_json_payload(repaired_text or "")
     if isinstance(repaired, dict):
@@ -7692,27 +8436,29 @@ def _r1_batch_generate_listing(
                 "assigned_keywords": cleaned_keywords,
                 "mandatory_elements": list(entry.get("mandatory_elements") or []),
                 "slot_directive": entry.get("slot_directive") or "",
+                "unsupported_capability_policy": (writing_policy.get("bullet_slot_rules") or {}).get(slot_name, {}).get("unsupported_capability_policy") or {},
             }
         )
 
     system_prompt = (
         "You are an elite Amazon ecommerce copywriter using DeepSeek R1 to draft the visible listing copy in one pass.\n"
-        "Return exactly one JSON object with keys title_recipe and bullets.\n"
+        "Return exactly one JSON object with keys title_recipe and bullet_packets.\n"
         "Format:\n"
-        '{\"title_recipe\":{\"lead_keyword\":\"...\",\"differentiators\":[\"...\"],\"use_cases\":[\"...\"]},\"bullets\":[\"B1 text\",\"B2 text\",\"B3 text\",\"B4 text\",\"B5 text\"]}\n'
+        '{"title_recipe":{"lead_keyword":"...","differentiators":["..."],"use_cases":["..."]},"bullet_packets":[{"slot":"B1","header":"...","benefit":"...","proof":"...","guidance":"...","required_keywords":["..."],"capability_mapping":["..."],"scene_mapping":["..."]}]}\n'
         "Hard rules:\n"
         "1. Output valid JSON only. No markdown, no commentary, no code fences.\n"
         "2. title_recipe.lead_keyword must be the strongest category phrase for the product.\n"
         "3. title_recipe.differentiators must be short supported selling-point phrases, not full sentences.\n"
         "4. title_recipe.use_cases must be short supported scenario phrases, not full sentences.\n"
         "5. Do not output a finished title string unless explicitly requested elsewhere.\n"
-        "6. Write exactly 5 bullets in the requested slot order.\n"
-        "7. Each bullet must use the format HEADER — body.\n"
+        "6. Write exactly 5 bullet_packets in the requested slot order.\n"
+        "7. Each packet must include slot, header, benefit, proof, guidance, required_keywords, capability_mapping, and scene_mapping.\n"
         "8. Each bullet must feel distinct in audience or feature angle; do not write 3 or more commute/on-the-go bullets.\n"
         "9. Keep each bullet under 500 characters.\n"
         "10. Use the Audience Allocation Plan and Bullet Plan as binding instructions.\n"
         "11. Do not invent unsupported specs or accessories.\n"
         "12. Do not use fallback wording like ready to share, every clip feels ready, or generic keyword stuffing.\n"
+        "13. If unsupported_capability_policy.expression_mode is positive_guidance_only, never write literal negative phrasing like does not include, lacks, has no, or not suitable for. Reframe as best-use guidance instead.\n"
     )
     payload = {
         "field": "visible_copy_batch",
@@ -7736,7 +8482,7 @@ def _r1_batch_generate_listing(
             system_prompt,
             payload,
             temperature=0.2,
-            override_model="deepseek-reasoner",
+            override_model=DEEPSEEK_R1_EXPERIMENT_MODEL,
         )
     except Exception as exc:
         setattr(
@@ -7790,6 +8536,7 @@ def _r1_batch_generate_listing(
                 "after_len": len(raw_title),
             },
         )
+    packet_payload = parsed.get("bullet_packets") or []
     bullets = parsed.get("bullets") or []
     if not raw_title:
         raise RuntimeError("R1 batch returned empty title")
@@ -7810,11 +8557,45 @@ def _r1_batch_generate_listing(
             target_max=title_target_max,
             hard_ceiling=LENGTH_RULES["title"]["hard_ceiling"],
         )
-    if not isinstance(bullets, list) or len(bullets) != 5:
-        raise RuntimeError("R1 batch must return exactly 5 bullets")
-    cleaned_bullets = [str(item or "").strip() for item in bullets]
-    if any(not item for item in cleaned_bullets):
-        raise RuntimeError("R1 batch returned empty bullet")
+    bullet_trace = _build_r1_batch_bullet_trace(bullet_blueprint, bullet_slots, slot_keyword_records)
+    slot_contracts = writing_policy.get("bullet_slot_rules") or {}
+    if isinstance(packet_payload, list) and len(packet_payload) == 5:
+        bullet_packets = []
+        for idx, raw_packet in enumerate(packet_payload):
+            slot_name = bullet_slots[idx]
+            trace_entry = bullet_trace[idx] if idx < len(bullet_trace) else {}
+            packet = _normalize_bullet_packet(
+                {
+                    "slot": raw_packet.get("slot") or slot_name,
+                    "header": raw_packet.get("header"),
+                    "benefit": raw_packet.get("benefit"),
+                    "proof": raw_packet.get("proof"),
+                    "guidance": raw_packet.get("guidance"),
+                    "required_keywords": raw_packet.get("required_keywords") or trace_entry.get("keywords") or [],
+                    "required_facts": raw_packet.get("required_facts") or (slot_contracts.get(slot_name) or {}).get("required_elements") or [],
+                    "capability_mapping": raw_packet.get("capability_mapping") or trace_entry.get("capability_mapping") or [],
+                    "scene_mapping": raw_packet.get("scene_mapping") or trace_entry.get("scene_mapping") or [],
+                    "unsupported_capability_policy": raw_packet.get("unsupported_capability_policy") or (slot_contracts.get(slot_name) or {}).get("unsupported_capability_policy") or {},
+                    "contract_version": raw_packet.get("contract_version") or "slot_packet_v1",
+                }
+            )
+            bullet_packets.append(packet)
+        cleaned_bullets = [_assemble_bullet_from_packet(packet) for packet in bullet_packets]
+    else:
+        if not isinstance(bullets, list) or len(bullets) != 5:
+            raise RuntimeError("R1 batch must return exactly 5 bullets")
+        cleaned_bullets = [str(item or "").strip() for item in bullets]
+        if any(not item for item in cleaned_bullets):
+            raise RuntimeError("R1 batch returned empty bullet")
+        bullet_packets = [
+            _build_bullet_packet(
+                slot=slot_name,
+                bullet_text=bullet_text,
+                trace_entry=trace_entry,
+                slot_rule_contract=slot_contracts.get(slot_name) or {},
+            )
+            for slot_name, bullet_text, trace_entry in zip(bullet_slots, cleaned_bullets, bullet_trace)
+        ]
     title_payload = {
         "field": "title",
         "brand_name": getattr(getattr(preprocessed_data, "run_config", None), "brand_name", "TOSBARRFT"),
@@ -7830,7 +8611,7 @@ def _r1_batch_generate_listing(
         "exact_match_keywords": exact_keywords[:3],
         "_repair_keyword_pool": list(tiered_keywords.get("l1", []) or []) + list(tiered_keywords.get("l2", []) or []),
         "copy_contracts": writing_policy.get("copy_contracts", {}),
-        "_llm_override_model": "deepseek-reasoner",
+        "_llm_override_model": DEEPSEEK_R1_EXPERIMENT_MODEL,
         "_disable_fallback": True,
         "use_r1_recipe": True,
         "_prefetched_title_candidates": [raw_title],
@@ -7854,7 +8635,12 @@ def _r1_batch_generate_listing(
     return {
         "title": title,
         "bullets": cleaned_bullets,
-        "bullet_trace": _build_r1_batch_bullet_trace(bullet_blueprint, bullet_slots, slot_keyword_records),
+        "bullet_trace": bullet_trace,
+        "bullet_packets": bullet_packets,
+        "keyword_assignment_plan": {
+            "title": required_title_keywords,
+            "bullets": deepcopy(slot_keyword_records),
+        },
     }
 
 
@@ -7970,6 +8756,7 @@ def generate_multilingual_copy(preprocessed_data: PreprocessedData,
                 self.canonical_core_selling_points = caps
                 self.canonical_accessory_descriptions = accs
                 self.canonical_capability_notes = getattr(pd, "canonical_capability_notes", {})
+                self.canonical_facts = getattr(pd, "canonical_facts", {})
                 self.quality_score = pd.quality_score
                 self.language = "English"
                 self.processed_at = pd.processed_at
@@ -7977,9 +8764,12 @@ def generate_multilingual_copy(preprocessed_data: PreprocessedData,
 
     audit_log: List[Dict[str, Any]] = []
     field_generation_trace: Dict[str, Any] = {}
+    canonical_facts = getattr(preprocessed_en, "canonical_facts", None) or getattr(preprocessed_data, "canonical_facts", {}) or {}
     partial_copy: Dict[str, Any] = {}
     model_overrides = model_overrides or {}
     pure_r1_visible_batch = _uses_pure_r1_visible_batch(model_overrides)
+    bullet_packets: List[Dict[str, Any]] = []
+    slot_quality_packets: List[Dict[str, Any]] = []
 
     def _restore_stage_snapshot(stage_artifact: Dict[str, Any]) -> None:
         restored_records = stage_artifact.get("keyword_assignments") or []
@@ -8084,6 +8874,11 @@ def generate_multilingual_copy(preprocessed_data: PreprocessedData,
                 "llm_response_meta": llm_meta,
                 "completed_at": time.strftime("%Y-%m-%dT%H:%M:%S"),
             }
+            provenance_tier = ""
+            if stage_name == "description":
+                provenance_tier = _description_provenance_from_audit_entries(audit_log[stage_start_idx:])
+                if provenance_tier:
+                    stage_payload["provenance_tier"] = provenance_tier
             _save_stage_artifact(artifact_dir, stage_name, stage_payload)
             field_generation_trace[stage_name] = {
                 "status": "success",
@@ -8091,6 +8886,8 @@ def generate_multilingual_copy(preprocessed_data: PreprocessedData,
                 "duration_ms": duration_ms,
                 "llm_response_meta": llm_meta,
             }
+            if provenance_tier:
+                field_generation_trace[stage_name]["provenance_tier"] = provenance_tier
             partial_copy.update(partial_fields(result))
             _write_partial_generation_artifact(artifact_dir, partial_copy, field_generation_trace)
             return result
@@ -8157,8 +8954,9 @@ def generate_multilingual_copy(preprocessed_data: PreprocessedData,
             raise RuntimeError("R1 batch visible copy generation failed: title exceeds hard ceiling")
         bullets = list(batch_result["bullets"] or [])
         bullet_trace = list(batch_result.get("bullet_trace") or [])
+        bullet_packets = list(batch_result.get("bullet_packets") or [])
         reasoning_bullets = list(bullets)
-        partial_copy.update({"title": title, "bullets": bullets, "bullet_trace": bullet_trace})
+        partial_copy.update({"title": title, "bullets": bullets, "bullet_trace": bullet_trace, "bullet_packets": bullet_packets})
         field_generation_trace["visible_copy_batch"] = {
             "status": "success",
             "attempt_count": 1,
@@ -8197,7 +8995,7 @@ def generate_multilingual_copy(preprocessed_data: PreprocessedData,
                 "status": "success",
                 "attempt_count": 1,
                 "duration_ms": duration_ms,
-                "result": {"title": title, "bullets": bullets, "bullet_trace": bullet_trace},
+                "result": {"title": title, "bullets": bullets, "bullet_trace": bullet_trace, "bullet_packets": bullet_packets},
                 "audit_entries": audit_log,
                 "keyword_assignments": keyword_assignment_tracker.as_list(),
                 "llm_response_meta": llm_meta,
@@ -8345,14 +9143,19 @@ def generate_multilingual_copy(preprocessed_data: PreprocessedData,
     brand_name = getattr(preprocessed_data.run_config, "brand_name", "TOSBARRFT")
     brand_terms = [brand_name, brand_name.upper(), brand_name.lower()]
     visible_forbidden_terms = _forbidden_visible_terms(writing_policy.get("compliance_directives", {}) or {})
+    unsupported_capability_rewrites = _unsupported_capability_rewrites(
+        writing_policy.get("compliance_directives", {}) or {},
+        enable_semantic_rewrite=pure_r1_visible_batch,
+    )
     title = _scrub_visible_field(
         title,
         "title",
         audit_log,
         fallback=brand_name,
         forbidden_terms=visible_forbidden_terms,
+        unsupported_capabilities=unsupported_capability_rewrites,
     )
-    title = _finalize_visible_text(title, "title", target_language, audit_log)
+    title = _finalize_visible_text(title, "title", target_language, audit_log, canonical_facts=canonical_facts)
     llm_offline = getattr(llm_client, "_offline", True)
     non_english_locale = target_language.lower() not in {"english", "en"}
     recent_bullet_openers: List[str] = []
@@ -8379,8 +9182,9 @@ def generate_multilingual_copy(preprocessed_data: PreprocessedData,
             audit_log,
             fallback=brand_name,
             forbidden_terms=visible_forbidden_terms,
+            unsupported_capabilities=unsupported_capability_rewrites,
         )
-        bullet_text = _finalize_visible_text(bullet_text, field_name, target_language, audit_log)
+        bullet_text = _finalize_visible_text(bullet_text, field_name, target_language, audit_log, canonical_facts=canonical_facts)
         if not llm_offline and not pure_r1_visible_batch:
             polish_payload = {
                 "target_language": target_language,
@@ -8417,8 +9221,9 @@ def generate_multilingual_copy(preprocessed_data: PreprocessedData,
                     audit_log,
                     fallback=brand_name,
                     forbidden_terms=visible_forbidden_terms,
+                    unsupported_capabilities=unsupported_capability_rewrites,
                 )
-                bullet_text = _finalize_visible_text(bullet_text, field_name, target_language, audit_log)
+                bullet_text = _finalize_visible_text(bullet_text, field_name, target_language, audit_log, canonical_facts=canonical_facts)
         bullets[idx] = bullet_text
         opener_signature = _bullet_body_opener_signature(bullets[idx])
         if opener_signature:
@@ -8431,8 +9236,9 @@ def generate_multilingual_copy(preprocessed_data: PreprocessedData,
         audit_log,
         fallback=brand_name,
         forbidden_terms=visible_forbidden_terms,
+        unsupported_capabilities=unsupported_capability_rewrites,
     )
-    description = _finalize_visible_text(description, "description", target_language, audit_log)
+    description = _finalize_visible_text(description, "description", target_language, audit_log, canonical_facts=canonical_facts)
     localized_faq: List[Dict[str, str]] = []
     for idx, entry in enumerate(faq):
         q_field = f"faq_q{idx+1}"
@@ -8444,13 +9250,13 @@ def generate_multilingual_copy(preprocessed_data: PreprocessedData,
         if _should_run_localization_pass(answer, target_language, llm_offline):
             answer = _localize_text_block(answer, target_language, preferred_locale, brand_terms, audit_log, a_field)
         localized_faq.append({
-            "q": _finalize_visible_text(question, q_field, target_language, audit_log),
-            "a": _finalize_visible_text(answer, a_field, target_language, audit_log),
+            "q": _finalize_visible_text(question, q_field, target_language, audit_log, canonical_facts=canonical_facts),
+            "a": _finalize_visible_text(answer, a_field, target_language, audit_log, canonical_facts=canonical_facts),
         })
     faq = localized_faq
     if not aplus_is_native or _should_run_localization_pass(aplus_content, target_language, llm_offline):
         aplus_content = _localize_text_block(aplus_content, target_language, preferred_locale, brand_terms, audit_log, "aplus_content")
-    aplus_content = _finalize_visible_text(aplus_content, "aplus_content", target_language, audit_log)
+    aplus_content = _finalize_visible_text(aplus_content, "aplus_content", target_language, audit_log, canonical_facts=canonical_facts)
 
     _record_constraint_audit_actions(
         audit_log,
@@ -8461,11 +9267,60 @@ def generate_multilingual_copy(preprocessed_data: PreprocessedData,
         getattr(preprocessed_en, "capability_constraints", {}) or {},
     )
 
-    _reconcile_final_keyword_assignments(
+    slot_rule_contracts = writing_policy.get("bullet_slot_rules") or {}
+    if not bullet_packets and bullets:
+        bullet_packets = [
+            _build_bullet_packet(
+                f"B{idx + 1}",
+                str(bullet or ""),
+                trace_entry=(bullet_trace[idx] if idx < len(bullet_trace) and isinstance(bullet_trace[idx], dict) else {}),
+                slot_rule_contract=slot_rule_contracts.get(f"B{idx + 1}") or {},
+            )
+            for idx, bullet in enumerate(bullets)
+        ]
+    slot_quality_packets = [
+        _build_slot_quality_packet(
+            packet,
+            copy_contracts=writing_policy.get("copy_contracts") or {},
+            slot_rule_contract=slot_rule_contracts.get(packet.get("slot")) or {},
+            target_language=target_language,
+        )
+        for packet in (bullet_packets or [])
+    ]
+    slot_rerender_plan = build_slot_rerender_plan(
+        {
+            "bullets": bullets,
+            "bullet_packets": bullet_packets,
+            "slot_quality_packets": slot_quality_packets,
+        },
+        writing_policy,
+    )
+    slot_rerender_results: List[Dict[str, Any]] = []
+    if slot_rerender_plan:
+        rerender_surface = _run_slot_rerender_pass(
+            {
+                "bullets": bullets,
+                "bullet_packets": bullet_packets,
+                "slot_quality_packets": slot_quality_packets,
+                "slot_rerender_plan": slot_rerender_plan,
+            },
+            writing_policy,
+            target_language=target_language,
+            model_overrides=model_overrides,
+            progress_callback=progress_callback,
+        )
+        bullets = list(rerender_surface.get("bullets") or bullets)
+        bullet_packets = list(rerender_surface.get("bullet_packets") or bullet_packets)
+        slot_quality_packets = list(rerender_surface.get("slot_quality_packets") or slot_quality_packets)
+        slot_rerender_plan = list(rerender_surface.get("slot_rerender_plan") or [])
+        slot_rerender_results = list(rerender_surface.get("slot_rerender_results") or [])
+
+    keyword_reconciliation = _reconcile_final_keyword_assignments(
         keyword_assignment_tracker,
         title=title,
         bullets=bullets,
         search_terms=search_terms,
+        description=description,
         tiered_keywords=tiered_keywords,
         writing_policy=writing_policy,
     )
@@ -8473,11 +9328,14 @@ def generate_multilingual_copy(preprocessed_data: PreprocessedData,
     # 构建完整文案
     decision_trace = {
         "keyword_assignments": keyword_assignment_tracker.as_list(),
+        "keyword_reconciliation_status": keyword_reconciliation.get("status"),
+        "keyword_reconciliation_coverage": keyword_reconciliation.get("coverage") or {},
         "bullet_trace": bullet_trace,
         "search_terms_trace": search_terms_trace,
     }
 
     llm_response_meta = getattr(llm_client, "response_metadata", {}) or {}
+    primary_visible_llm_meta = _resolve_primary_visible_llm_meta(field_generation_trace, llm_response_meta)
     llm_healthcheck = getattr(llm_client, "healthcheck_status", {}) or {}
     llm_fallback_fields = [
         str((entry or {}).get("field") or "").strip()
@@ -8518,12 +9376,17 @@ def generate_multilingual_copy(preprocessed_data: PreprocessedData,
     copy_dict = {
         "title": title,
         "bullets": bullets,
+        "bullet_packets": bullet_packets,
+        "slot_quality_packets": slot_quality_packets,
+        "slot_rerender_plan": slot_rerender_plan,
+        "slot_rerender_results": slot_rerender_results,
         "description": description,
         "faq": faq,
         "search_terms": search_terms,
         "aplus_content": aplus_content,
         "visual_briefs": visual_briefs,
         "evidence_bundle": evidence_bundle,
+        "keyword_reconciliation": keyword_reconciliation,
         "metadata": {
             "version": "v8.2",
             "reasoning_language": reasoning_language,
@@ -8548,8 +9411,10 @@ def generate_multilingual_copy(preprocessed_data: PreprocessedData,
             "llm_fallback_count": llm_fallback_count,
             "llm_fallback_fields": llm_fallback_fields,
             "visible_llm_fallback_fields": visible_llm_fallback_fields,
-            "configured_model": llm_response_meta.get("configured_model") or getattr(llm_client, "active_model", None),
-            "returned_model": llm_response_meta.get("returned_model"),
+            "configured_model": primary_visible_llm_meta.get("configured_model") or getattr(llm_client, "active_model", None),
+            "returned_model": primary_visible_llm_meta.get("returned_model"),
+            "last_stage_configured_model": llm_response_meta.get("configured_model") or getattr(llm_client, "active_model", None),
+            "last_stage_returned_model": llm_response_meta.get("returned_model"),
             "llm_request_id": llm_response_meta.get("request_id", ""),
             "llm_response_id": llm_response_meta.get("response_id", ""),
             "llm_latency_ms": llm_response_meta.get("latency_ms"),
@@ -8564,6 +9429,8 @@ def generate_multilingual_copy(preprocessed_data: PreprocessedData,
             "unsupported_claim_count": unsupported_claim_count,
             "weak_claim_count": weak_claim_count,
             "rufus_readiness_score": rufus_readiness.get("score", 0.0),
+            "canonical_facts": deepcopy(getattr(preprocessed_data, "canonical_facts", {}) or {}),
+            "canonical_fact_readiness": deepcopy(getattr(preprocessed_data, "fact_readiness", {}) or {}),
         },
         "audit_trail": audit_log,
         "decision_trace": decision_trace,

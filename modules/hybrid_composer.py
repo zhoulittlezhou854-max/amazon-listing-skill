@@ -6,12 +6,15 @@ from copy import deepcopy
 from pathlib import Path
 from typing import Any, Dict, Optional
 
-from modules import report_builder, report_generator, risk_check, scoring
+from modules import image_handoff, report_builder, report_generator, risk_check, scoring
+from modules.copy_generation import _build_bullet_packet, _build_slot_quality_packet
+from modules.field_provenance import build_field_candidate, select_launch_eligible_field
 from modules.hybrid_optimizer import (
     LISTING_L2_COVERAGE_THRESHOLD,
     analyze_listing_l2_coverage,
     repair_hybrid_bullets_for_l2,
 )
+from modules.keyword_reconciliation import reconcile_keyword_assignments
 
 
 DEFAULT_HYBRID_SELECTION_POLICY: Dict[str, str] = {
@@ -28,6 +31,65 @@ _NON_ALNUM_RE = re.compile(r"[^a-z0-9]+")
 
 def _normalize_text(value: Any) -> str:
     return _NON_ALNUM_RE.sub(" ", str(value or "").lower()).strip()
+
+
+def _output_text(value: Any) -> str:
+    return str(value or "").strip()
+
+
+def _metadata_key(keyword: Any) -> str:
+    return " ".join(str(keyword or "").strip().lower().split())
+
+
+def _merge_keyword_metadata(target: Dict[str, Dict[str, Any]], row: Dict[str, Any]) -> None:
+    keyword = str((row or {}).get("keyword") or (row or {}).get("normalized_keyword") or "").strip()
+    key = _metadata_key(keyword)
+    if not key:
+        return
+    merged = dict(row or {})
+    merged["keyword"] = keyword
+    existing = target.get(key) or {}
+    combined = dict(existing)
+    for field, value in merged.items():
+        if value in (None, "", [], {}):
+            continue
+        combined.setdefault(field, value)
+    target[key] = combined
+
+
+def _group_keyword_assignments(rows: list[Dict[str, Any]]) -> list[Dict[str, Any]]:
+    grouped: Dict[str, Dict[str, Any]] = {}
+    for row in rows:
+        keyword = str((row or {}).get("keyword") or "").strip()
+        key = _metadata_key((row or {}).get("normalized_keyword") or keyword)
+        if not key:
+            continue
+        record = grouped.setdefault(key, {**row, "keyword": keyword, "assigned_fields": []})
+        for field in (row or {}).get("assigned_fields") or []:
+            if field not in record["assigned_fields"]:
+                record["assigned_fields"].append(field)
+    return list(grouped.values())
+
+
+def _reconcile_hybrid_keywords(
+    hybrid_copy: Dict[str, Any],
+    version_a: Dict[str, Any],
+    version_b: Dict[str, Any],
+    writing_policy: Dict[str, Any],
+) -> Dict[str, Any]:
+    metadata: Dict[str, Dict[str, Any]] = {}
+    for source in (version_a, version_b):
+        reconciliation = source.get("keyword_reconciliation") or {}
+        for row in reconciliation.get("assignments") or []:
+            _merge_keyword_metadata(metadata, row)
+        for row in (source.get("decision_trace") or {}).get("keyword_assignments") or []:
+            _merge_keyword_metadata(metadata, row)
+    for row in (writing_policy or {}).get("keyword_metadata") or []:
+        _merge_keyword_metadata(metadata, row)
+
+    reconciliation = reconcile_keyword_assignments(hybrid_copy, metadata)
+    assignments = _group_keyword_assignments(reconciliation.get("assignments") or [])
+    return {**reconciliation, "assignments": assignments}
 
 
 def _slot_aliases(slot: str) -> set[str]:
@@ -141,6 +203,40 @@ def _normalize_assigned_field(field: Any) -> str:
     return value
 
 
+def _slot_quality_is_unhealthy(slot_quality: Optional[Dict[str, Any]]) -> bool:
+    if not isinstance(slot_quality, dict) or not slot_quality:
+        return False
+    if slot_quality.get("fluency_pass") is False:
+        return True
+    if slot_quality.get("unsupported_policy_pass") is False:
+        return True
+    unhealthy_issues = {
+        "missing_header_or_em_dash",
+        "header_body_rupture",
+        "dash_tail_without_predicate",
+        "repeated_word_root",
+        "unsupported_capability_negative_literal",
+    }
+    for issue in slot_quality.get("issues") or []:
+        normalized = str(issue or "").strip()
+        if normalized in unhealthy_issues or normalized.startswith("slot_contract_failed:"):
+            return True
+    return False
+
+
+def _find_slot_payload_row(rows: Any, slot: str, idx: Optional[int] = None) -> Optional[Dict[str, Any]]:
+    slot_aliases = _slot_aliases(slot)
+    for row in rows or []:
+        if not isinstance(row, dict):
+            continue
+        row_aliases = _slot_aliases(row.get("slot"))
+        if slot_aliases & row_aliases:
+            return deepcopy(row)
+    if isinstance(rows, list) and idx is not None and 0 <= idx < len(rows) and isinstance(rows[idx], dict):
+        return deepcopy(rows[idx])
+    return None
+
+
 def select_source_for_bullet_slot(
     *,
     slot: str,
@@ -153,6 +249,8 @@ def select_source_for_bullet_slot(
     slot_l2_targets: list[str],
     audit_a: Optional[Any] = None,
     audit_b: Optional[Any] = None,
+    quality_a: Optional[Dict[str, Any]] = None,
+    quality_b: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     slot = str(slot).upper()
     blocked_a = _extract_blocked_bullet_slots(risk_a)
@@ -216,6 +314,25 @@ def select_source_for_bullet_slot(
         return {
             "source_version": "version_b",
             "selection_reason": "version_a_scrub_integrity_flag",
+            "disqualified": disqualified,
+            "soft_signals": soft_signals,
+        }
+
+    b_quality_failed = _slot_quality_is_unhealthy(quality_b)
+    a_quality_failed = _slot_quality_is_unhealthy(quality_a)
+    if b_quality_failed and not a_quality_failed:
+        soft_signals.append("version_b_quality_failed")
+        return {
+            "source_version": "version_a",
+            "selection_reason": "version_b_quality_failed",
+            "disqualified": disqualified,
+            "soft_signals": soft_signals,
+        }
+    if a_quality_failed and not b_quality_failed:
+        soft_signals.append("version_a_quality_failed")
+        return {
+            "source_version": "version_b",
+            "selection_reason": "version_a_quality_failed",
             "disqualified": disqualified,
             "soft_signals": soft_signals,
         }
@@ -328,6 +445,36 @@ def _build_source_trace(
     }
 
 
+def _build_hybrid_shadow_slot_payload(
+    *,
+    slot: str,
+    idx: int,
+    source_version: str,
+    chosen_bullet: Any,
+    version_a: Dict[str, Any],
+    version_b: Dict[str, Any],
+) -> tuple[Optional[Dict[str, Any]], Optional[Dict[str, Any]]]:
+    if not chosen_bullet or not source_version:
+        return None, None
+
+    source_payload = version_a if source_version == "version_a" else version_b
+    packet = _find_slot_payload_row(source_payload.get("bullet_packets"), slot, idx)
+    if packet is None:
+        trace_entry = _find_slot_payload_row(
+            (source_payload.get("decision_trace") or {}).get("bullet_trace"),
+            slot,
+            idx,
+        ) or {}
+        packet = _build_bullet_packet(slot, str(chosen_bullet), trace_entry=trace_entry)
+    packet["slot"] = slot
+
+    slot_quality = _find_slot_payload_row(source_payload.get("slot_quality_packets"), slot, idx)
+    if slot_quality is None:
+        slot_quality = _build_slot_quality_packet(packet)
+    slot_quality["slot"] = slot
+    return packet, slot_quality
+
+
 def _recompute_visible_fallback_fields(
     field_sources: Dict[str, Any],
     meta_a: Dict[str, Any],
@@ -361,10 +508,44 @@ def compose_hybrid_listing(
 
     field_decisions: Dict[str, Dict[str, Any]] = {}
     field_values: Dict[str, Any] = {}
+    field_provenance: Dict[str, Dict[str, Any]] = {}
     no_eligible_source: list[str] = []
     degraded_reasons: list[str] = []
     for field_name in DEFAULT_HYBRID_SELECTION_POLICY:
-        decision = select_source_for_field(field_name, meta_a, risk_a, meta_b, risk_b)
+        if field_name == "description":
+            candidates = [
+                build_field_candidate(field_name, version_a.get(field_name), "version_a", meta_a, risk_a),
+                build_field_candidate(field_name, version_b.get(field_name), "version_b", meta_b, risk_b),
+            ]
+            selected_candidate = select_launch_eligible_field(field_name, candidates)
+            field_provenance[field_name] = {**deepcopy(selected_candidate), "candidates": candidates}
+            if selected_candidate.get("eligibility") == "launch_eligible":
+                decision = {
+                    "source_version": selected_candidate.get("source_version"),
+                    "selection_reason": f"{selected_candidate.get('provenance_tier')}_selected",
+                    "disqualified": [
+                        {
+                            "version": candidate.get("source_version"),
+                            "reason": ",".join(candidate.get("blocking_reasons") or []) or candidate.get("eligibility"),
+                        }
+                        for candidate in candidates
+                        if candidate.get("eligibility") != "launch_eligible"
+                    ],
+                }
+            else:
+                decision = {
+                    "source_version": None,
+                    "selection_reason": "no_eligible_source",
+                    "disqualified": [
+                        {
+                            "version": candidate.get("source_version"),
+                            "reason": ",".join(candidate.get("blocking_reasons") or []) or candidate.get("eligibility"),
+                        }
+                        for candidate in candidates
+                    ],
+                }
+        else:
+            decision = select_source_for_field(field_name, meta_a, risk_a, meta_b, risk_b)
         field_decisions[field_name] = decision
         source_version = decision["source_version"]
         if source_version is None:
@@ -379,6 +560,8 @@ def compose_hybrid_listing(
 
     bullet_decisions: list[Dict[str, Any]] = []
     selected_bullets: list[Any] = []
+    selected_bullet_packets: list[Dict[str, Any]] = []
+    selected_slot_quality_packets: list[Dict[str, Any]] = []
     bullets_a = list(version_a.get("bullets") or [])
     bullets_b = list(version_b.get("bullets") or [])
     for idx in range(max(len(bullets_a), len(bullets_b))):
@@ -394,6 +577,8 @@ def compose_hybrid_listing(
             slot_l2_targets=slot_l2_targets.get(slot, []),
             audit_a=version_a.get("audit_trail"),
             audit_b=version_b.get("audit_trail"),
+            quality_a=_find_slot_payload_row(version_a.get("slot_quality_packets"), slot, idx),
+            quality_b=_find_slot_payload_row(version_b.get("slot_quality_packets"), slot, idx),
         )
         bullet_source = decision["source_version"] or policy.get("bullets", "version_b")
         chosen_bullet = None
@@ -415,6 +600,18 @@ def compose_hybrid_listing(
                 degraded_reasons.append(f"B{idx + 1}:degraded_fallback_to_a")
         if chosen_bullet is not None:
             selected_bullets.append(deepcopy(chosen_bullet))
+            packet, slot_quality = _build_hybrid_shadow_slot_payload(
+                slot=slot,
+                idx=idx,
+                source_version=bullet_source,
+                chosen_bullet=chosen_bullet,
+                version_a=version_a,
+                version_b=version_b,
+            )
+            if packet is not None:
+                selected_bullet_packets.append(packet)
+            if slot_quality is not None:
+                selected_slot_quality_packets.append(slot_quality)
         bullet_decisions.append(
             {
                 "slot": slot,
@@ -436,18 +633,21 @@ def compose_hybrid_listing(
     base_metadata = deepcopy((version_a if title_source == "version_a" else version_b).get("metadata") or {})
     recomputed_visible_fallbacks = _recompute_visible_fallback_fields(field_sources, meta_a, meta_b)
     hybrid_copy: Dict[str, Any] = {
-        "title": field_values.get("title"),
+        "title": _output_text(field_values.get("title")),
         "bullets": list(field_values.get("bullets") or []) if field_values.get("bullets") is not None else None,
-        "description": field_values.get("description"),
+        "bullet_packets": selected_bullet_packets,
+        "slot_quality_packets": selected_slot_quality_packets,
+        "description": _output_text(field_values.get("description")),
         "faq": list(field_values.get("faq") or []) if field_values.get("faq") is not None else None,
         "search_terms": list(field_values.get("search_terms") or []) if field_values.get("search_terms") is not None else None,
-        "aplus_content": field_values.get("aplus_content"),
+        "aplus_content": _output_text(field_values.get("aplus_content")),
         "metadata": {
             **base_metadata,
             "visible_copy_mode": "hybrid_postselect",
             "visible_copy_status": "hybrid_mixed",
             "hybrid_sources": field_sources,
             "visible_llm_fallback_fields": recomputed_visible_fallbacks,
+            "field_provenance": field_provenance,
             "degraded_mode": bool(degraded_reasons),
             "degraded_reasons": degraded_reasons,
         },
@@ -659,11 +859,30 @@ def build_hybrid_launch_decision(
         reasons.append("visible_fallback_present")
     if hybrid_copy.get("_no_eligible_source"):
         reasons.append("no_eligible_source_present")
+    field_provenance = metadata.get("field_provenance") or {}
+    if isinstance(field_provenance, dict):
+        for field_name, record in field_provenance.items():
+            if not isinstance(record, dict):
+                continue
+            tier = str(record.get("provenance_tier") or "").strip()
+            reason_set = {str(reason) for reason in (record.get("blocking_reasons") or [])}
+            if tier == "safe_fallback" or "fallback_not_launch_eligible" in reason_set:
+                reasons.append(f"field_safe_fallback_not_launch_eligible:{field_name}")
+            if tier == "unsafe_fallback" or "unsafe_fallback" in reason_set:
+                reasons.append(f"field_unsafe_fallback:{field_name}")
+            if tier == "unavailable" or "field_unavailable" in reason_set:
+                reasons.append(f"field_unavailable:{field_name}")
 
+    score_gate_passed = (
+        a10 >= thresholds["A10"]
+        and cosmo >= thresholds["COSMO"]
+        and rufus >= thresholds["Rufus"]
+        and fluency >= thresholds["Fluency"]
+    )
     passed = not reasons
     return {
         "passed": passed,
-        "recommended_output": "hybrid" if passed else "version_a",
+        "recommended_output": "hybrid" if passed and score_gate_passed else "version_a",
         "scores": scores,
         "thresholds": thresholds,
         "reasons": reasons,
@@ -710,26 +929,27 @@ def finalize_hybrid_outputs(
         "coverage_count": coverage["coverage_count"],
         "threshold": coverage["threshold"],
     }
+    metadata["hybrid_repairs"] = []
     if not coverage["meets_threshold"]:
-        repaired_bullets, repair_actions = repair_hybrid_bullets_for_l2(
+        l2_diagnostics = repair_hybrid_bullets_for_l2(
             hybrid_copy.get("bullets") or [],
             missing_keywords=coverage["missing_keywords"],
             max_repairs=2,
         )
-        if repair_actions:
-            hybrid_copy["bullets"] = repaired_bullets
-            _record_hybrid_repair_keyword_assignments(hybrid_copy, repair_actions)
-            repaired_coverage = analyze_listing_l2_coverage(
-                hybrid_copy.get("bullets") or [],
-                slot_targets,
-                threshold=LISTING_L2_COVERAGE_THRESHOLD,
-            )
-            metadata["hybrid_l2_coverage"] = {
-                "covered_slots": repaired_coverage["covered_slots"],
-                "coverage_count": repaired_coverage["coverage_count"],
-                "threshold": repaired_coverage["threshold"],
-            }
-            metadata["hybrid_repairs"] = repair_actions
+        metadata["hybrid_l2_diagnostics"] = l2_diagnostics
+    else:
+        metadata["hybrid_l2_diagnostics"] = {}
+
+    keyword_reconciliation = _reconcile_hybrid_keywords(
+        hybrid_copy=hybrid_copy,
+        version_a=version_a,
+        version_b=version_b,
+        writing_policy=writing_policy,
+    )
+    hybrid_copy["keyword_reconciliation"] = keyword_reconciliation
+    hybrid_copy.setdefault("decision_trace", {})["keyword_assignments"] = list(keyword_reconciliation.get("assignments") or [])
+    hybrid_copy["decision_trace"]["keyword_reconciliation_status"] = keyword_reconciliation.get("status")
+    hybrid_copy["decision_trace"]["keyword_reconciliation_coverage"] = keyword_reconciliation.get("coverage") or {}
 
     risk_report = risk_check.perform_risk_check(
         hybrid_copy,
@@ -799,10 +1019,19 @@ def finalize_hybrid_outputs(
     (output_dir / "listing_report.md").write_text(listing_report, encoding="utf-8")
     (output_dir / "readiness_summary.md").write_text(readiness_summary, encoding="utf-8")
     (output_dir / "source_trace.json").write_text(json.dumps(hybrid_copy.get("source_trace") or {}, ensure_ascii=False, indent=2), encoding="utf-8")
+    image_handoff_path = image_handoff.write_image_handoff(
+        output_dir=output_dir,
+        preprocessed_data=preprocessed_data,
+        generated_copy=hybrid_copy,
+        writing_policy=writing_policy,
+        intent_graph=intent_graph or {},
+        risk_report=risk_report,
+    )
     return {
         "generated_copy": hybrid_copy,
         "risk_report": risk_report,
         "scoring_results": scoring_results,
         "listing_report_path": str(output_dir / "listing_report.md"),
         "readiness_summary_path": str(output_dir / "readiness_summary.md"),
+        "image_handoff_path": str(image_handoff_path),
     }

@@ -297,6 +297,8 @@ def test_hybrid_finalize_writes_scoring_and_readiness_outputs(tmp_path):
     assert (tmp_path / "hybrid" / "listing_report.md").exists()
     persisted = json.loads((tmp_path / "hybrid" / "generated_copy.json").read_text(encoding="utf-8"))
     assert persisted["decision_trace"]["keyword_assignments"]
+    assert persisted["keyword_reconciliation"]["status"] == "complete"
+    assert persisted["decision_trace"]["keyword_reconciliation_status"] == "complete"
 
 
 def test_hybrid_finalize_records_repair_trace_when_l2_is_missing(tmp_path):
@@ -366,10 +368,11 @@ def test_hybrid_finalize_records_repair_trace_when_l2_is_missing(tmp_path):
     )
 
     persisted = json.loads((tmp_path / "hybrid" / "generated_copy.json").read_text(encoding="utf-8"))
-    repairs = persisted["metadata"].get("hybrid_repairs") or []
-    assert repairs
-    assert repairs[0]["action"] == "l2_backfill"
-    assert any("mini camera" in bullet.lower() for bullet in persisted["bullets"])
+    diagnostics = persisted["metadata"].get("hybrid_l2_diagnostics") or {}
+    assert diagnostics["missing_keywords"] == ["travel camera", "mini camera"]
+    assert diagnostics["repair_actions"] == []
+    assert diagnostics["repair_skipped_reason"] == "text_suffix_injection_disabled"
+    assert all("mini camera" not in bullet.lower() for bullet in persisted["bullets"])
 
 
 def test_hybrid_finalize_skips_repair_when_listing_l2_threshold_is_already_met(tmp_path):
@@ -441,8 +444,8 @@ def test_hybrid_finalize_skips_repair_when_listing_l2_threshold_is_already_met(t
     )
 
     persisted = json.loads((tmp_path / "hybrid" / "generated_copy.json").read_text(encoding="utf-8"))
-    repairs = persisted["metadata"].get("hybrid_repairs") or []
-    assert repairs == []
+    diagnostics = persisted["metadata"].get("hybrid_l2_diagnostics") or {}
+    assert diagnostics == {}
 
 
 def test_hybrid_finalize_uses_union_slot_targets_to_trigger_repair_for_b_selected_bullets(tmp_path):
@@ -510,9 +513,11 @@ def test_hybrid_finalize_uses_union_slot_targets_to_trigger_repair_for_b_selecte
     )
 
     persisted = json.loads((tmp_path / "hybrid" / "generated_copy.json").read_text(encoding="utf-8"))
-    assert persisted["metadata"]["hybrid_l2_coverage"]["coverage_count"] == 2
-    repairs = persisted["metadata"].get("hybrid_repairs") or []
-    assert repairs
+    assert persisted["metadata"]["hybrid_l2_coverage"]["coverage_count"] == 0
+    diagnostics = persisted["metadata"].get("hybrid_l2_diagnostics") or {}
+    assert diagnostics["missing_keywords"]
+    assert diagnostics["repair_actions"] == []
+    assert diagnostics["repair_skipped_reason"] == "text_suffix_injection_disabled"
 
 
 def test_hybrid_finalize_records_repaired_l2_assignments_into_decision_trace(tmp_path):
@@ -581,12 +586,9 @@ def test_hybrid_finalize_records_repaired_l2_assignments_into_decision_trace(tmp
 
     persisted = json.loads((tmp_path / "hybrid" / "generated_copy.json").read_text(encoding="utf-8"))
     assignments = persisted["decision_trace"]["keyword_assignments"]
-    repaired_assignment = next(
-        row for row in assignments
-        if row["keyword"] == "travel camera" and "B1" in row["assigned_fields"]
-    )
-
-    assert repaired_assignment["source_version"] == "hybrid_repair"
+    assert not any(row.get("source_version") == "hybrid_repair" for row in assignments)
+    diagnostics = persisted["metadata"].get("hybrid_l2_diagnostics") or {}
+    assert "travel camera" in diagnostics["missing_keywords"]
 
 
 def test_dual_report_can_include_hybrid_appendix():
@@ -632,6 +634,73 @@ def test_no_eligible_source_when_both_fallback_marked():
     assert result["source_version"] is None
     assert result["selection_reason"] == "no_eligible_source"
     assert len(result["disqualified"]) == 2
+
+
+def test_compose_hybrid_normalizes_no_eligible_description_to_string(tmp_path):
+    version_a = {
+        "title": "A title",
+        "bullets": ["A1", "A2", "A3", "A4", "A5"],
+        "description": "A fallback desc",
+        "faq": [],
+        "search_terms": ["a"],
+        "aplus_content": "A+",
+        "metadata": {"visible_llm_fallback_fields": ["description"]},
+        "risk_report": {},
+        "decision_trace": {},
+    }
+    version_b = {
+        "title": "B title",
+        "bullets": ["B1", "B2", "B3", "B4", "B5"],
+        "description": "B fallback desc",
+        "faq": [],
+        "search_terms": ["b"],
+        "aplus_content": "B+",
+        "metadata": {"visible_llm_fallback_fields": ["description"]},
+        "risk_report": {},
+        "decision_trace": {},
+    }
+
+    hybrid = compose_hybrid_listing(version_a, version_b, tmp_path / "hybrid", DEFAULT_HYBRID_SELECTION_POLICY)
+    persisted = json.loads((tmp_path / "hybrid" / "generated_copy.json").read_text(encoding="utf-8"))
+
+    assert hybrid["description"] == ""
+    assert persisted["description"] == ""
+    assert "description" in hybrid["_no_eligible_source"]
+    assert hybrid["source_trace"]["description"]["source_version"] is None
+
+
+def test_compose_hybrid_does_not_launch_select_fallback_descriptions(tmp_path):
+    version_a = {
+        "title": "A title",
+        "bullets": ["A1", "A2", "A3", "A4", "A5"],
+        "description": "A fallback desc",
+        "faq": [],
+        "search_terms": ["a"],
+        "aplus_content": "A+",
+        "metadata": {"visible_llm_fallback_fields": ["description"]},
+        "risk_report": {},
+        "decision_trace": {},
+    }
+    version_b = {
+        "title": "B title",
+        "bullets": ["B1", "B2", "B3", "B4", "B5"],
+        "description": "B fallback desc",
+        "faq": [],
+        "search_terms": ["b"],
+        "aplus_content": "B+",
+        "metadata": {"visible_llm_fallback_fields": ["description"]},
+        "risk_report": {},
+        "decision_trace": {},
+    }
+
+    hybrid = compose_hybrid_listing(version_a, version_b, tmp_path / "hybrid", DEFAULT_HYBRID_SELECTION_POLICY)
+
+    description_provenance = hybrid["metadata"]["field_provenance"]["description"]
+    assert description_provenance["eligibility"] == "review_only"
+    assert description_provenance["launch_eligible"] is False
+    assert hybrid["metadata"]["hybrid_sources"]["description"] is None
+    assert "description" in hybrid["_no_eligible_source"]
+    assert hybrid["description"] == ""
 
 
 def test_risk_blocked_field_falls_back_to_a():
@@ -858,6 +927,65 @@ def test_select_source_for_bullet_slot_prefers_other_version_when_bullet_was_scr
     assert "version_b_scrub_integrity_flag" in decision["soft_signals"]
 
 
+def test_select_source_for_bullet_slot_prefers_version_a_when_version_b_quality_fails():
+    from modules.hybrid_composer import select_source_for_bullet_slot
+
+    decision = select_source_for_bullet_slot(
+        slot="B4",
+        bullet_a="A4 clean guidance for stable walking scenes.",
+        bullet_b="B4 broken guidance tail.",
+        meta_a={"visible_llm_fallback_fields": []},
+        risk_a={"blocking_fields": []},
+        meta_b={"visible_llm_fallback_fields": []},
+        risk_b={"blocking_fields": []},
+        slot_l2_targets=[],
+        quality_a={
+            "slot": "B4",
+            "contract_pass": True,
+            "fluency_pass": True,
+            "unsupported_policy_pass": True,
+            "issues": [],
+        },
+        quality_b={
+            "slot": "B4",
+            "contract_pass": False,
+            "fluency_pass": False,
+            "unsupported_policy_pass": True,
+            "issues": ["dash_tail_without_predicate"],
+        },
+    )
+
+    assert decision["source_version"] == "version_a"
+    assert decision["selection_reason"] == "version_b_quality_failed"
+    assert "version_b_quality_failed" in decision["soft_signals"]
+
+
+def test_select_source_for_bullet_slot_prefers_version_a_when_version_b_slot_contract_fails():
+    from modules.hybrid_composer import select_source_for_bullet_slot
+
+    decision = select_source_for_bullet_slot(
+        slot="B5",
+        bullet_a="Ready-to-Record Kit — Includes the mini body camera, USB-C cable, mount, and 32GB memory card so setup is straightforward.",
+        bullet_b="Unbox, Charge, and Start Capturing — Includes the kit, 256GB storage, 150-minute battery, and support team help.",
+        meta_a={},
+        risk_a={},
+        meta_b={},
+        risk_b={},
+        slot_l2_targets=[],
+        quality_a={"slot": "B5", "contract_pass": True, "fluency_pass": True, "unsupported_policy_pass": True, "issues": []},
+        quality_b={
+            "slot": "B5",
+            "contract_pass": False,
+            "fluency_pass": True,
+            "unsupported_policy_pass": True,
+            "issues": ["slot_contract_failed:multiple_primary_promises"],
+        },
+    )
+
+    assert decision["source_version"] == "version_a"
+    assert decision["selection_reason"] == "version_b_quality_failed"
+
+
 def test_compose_hybrid_listing_records_per_slot_bullet_sources(tmp_path):
     version_a = {
         "title": "A title",
@@ -952,6 +1080,38 @@ def test_compose_hybrid_listing_avoids_version_b_bullet_with_scrub_damage(tmp_pa
     assert hybrid["source_trace"]["bullets"][1]["selection_reason"] == "version_b_scrub_integrity_flag"
 
 
+def test_compose_hybrid_listing_prefers_version_a_when_version_b_slot_quality_fails(tmp_path):
+    version_a = {
+        "title": "A title",
+        "bullets": ["A1", "A2", "A3", "A4 clean guidance for stable walking scenes.", "A5"],
+        "metadata": {},
+        "risk_report": {},
+        "audit_trail": [],
+        "decision_trace": {"bullet_trace": [{"slot": f"B{i}"} for i in range(1, 6)]},
+    }
+    version_b = {
+        "title": "B title",
+        "bullets": ["B1", "B2", "B3", "B4 broken guidance tail.", "B5"],
+        "metadata": {},
+        "risk_report": {},
+        "audit_trail": [],
+        "slot_quality_packets": [
+            {"slot": "B1", "contract_pass": True, "fluency_pass": True, "unsupported_policy_pass": True, "issues": []},
+            {"slot": "B2", "contract_pass": True, "fluency_pass": True, "unsupported_policy_pass": True, "issues": []},
+            {"slot": "B3", "contract_pass": True, "fluency_pass": True, "unsupported_policy_pass": True, "issues": []},
+            {"slot": "B4", "contract_pass": False, "fluency_pass": False, "unsupported_policy_pass": True, "issues": ["dash_tail_without_predicate"]},
+            {"slot": "B5", "contract_pass": True, "fluency_pass": True, "unsupported_policy_pass": True, "issues": []},
+        ],
+        "decision_trace": {"bullet_trace": [{"slot": f"B{i}"} for i in range(1, 6)]},
+    }
+
+    hybrid = compose_hybrid_listing(version_a, version_b, tmp_path / "hybrid", DEFAULT_HYBRID_SELECTION_POLICY)
+
+    assert hybrid["bullets"][3] == "A4 clean guidance for stable walking scenes."
+    assert hybrid["source_trace"]["bullets"][3]["source_version"] == "version_a"
+    assert hybrid["source_trace"]["bullets"][3]["selection_reason"] == "version_b_quality_failed"
+
+
 def test_compose_hybrid_listing_understands_legacy_bullet_slot_aliases(tmp_path):
     version_a = {
         "title": "A title",
@@ -977,3 +1137,149 @@ def test_compose_hybrid_listing_understands_legacy_bullet_slot_aliases(tmp_path)
 
     assert hybrid["source_trace"]["bullets"][0]["source_version"] == "version_a"
     assert hybrid["source_trace"]["bullets"][1]["source_version"] == "version_a"
+
+
+def test_compose_hybrid_listing_shadows_selected_bullet_packets_from_mixed_sources(tmp_path):
+    version_a = {
+        "title": "A title",
+        "bullets": [
+            "A1 HEADER — A1 benefit. A1 proof.",
+            "A2 HEADER — A2 benefit. A2 proof.",
+            "A3 HEADER — A3 benefit. A3 proof.",
+            "A4 HEADER — A4 benefit. A4 proof.",
+            "A5 HEADER — A5 benefit. A5 proof.",
+        ],
+        "metadata": {},
+        "risk_report": {},
+        "decision_trace": {
+            "bullet_trace": [
+                {"slot": "B1", "keywords": ["travel camera"], "capability_mapping": ["battery"], "scene_mapping": ["travel"]},
+                {"slot": "B2", "keywords": ["body camera"], "capability_mapping": ["clip"], "scene_mapping": ["security"]},
+                {"slot": "B3", "keywords": ["helmet camera"], "capability_mapping": ["wide angle"], "scene_mapping": ["cycling"]},
+                {"slot": "B4", "keywords": [], "capability_mapping": ["setup"], "scene_mapping": ["desk"]},
+                {"slot": "B5", "keywords": [], "capability_mapping": ["kit"], "scene_mapping": ["daily"]},
+            ]
+        },
+    }
+    version_b = {
+        "title": "B title",
+        "bullets": [
+            "B1 HEADER — B1 benefit. B1 proof.",
+            "B2 HEADER — B2 benefit. B2 proof.",
+            "B3 HEADER — B3 benefit. B3 proof.",
+            "B4 HEADER — B4 benefit. B4 proof.",
+            "B5 HEADER — B5 benefit. B5 proof.",
+        ],
+        "metadata": {"visible_llm_fallback_fields": ["bullet_b1"]},
+        "risk_report": {},
+        "bullet_packets": [
+            {"slot": "B1", "header": "B1 HEADER", "benefit": "B1 benefit.", "proof": "B1 proof.", "guidance": ""},
+            {"slot": "B2", "header": "B2 HEADER", "benefit": "B2 benefit.", "proof": "B2 proof.", "guidance": ""},
+            {"slot": "B3", "header": "B3 HEADER", "benefit": "B3 benefit.", "proof": "B3 proof.", "guidance": ""},
+            {"slot": "B4", "header": "B4 HEADER", "benefit": "B4 benefit.", "proof": "B4 proof.", "guidance": ""},
+            {"slot": "B5", "header": "B5 HEADER", "benefit": "B5 benefit.", "proof": "B5 proof.", "guidance": ""},
+        ],
+        "slot_quality_packets": [
+            {"slot": "B1", "contract_pass": True, "fluency_pass": True, "keyword_coverage_pass": True, "proof_present": True, "unsupported_policy_pass": True, "format_pass": True, "fallback_used": False, "rerender_count": 0, "issues": []},
+            {"slot": "B2", "contract_pass": False, "fluency_pass": True, "keyword_coverage_pass": False, "proof_present": True, "unsupported_policy_pass": True, "format_pass": True, "fallback_used": False, "rerender_count": 0, "issues": ["missing_keywords"]},
+            {"slot": "B3", "contract_pass": True, "fluency_pass": True, "keyword_coverage_pass": True, "proof_present": True, "unsupported_policy_pass": True, "format_pass": True, "fallback_used": False, "rerender_count": 0, "issues": []},
+            {"slot": "B4", "contract_pass": True, "fluency_pass": True, "keyword_coverage_pass": True, "proof_present": True, "unsupported_policy_pass": True, "format_pass": True, "fallback_used": False, "rerender_count": 0, "issues": []},
+            {"slot": "B5", "contract_pass": True, "fluency_pass": True, "keyword_coverage_pass": True, "proof_present": True, "unsupported_policy_pass": True, "format_pass": True, "fallback_used": False, "rerender_count": 0, "issues": []},
+        ],
+        "decision_trace": {"bullet_trace": [{"slot": f"B{i}"} for i in range(1, 6)]},
+    }
+
+    hybrid = compose_hybrid_listing(version_a, version_b, tmp_path / "hybrid", DEFAULT_HYBRID_SELECTION_POLICY)
+
+    assert [packet["slot"] for packet in hybrid["bullet_packets"]] == ["B1", "B2", "B3", "B4", "B5"]
+    assert hybrid["source_trace"]["bullets"][0]["source_version"] == "version_a"
+    assert hybrid["bullet_packets"][0]["header"] == "A1 HEADER"
+    assert hybrid["bullet_packets"][1]["header"] == "B2 HEADER"
+    assert hybrid["slot_quality_packets"][1]["issues"] == ["missing_keywords"]
+
+
+def test_compose_hybrid_listing_rebuilds_shadow_packet_when_selected_source_lacks_packet(tmp_path):
+    version_a = {
+        "title": "A title",
+        "bullets": ["A1", "A2 NATURAL — Works well for secure evidence capture. Stable clip setup.", "A3", "A4", "A5"],
+        "metadata": {},
+        "risk_report": {},
+        "audit_trail": [],
+        "decision_trace": {
+            "keyword_assignments": [{"keyword": "body camera", "tier": "L2", "assigned_fields": ["B2"]}],
+            "bullet_trace": [
+                {"slot": "B1"},
+                {"slot": "B2", "keywords": ["body camera"], "capability_mapping": ["clip"], "scene_mapping": ["security"]},
+                {"slot": "B3"},
+                {"slot": "B4"},
+                {"slot": "B5"},
+            ],
+        },
+    }
+    version_b = {
+        "title": "B title",
+        "bullets": ["B1", "B2 scrubbed body camera coverage", "B3", "B4", "B5"],
+        "metadata": {},
+        "risk_report": {},
+        "audit_trail": [
+            {
+                "field": "bullet_b2",
+                "action": "delete",
+                "reason": "forbidden_visible_terms_scrub",
+                "terms": ["stabilization"],
+            }
+        ],
+        "bullet_packets": [
+            {"slot": "B1", "header": "B1", "benefit": "benefit", "proof": "", "guidance": ""},
+            {"slot": "B2", "header": "B2", "benefit": "benefit", "proof": "", "guidance": ""},
+            {"slot": "B3", "header": "B3", "benefit": "benefit", "proof": "", "guidance": ""},
+            {"slot": "B4", "header": "B4", "benefit": "benefit", "proof": "", "guidance": ""},
+            {"slot": "B5", "header": "B5", "benefit": "benefit", "proof": "", "guidance": ""},
+        ],
+        "slot_quality_packets": [
+            {"slot": f"B{i}", "contract_pass": True, "fluency_pass": True, "keyword_coverage_pass": True, "proof_present": True, "unsupported_policy_pass": True, "format_pass": True, "fallback_used": False, "rerender_count": 0, "issues": []}
+            for i in range(1, 6)
+        ],
+        "decision_trace": {
+            "keyword_assignments": [{"keyword": "body camera", "tier": "L2", "assigned_fields": ["B2"]}],
+            "bullet_trace": [{"slot": f"B{i}"} for i in range(1, 6)],
+        },
+    }
+
+    hybrid = compose_hybrid_listing(version_a, version_b, tmp_path / "hybrid", DEFAULT_HYBRID_SELECTION_POLICY)
+
+    assert hybrid["source_trace"]["bullets"][1]["source_version"] == "version_a"
+    assert hybrid["bullet_packets"][1]["slot"] == "B2"
+    assert hybrid["bullet_packets"][1]["header"] == "A2 NATURAL"
+    assert hybrid["bullet_packets"][1]["benefit"] == "Works well for secure evidence capture."
+    assert hybrid["slot_quality_packets"][1]["slot"] == "B2"
+
+
+def test_hybrid_launch_gate_does_not_recommend_hybrid_with_field_fallback_blocker():
+    decision = build_hybrid_launch_decision(
+        risk_report={"listing_status": {"status": "READY_FOR_LISTING"}},
+        scoring_results={
+            "dimensions": {
+                "traffic": {"score": 100},
+                "content": {"score": 100},
+                "conversion": {"score": 100},
+                "readability": {"score": 30},
+            }
+        },
+        hybrid_copy={
+            "metadata": {
+                "visible_llm_fallback_fields": [],
+                "field_provenance": {
+                    "description": {
+                        "provenance_tier": "safe_fallback",
+                        "eligibility": "review_only",
+                        "blocking_reasons": ["fallback_not_launch_eligible"],
+                    }
+                },
+            }
+        },
+    )
+
+    assert decision["passed"] is False
+    assert decision["recommended_output"] == "version_a"
+    assert "field_safe_fallback_not_launch_eligible:description" in decision["reasons"]
