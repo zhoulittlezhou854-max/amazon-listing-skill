@@ -237,7 +237,8 @@ def test_run_workspace_workflow_dual_version_returns_dual_report(tmp_path: Path,
     run_dir = Path(result["run_dir"])
     assert (run_dir / "hybrid" / "generated_copy.json").exists()
     assert (run_dir / "final_readiness_verdict.json").exists()
-    assert (run_dir / "LISTING_READY.md").exists()
+    assert not (run_dir / "LISTING_READY.md").exists()
+    assert (run_dir / "LISTING_REVIEW_REQUIRED.md").exists()
     assert captured[0] == {"blueprint": None, "title": None, "bullets": None}
     assert captured[1] == {
         "blueprint": "deepseek-reasoner",

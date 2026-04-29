@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import re
-from typing import Any, List, Tuple
+from typing import Any, Dict, List
 
 _NON_ALNUM_RE = re.compile(r"[^a-z0-9]+")
 _MAX_BULLET_CHARS = 255
@@ -171,39 +171,44 @@ def repair_hybrid_bullets_for_l2(
     bullets: List[str],
     missing_keywords: List[str],
     max_repairs: int = 2,
-) -> Tuple[List[str], List[dict]]:
+) -> Dict[str, Any]:
     repaired = list(bullets or [])
-    actions: List[dict] = []
-    used_slots: set[int] = set()
+    missing = [str(keyword or "").strip() for keyword in (missing_keywords or []) if str(keyword or "").strip()]
+    if not missing:
+        return {
+            "bullets": repaired,
+            "missing_keywords": [],
+            "candidate_slots": [],
+            "repair_actions": [],
+            "repair_skipped_reason": "no_missing_keywords",
+            "max_repairs": max_repairs,
+        }
 
-    for keyword in missing_keywords or []:
-        if len(actions) >= max_repairs:
-            break
+    candidate_slots: List[dict] = []
+    for keyword in missing:
         ranked_candidates = sorted(
             (
                 (idx, bullet, _semantic_slot_score(f"B{idx + 1}", bullet, keyword))
                 for idx, bullet in enumerate(repaired)
-                if idx not in used_slots
             ),
             key=lambda item: item[2],
             reverse=True,
         )
-        for idx, bullet, _score in ranked_candidates:
-            if idx in used_slots:
-                continue
-            for candidate in _candidate_keyword_injections(bullet, keyword):
-                if not _is_safe_bullet_candidate(bullet, candidate, keyword):
-                    continue
-                repaired[idx] = candidate
-                used_slots.add(idx)
-                actions.append(
-                    {
-                        "action": "l2_backfill",
-                        "slot": f"B{idx + 1}",
-                        "keyword": keyword,
-                    }
-                )
-                break
-            if idx in used_slots:
-                break
-    return repaired, actions
+        for idx, bullet, score in ranked_candidates[:3]:
+            candidate_slots.append(
+                {
+                    "slot": f"B{idx + 1}",
+                    "keyword": keyword,
+                    "score": score,
+                    "bullet_preview": str(bullet or "")[:120],
+                }
+            )
+
+    return {
+        "bullets": repaired,
+        "missing_keywords": missing,
+        "candidate_slots": candidate_slots,
+        "repair_actions": [],
+        "repair_skipped_reason": "text_suffix_injection_disabled",
+        "max_repairs": max_repairs,
+    }
