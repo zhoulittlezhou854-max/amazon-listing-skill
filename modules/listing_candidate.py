@@ -109,6 +109,24 @@ def _canonical_fact_blockers(metadata: Mapping[str, Any]) -> list[str]:
     return blockers
 
 
+def _final_visible_quality(artifact: Mapping[str, Any], metadata: Mapping[str, Any]) -> dict[str, Any]:
+    top_level = artifact.get("final_visible_quality")
+    if isinstance(top_level, Mapping):
+        return dict(top_level)
+    nested = metadata.get("final_visible_quality")
+    if isinstance(nested, Mapping):
+        return dict(nested)
+    return {}
+
+
+def _final_visible_blockers(final_quality: Mapping[str, Any]) -> list[str]:
+    return [
+        clean
+        for item in (final_quality.get("paste_ready_blockers") or [])
+        if (clean := _clean_string(item))
+    ]
+
+
 def build_listing_candidate(
     candidate_id: str,
     artifact: Mapping[str, Any],
@@ -139,6 +157,8 @@ def build_listing_candidate(
     blockers.extend(_field_provenance_blockers(metadata))
     blockers.extend(_slot_contract_blockers(artifact))
     blockers.extend(_canonical_fact_blockers(metadata))
+    final_quality = _final_visible_quality(artifact, metadata)
+    blockers.extend(_final_visible_blockers(final_quality))
     keyword_reconciliation = _clean_trace(artifact.get("keyword_reconciliation"))
     if keyword_reconciliation.get("status") != "complete":
         blockers.append("keyword_reconciliation_incomplete")
@@ -166,6 +186,7 @@ def build_listing_candidate(
         "bullets": bullets,
         "description": description,
         "search_terms": search_terms,
+        "final_visible_quality": final_quality,
     }
     for key in _TRACE_KEYS:
         if key == "keyword_reconciliation":
