@@ -51,6 +51,18 @@ _PROMISE_PATTERNS = {
 
 _B5_ALLOWED_PRIMARY = ("ready_to_record_kit", "storage_setup", "compatibility_guidance")
 
+_BATTERY_RUNTIME_CONTEXT_RE = re.compile(
+    r"\b(?:battery\s+life|runtime|continuous\s+recording|per\s+charge|single\s+charge|"
+    r"\d+\s*(?:minutes?|mins?|hours?|hrs?)\b)",
+    re.IGNORECASE,
+)
+
+_PACKAGE_BATTERY_CONTEXT_RE = re.compile(
+    r"\b(?:includes?|included|comes\s+with|inside(?:\s+you'?ll\s+find)?|package|box)\b"
+    r".{0,120}\b(?:lithium\s+)?battery\b",
+    re.IGNORECASE,
+)
+
 
 def _normalize_slot(slot: Any) -> str:
     value = str(slot or "").strip().upper()
@@ -78,9 +90,21 @@ def _allowed_facts_from(canonical_facts: dict | None) -> list[str]:
 def _detect_promises(text: str) -> list[str]:
     hits: list[str] = []
     for promise, patterns in _PROMISE_PATTERNS.items():
+        if promise == "battery_runtime":
+            if _detect_battery_runtime(text):
+                hits.append(promise)
+            continue
         if any(re.search(pattern, text) for pattern in patterns):
             hits.append(promise)
     return hits
+
+
+def _detect_battery_runtime(text: str) -> bool:
+    if not re.search(r"\bbattery\b|\bcharge\b|\bruntime\b|\bminutes?\b|\bhours?\b", text, re.IGNORECASE):
+        return False
+    if _PACKAGE_BATTERY_CONTEXT_RE.search(text) and not _BATTERY_RUNTIME_CONTEXT_RE.search(text):
+        return False
+    return bool(_BATTERY_RUNTIME_CONTEXT_RE.search(text))
 
 
 def build_slot_contract(

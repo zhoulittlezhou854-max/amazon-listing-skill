@@ -206,6 +206,8 @@ def _normalize_assigned_field(field: Any) -> str:
 def _slot_quality_is_unhealthy(slot_quality: Optional[Dict[str, Any]]) -> bool:
     if not isinstance(slot_quality, dict) or not slot_quality:
         return False
+    if slot_quality.get("contract_pass") is False:
+        return True
     if slot_quality.get("fluency_pass") is False:
         return True
     if slot_quality.get("unsupported_policy_pass") is False:
@@ -216,12 +218,17 @@ def _slot_quality_is_unhealthy(slot_quality: Optional[Dict[str, Any]]) -> bool:
         "dash_tail_without_predicate",
         "repeated_word_root",
         "unsupported_capability_negative_literal",
+        "scrub_induced_awkwardness",
     }
     for issue in slot_quality.get("issues") or []:
         normalized = str(issue or "").strip()
         if normalized in unhealthy_issues or normalized.startswith("slot_contract_failed:"):
             return True
     return False
+
+
+def _slot_keyword_coverage_failed(slot_quality: Optional[Dict[str, Any]]) -> bool:
+    return isinstance(slot_quality, dict) and slot_quality.get("keyword_coverage_pass") is False
 
 
 def _find_slot_payload_row(rows: Any, slot: str, idx: Optional[int] = None) -> Optional[Dict[str, Any]]:
@@ -301,25 +308,16 @@ def select_source_for_bullet_slot(
             "soft_signals": soft_signals,
         }
 
-    if slot in scrubbed_b and slot not in scrubbed_a:
-        soft_signals.append("version_b_scrub_integrity_flag")
-        return {
-            "source_version": "version_a",
-            "selection_reason": "version_b_scrub_integrity_flag",
-            "disqualified": disqualified,
-            "soft_signals": soft_signals,
-        }
-    if slot in scrubbed_a and slot not in scrubbed_b:
-        soft_signals.append("version_a_scrub_integrity_flag")
-        return {
-            "source_version": "version_b",
-            "selection_reason": "version_a_scrub_integrity_flag",
-            "disqualified": disqualified,
-            "soft_signals": soft_signals,
-        }
-
     b_quality_failed = _slot_quality_is_unhealthy(quality_b)
     a_quality_failed = _slot_quality_is_unhealthy(quality_a)
+    if b_quality_failed and a_quality_failed:
+        soft_signals.append("both_quality_failed_stable_preference")
+        return {
+            "source_version": "version_a",
+            "selection_reason": "both_quality_failed_stable_preference",
+            "disqualified": disqualified,
+            "soft_signals": soft_signals,
+        }
     if b_quality_failed and not a_quality_failed:
         soft_signals.append("version_b_quality_failed")
         return {
@@ -333,6 +331,34 @@ def select_source_for_bullet_slot(
         return {
             "source_version": "version_b",
             "selection_reason": "version_a_quality_failed",
+            "disqualified": disqualified,
+            "soft_signals": soft_signals,
+        }
+
+    b_keyword_failed = _slot_keyword_coverage_failed(quality_b)
+    a_keyword_failed = _slot_keyword_coverage_failed(quality_a)
+    if b_keyword_failed and not a_keyword_failed:
+        soft_signals.append("version_b_keyword_regression")
+        return {
+            "source_version": "version_a",
+            "selection_reason": "version_b_keyword_regression",
+            "disqualified": disqualified,
+            "soft_signals": soft_signals,
+        }
+
+    if slot in scrubbed_b and slot not in scrubbed_a:
+        soft_signals.append("version_b_scrub_integrity_flag")
+        return {
+            "source_version": "version_a",
+            "selection_reason": "version_b_scrub_integrity_flag",
+            "disqualified": disqualified,
+            "soft_signals": soft_signals,
+        }
+    if slot in scrubbed_a and slot not in scrubbed_b:
+        soft_signals.append("version_a_scrub_integrity_flag")
+        return {
+            "source_version": "version_b",
+            "selection_reason": "version_a_scrub_integrity_flag",
             "disqualified": disqualified,
             "soft_signals": soft_signals,
         }

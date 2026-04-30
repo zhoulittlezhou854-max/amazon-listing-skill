@@ -3312,6 +3312,7 @@ def test_generate_listing_copy_prefers_visible_copy_model_in_metadata(monkeypatc
     monkeypatch.setattr(cg, "generate_bullet_points", lambda *args, **kwargs: pytest.fail("single-field bullet path should be skipped"))
     monkeypatch.setattr(cg, "_generate_and_audit_title", lambda payload, audit_log, assignment_tracker, required_keywords, max_retries=3: payload["_prefetched_title_candidates"][0])
     monkeypatch.setattr(cg, "_polish_bullet_quality_with_llm", lambda *args, **kwargs: pytest.fail("pure R1 batch bullets should not be re-polished"))
+    monkeypatch.setattr(cg, "build_slot_rerender_plan", lambda *args, **kwargs: [])
     monkeypatch.setattr(cg, "generate_description", lambda *args, **kwargs: _touch_flash_meta("Description text."))
     monkeypatch.setattr(cg, "generate_faq", lambda *args, **kwargs: _touch_flash_meta([{"q": "Q", "a": "A"}]))
     monkeypatch.setattr(
@@ -3551,3 +3552,38 @@ def test_finalize_visible_text_uses_canonical_facts_for_guarded_claims():
 
     assert "waterproof" in cleaned.lower()
     assert not any(entry.get("action") == "claim_language_blocked" for entry in audit_log)
+
+
+def test_sync_bullet_packets_to_final_bullets_preserves_required_keywords():
+    import modules.copy_generation as cg
+
+    bullets = ["ACTION CAMERA POWER -- This action camera records for 150 minutes."]
+    packets = [{"slot": "B1", "required_keywords": ["action camera"], "header": "Old", "benefit": "Old text."}]
+
+    synced = cg._sync_bullet_packets_to_final_bullets(bullets, packets, [{"slot": "B1"}], {})
+
+    assert synced[0]["slot"] == "B1"
+    assert synced[0]["required_keywords"] == ["action camera"]
+    assert synced[0]["header"] == "ACTION CAMERA POWER"
+    assert "action camera" in (synced[0]["benefit"] + " " + synced[0].get("proof", "")).lower()
+
+
+def test_slot_quality_flags_scrub_induced_awkwardness():
+    import modules.copy_generation as cg
+
+    quality = cg._build_slot_quality_packet(
+        {
+            "slot": "B2",
+            "header": "EVIDENCE CAPTURE",
+            "benefit": "Wear comfortably extended-session and record details.",
+            "proof": "Weighs 0.1 kg.",
+            "guidance": "Use it during routine work.",
+            "required_keywords": [],
+        },
+        copy_contracts={},
+        slot_rule_contract={},
+        target_language="English",
+    )
+
+    assert "scrub_induced_awkwardness" in quality["issues"]
+    assert quality["fluency_pass"] is False

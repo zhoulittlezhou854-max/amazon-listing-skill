@@ -20,7 +20,8 @@ docs/superpowers/plans/
 ├── 2026-04-28-keyword-protocol-blue-ocean-closed-loop.md
 ├── 2026-04-29-listing-system-contracts-refactor-plan.md
 ├── 2026-04-29-field-contracts-and-canonical-facts-plan.md
-└── 2026-04-30-version-b-supervisor-plan.md
+├── 2026-04-30-version-b-supervisor-plan.md
+└── 2026-04-30-version-b-quality-hardening-plan.md
 ```
 
 ## 文件说明
@@ -40,6 +41,7 @@ docs/superpowers/plans/
 | 2026-04-29-listing-system-contracts-refactor-plan.md | listing 系统合同优先中等重构实施计划：candidate、reconciliation、verdict 与 A/B deadline | 2026-04-29 |
 | 2026-04-29-field-contracts-and-canonical-facts-plan.md | 方案 B 实施计划：canonical_facts、claim_language_contract、field_provenance、slot_contracts 与 H91 live 验证 | 2026-04-29 |
 | 2026-04-30-version-b-supervisor-plan.md | version_b worker/supervisor、deadline、partial_success 与最小 UI 状态展示实施计划 | 2026-04-30 |
+| 2026-04-30-version-b-quality-hardening-plan.md | version_b R1 batch 最终文本质量闸门、slot rerender、B5 合同与 hybrid 防污染实施计划 | 2026-04-30 |
 
 ## 使用指南
 - 优先阅读最新计划，再回看历史计划理解上下文

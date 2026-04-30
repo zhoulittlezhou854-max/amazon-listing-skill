@@ -1144,7 +1144,7 @@ def test_compose_hybrid_listing_shadows_selected_bullet_packets_from_mixed_sourc
         "title": "A title",
         "bullets": [
             "A1 HEADER — A1 benefit. A1 proof.",
-            "A2 HEADER — A2 benefit. A2 proof.",
+            "A2 HEADER — body camera evidence capture. A2 proof.",
             "A3 HEADER — A3 benefit. A3 proof.",
             "A4 HEADER — A4 benefit. A4 proof.",
             "A5 HEADER — A5 benefit. A5 proof.",
@@ -1194,8 +1194,9 @@ def test_compose_hybrid_listing_shadows_selected_bullet_packets_from_mixed_sourc
     assert [packet["slot"] for packet in hybrid["bullet_packets"]] == ["B1", "B2", "B3", "B4", "B5"]
     assert hybrid["source_trace"]["bullets"][0]["source_version"] == "version_a"
     assert hybrid["bullet_packets"][0]["header"] == "A1 HEADER"
-    assert hybrid["bullet_packets"][1]["header"] == "B2 HEADER"
-    assert hybrid["slot_quality_packets"][1]["issues"] == ["missing_keywords"]
+    assert hybrid["source_trace"]["bullets"][1]["source_version"] == "version_a"
+    assert hybrid["bullet_packets"][1]["header"] == "A2 HEADER"
+    assert hybrid["slot_quality_packets"][1]["issues"] == []
 
 
 def test_compose_hybrid_listing_rebuilds_shadow_packet_when_selected_source_lacks_packet(tmp_path):
@@ -1283,3 +1284,63 @@ def test_hybrid_launch_gate_does_not_recommend_hybrid_with_field_fallback_blocke
     assert decision["passed"] is False
     assert decision["recommended_output"] == "version_a"
     assert "field_safe_fallback_not_launch_eligible:description" in decision["reasons"]
+
+
+def test_hybrid_chooses_a_when_b_missing_slot_keywords_and_a_has_them():
+    from modules.hybrid_composer import select_source_for_bullet_slot
+
+    decision = select_source_for_bullet_slot(
+        slot="B1",
+        bullet_a="ACTION CAMERA POWER -- This action camera records for 150 minutes.",
+        bullet_b="BATTERY POWER -- Records for 150 minutes.",
+        meta_a={},
+        risk_a={},
+        meta_b={},
+        risk_b={},
+        slot_l2_targets=["action camera"],
+        quality_a={"slot": "B1", "keyword_coverage_pass": True, "issues": []},
+        quality_b={"slot": "B1", "keyword_coverage_pass": False, "issues": ["missing_keywords"]},
+    )
+
+    assert decision["source_version"] == "version_a"
+    assert decision["selection_reason"] in {"version_b_quality_failed", "version_b_keyword_regression"}
+
+
+def test_hybrid_rejects_b_slot_contract_failure_when_a_is_clean():
+    from modules.hybrid_composer import select_source_for_bullet_slot
+
+    decision = select_source_for_bullet_slot(
+        slot="B5",
+        bullet_a="READY KIT -- Includes camera, clip, USB-C cable, and 32 GB microSD card.",
+        bullet_b="READY KIT -- Includes card, supports card, card not included.",
+        meta_a={},
+        risk_a={},
+        meta_b={},
+        risk_b={},
+        slot_l2_targets=[],
+        quality_a={"slot": "B5", "fluency_pass": True, "unsupported_policy_pass": True, "issues": []},
+        quality_b={"slot": "B5", "fluency_pass": True, "unsupported_policy_pass": True, "issues": ["slot_contract_failed:multiple_primary_promises"]},
+    )
+
+    assert decision["source_version"] == "version_a"
+    assert decision["selection_reason"] == "version_b_quality_failed"
+
+
+def test_hybrid_prefers_stable_slot_when_both_versions_have_quality_failures():
+    from modules.hybrid_composer import select_source_for_bullet_slot
+
+    decision = select_source_for_bullet_slot(
+        slot="B5",
+        bullet_a="A kit bullet with a known review issue.",
+        bullet_b="B kit bullet with a different review issue.",
+        meta_a={},
+        risk_a={},
+        meta_b={},
+        risk_b={},
+        slot_l2_targets=[],
+        quality_a={"slot": "B5", "contract_pass": False, "fluency_pass": True, "unsupported_policy_pass": True, "issues": ["slot_contract_failed:multiple_primary_promises"]},
+        quality_b={"slot": "B5", "contract_pass": False, "fluency_pass": True, "unsupported_policy_pass": True, "issues": ["scene_binding_missing"]},
+    )
+
+    assert decision["source_version"] == "version_a"
+    assert decision["selection_reason"] == "both_quality_failed_stable_preference"

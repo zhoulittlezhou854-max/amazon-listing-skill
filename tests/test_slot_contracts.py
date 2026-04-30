@@ -38,3 +38,32 @@ def test_b5_accepts_ready_kit_with_single_semantic_bridge():
 
     assert result["passed"] is True
     assert result["reasons"] == []
+
+
+def test_b5_package_battery_is_not_runtime_promise():
+    from modules.slot_contracts import build_slot_contract, validate_bullet_against_contract
+
+    bullet = (
+        "READY-TO-RECORD KIT -- Includes body camera, magnetic clip, back clip, "
+        "USB-C cable, 32 GB microSD card, and lithium battery. "
+        "Add higher-capacity storage up to 256 GB when needed."
+    )
+
+    result = validate_bullet_against_contract(bullet, build_slot_contract("B5"))
+
+    assert result["passed"] is True
+    assert "battery_runtime" not in result["detected_promises"]
+
+
+def test_b5_explicit_runtime_still_fails_as_second_promise():
+    from modules.slot_contracts import build_slot_contract, validate_bullet_against_contract
+
+    bullet = (
+        "READY-TO-RECORD KIT -- Includes the camera and clip. "
+        "Long battery life provides up to 150 minutes of continuous recording."
+    )
+
+    result = validate_bullet_against_contract(bullet, build_slot_contract("B5"))
+
+    assert "battery_runtime" in result["detected_promises"]
+    assert "multiple_primary_promises" in result["reasons"]

@@ -757,7 +757,7 @@ def _format_mode_guidance(mode_guidance: Dict[str, Any], scene_code: Optional[st
 
 def _split_bullet_header_body(text: str) -> Tuple[str, str]:
     cleaned = (text or "").strip()
-    for separator in [" — ", " – ", " - "]:
+    for separator in [" — ", " – ", " -- ", " - "]:
         if separator in cleaned:
             header, body = cleaned.split(separator, 1)
             return header.strip(), body.strip()
@@ -3261,6 +3261,18 @@ def _assemble_bullet_from_packet(packet: Dict[str, Any]) -> str:
     return header or body
 
 
+_AWKWARD_SCRUB_PHRASES = (
+    "comfortably extended-session",
+    "suitable for smooth",
+    "for suitable clarity",
+)
+
+
+def _has_scrub_induced_awkwardness(text: str) -> bool:
+    lowered = str(text or "").lower()
+    return any(phrase in lowered for phrase in _AWKWARD_SCRUB_PHRASES)
+
+
 def _build_bullet_packet(
     slot: str,
     bullet_text: str,
@@ -3292,6 +3304,43 @@ def _build_bullet_packet(
         "contract_version": "slot_packet_v1",
     }
     return _normalize_bullet_packet(packet)
+
+
+def _sync_bullet_packets_to_final_bullets(
+    bullets: Sequence[str],
+    bullet_packets: Sequence[Dict[str, Any]],
+    bullet_trace: Sequence[Dict[str, Any]],
+    slot_rule_contracts: Dict[str, Dict[str, Any]],
+) -> List[Dict[str, Any]]:
+    synced: List[Dict[str, Any]] = []
+    for idx, bullet in enumerate(bullets or []):
+        slot = f"B{idx + 1}"
+        previous = next(
+            (
+                packet for packet in bullet_packets or []
+                if str((packet or {}).get("slot") or "").strip().upper() == slot
+            ),
+            {},
+        )
+        trace_entry = bullet_trace[idx] if idx < len(bullet_trace or []) and isinstance(bullet_trace[idx], dict) else {}
+        rebuilt = _build_bullet_packet(
+            slot,
+            str(bullet or ""),
+            trace_entry=trace_entry,
+            slot_rule_contract=slot_rule_contracts.get(slot) or {},
+        )
+        rebuilt["required_keywords"] = list(previous.get("required_keywords") or rebuilt.get("required_keywords") or [])
+        rebuilt["required_facts"] = list(previous.get("required_facts") or rebuilt.get("required_facts") or [])
+        rebuilt["capability_mapping"] = list(previous.get("capability_mapping") or rebuilt.get("capability_mapping") or [])
+        rebuilt["scene_mapping"] = list(previous.get("scene_mapping") or rebuilt.get("scene_mapping") or [])
+        rebuilt["unsupported_capability_policy"] = deepcopy(
+            previous.get("unsupported_capability_policy")
+            or rebuilt.get("unsupported_capability_policy")
+            or (slot_rule_contracts.get(slot) or {}).get("unsupported_capability_policy")
+            or {}
+        )
+        synced.append(_normalize_bullet_packet(rebuilt))
+    return synced
 
 
 def _build_slot_quality_packet(
@@ -3341,6 +3390,8 @@ def _build_slot_quality_packet(
     for key, issue_name in issue_map.items():
         if failure_reason.get(key):
             issues.append(issue_name)
+    if _has_scrub_induced_awkwardness(assembled_text) and "scrub_induced_awkwardness" not in issues:
+        issues.append("scrub_induced_awkwardness")
 
     slot_contract = build_slot_contract(
         str(normalized.get("slot") or ""),
@@ -3391,6 +3442,7 @@ def _build_slot_quality_packet(
             "header_body_rupture",
             "dash_tail_without_predicate",
             "repeated_word_root",
+            "scrub_induced_awkwardness",
         }
         for issue in issues
     )
@@ -3409,6 +3461,17 @@ def _build_slot_quality_packet(
         "issues": issues,
         "slot_contract": slot_contract_result,
     }
+
+
+def _slot_rerender_quality_passes_gate(quality: Dict[str, Any]) -> bool:
+    if not isinstance(quality, dict):
+        return False
+    return (
+        quality.get("contract_pass") is not False
+        and quality.get("fluency_pass") is not False
+        and quality.get("keyword_coverage_pass") is not False
+        and quality.get("unsupported_policy_pass") is not False
+    )
 
 
 def _rerender_slot_from_packet_plan(
@@ -3484,6 +3547,12 @@ def _rerender_slot_from_packet_plan(
             target_language=target_language,
         )
         quality["rerender_count"] = int(((plan_entry.get("slot_quality") or {}).get("rerender_count") or 0)) + 1
+        if not _slot_rerender_quality_passes_gate(quality):
+            return _build_local_slot_rerender_fallback(
+                plan_entry,
+                writing_policy,
+                target_language,
+            )
         return {
             "slot": slot,
             "bullet": bullet,
@@ -3513,19 +3582,45 @@ def _build_local_slot_rerender_fallback(
     packet = deepcopy(source_packet)
     if slot == "B5" and (
         "slot_contract_failed" in rerender_reasons
+        or "repeated_word_root" in rerender_reasons
+        or "keyword_coverage_fail" in rerender_reasons
+        or "missing_keywords" in rerender_reasons
         or any(str(issue or "").startswith("slot_contract_failed:") for issue in (slot_quality.get("issues") or []))
+        or "missing_keywords" in set(slot_quality.get("issues") or [])
     ):
-        required_keywords = list(packet.get("required_keywords") or [])
-        lead_keyword = str(required_keywords[0] or "wearable camera").strip() if required_keywords else "wearable camera"
+        required_keywords = [str(keyword or "").strip() for keyword in (packet.get("required_keywords") or []) if str(keyword or "").strip()]
+        keyword_phrase = " and ".join(required_keywords) if required_keywords else "body camera"
         header = "READY-TO-RECORD KIT"
         benefit = (
-            f"Includes the {lead_keyword}, USB-C cable, magnetic pendant, and back clip "
-            "so setup stays straightforward."
+            f"Start with the included {keyword_phrase}, magnetic clip, back clip, "
+            "USB-C cable, and 32 GB microSD card."
         )
-        proof = "Add a compatible microSD card up to 256GB when you need more space for daily recording."
+        proof = "Add higher-capacity storage up to 256 GB when needed."
+        scene_anchors = []
+        for scene in packet.get("scene_mapping") or []:
+            per_scene = _build_localized_scene_anchors([scene], target_language)
+            if per_scene:
+                scene_anchors.append(per_scene[0])
+        capability_anchors = _build_localized_capability_anchors(
+            packet.get("capability_mapping") or [],
+            target_language,
+        )
+        safe_capability = next(
+            (
+                anchor for anchor in capability_anchors
+                if not re.search(r"\b(?:battery|charge|runtime|minutes?|hours?)\b", str(anchor or ""), re.IGNORECASE)
+            ),
+            "",
+        )
+        guidance_parts: List[str] = []
+        if scene_anchors:
+            guidance_parts.append(f"Pack it for {' and '.join(scene_anchors[:2])} use.")
+        if safe_capability:
+            guidance_parts.append(f"Keep {safe_capability} simple during setup.")
+        guidance = " ".join(guidance_parts)
         rebuilt_packet = _build_bullet_packet(
             slot,
-            f"{header} — {benefit} {proof}",
+            f"{header} -- {benefit} {proof} {guidance}".strip(),
             trace_entry={
                 "slot": slot,
                 "keywords": required_keywords,
@@ -3536,6 +3631,7 @@ def _build_local_slot_rerender_fallback(
         )
         rebuilt_packet["required_keywords"] = required_keywords
         rebuilt_packet["required_facts"] = list(packet.get("required_facts") or [])
+        rebuilt_packet["guidance"] = guidance
         quality = _build_slot_quality_packet(
             rebuilt_packet,
             copy_contracts=writing_policy.get("copy_contracts") or {},
@@ -9228,6 +9324,14 @@ def generate_multilingual_copy(preprocessed_data: PreprocessedData,
         opener_signature = _bullet_body_opener_signature(bullets[idx])
         if opener_signature:
             recent_bullet_openers.append(opener_signature)
+    slot_rule_contracts = writing_policy.get("bullet_slot_rules") or {}
+    if pure_r1_visible_batch and bullet_packets:
+        bullet_packets = _sync_bullet_packets_to_final_bullets(
+            bullets,
+            bullet_packets,
+            bullet_trace,
+            slot_rule_contracts,
+        )
     if _should_run_localization_pass(description, target_language, llm_offline):
         description = _localize_text_block(description, target_language, preferred_locale, brand_terms, audit_log, "description")
     description = _scrub_visible_field(
@@ -9289,6 +9393,7 @@ def generate_multilingual_copy(preprocessed_data: PreprocessedData,
     ]
     slot_rerender_plan = build_slot_rerender_plan(
         {
+            "metadata": {"visible_copy_mode": "r1_batch"} if pure_r1_visible_batch else {},
             "bullets": bullets,
             "bullet_packets": bullet_packets,
             "slot_quality_packets": slot_quality_packets,
@@ -9299,6 +9404,7 @@ def generate_multilingual_copy(preprocessed_data: PreprocessedData,
     if slot_rerender_plan:
         rerender_surface = _run_slot_rerender_pass(
             {
+                "metadata": {"visible_copy_mode": "r1_batch"} if pure_r1_visible_batch else {},
                 "bullets": bullets,
                 "bullet_packets": bullet_packets,
                 "slot_quality_packets": slot_quality_packets,

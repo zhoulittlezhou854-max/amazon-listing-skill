@@ -12,6 +12,13 @@ _REPAIRABLE_ISSUES = {
     "dash_tail_without_predicate",
     "repeated_word_root",
     "unsupported_capability_negative_literal",
+    "scrub_induced_awkwardness",
+}
+
+_R1_BATCH_DEFAULT_REPAIR_POLICY = {
+    "on_contract_fail": "rerender_slot",
+    "on_fluency_fail": "rerender_slot",
+    "on_keyword_coverage_fail": "rerender_slot",
 }
 
 
@@ -52,15 +59,32 @@ def _get_slot_bullet(bullets: Any, slot: str) -> Optional[str]:
     return None
 
 
+def _is_r1_batch_surface(generated_copy: Dict[str, Any]) -> bool:
+    metadata = generated_copy.get("metadata") or {}
+    return str(metadata.get("visible_copy_mode") or "").strip() == "r1_batch"
+
+
+def _resolve_repair_policy(slot_rule: Dict[str, Any], generated_copy: Dict[str, Any]) -> Dict[str, Any]:
+    explicit = deepcopy(slot_rule.get("repair_policy") or {})
+    if explicit:
+        return explicit
+    if _is_r1_batch_surface(generated_copy):
+        return deepcopy(_R1_BATCH_DEFAULT_REPAIR_POLICY)
+    return {}
+
+
 def _build_rerender_reasons(slot_quality: Dict[str, Any], repair_policy: Dict[str, Any]) -> List[str]:
     reasons: List[str] = []
     contract_action = str(repair_policy.get("on_contract_fail") or "").strip()
     fluency_action = str(repair_policy.get("on_fluency_fail") or "").strip()
+    keyword_action = str(repair_policy.get("on_keyword_coverage_fail") or "").strip()
 
     if slot_quality.get("contract_pass") is False and contract_action == "rerender_slot":
         reasons.append("contract_fail")
     if slot_quality.get("fluency_pass") is False and fluency_action == "rerender_slot":
         reasons.append("fluency_fail")
+    if slot_quality.get("keyword_coverage_pass") is False and keyword_action == "rerender_slot":
+        reasons.append("keyword_coverage_fail")
     if slot_quality.get("unsupported_policy_pass") is False and "contract_fail" not in reasons and contract_action == "rerender_slot":
         reasons.append("unsupported_policy_fail")
 
@@ -90,7 +114,7 @@ def build_slot_rerender_plan(generated_copy: Dict[str, Any], writing_policy: Dic
             continue
         slot_quality = _get_slot_row(slot_quality_packets, slot) or {}
         slot_rule = slot_rules.get(slot) or {}
-        repair_policy = deepcopy(slot_rule.get("repair_policy") or {})
+        repair_policy = _resolve_repair_policy(slot_rule, generated_copy)
         rerender_reasons = _build_rerender_reasons(slot_quality, repair_policy)
         if not rerender_reasons:
             continue

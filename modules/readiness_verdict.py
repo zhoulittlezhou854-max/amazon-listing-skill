@@ -18,6 +18,41 @@ def _dedupe_blockers(blockers: list[str]) -> list[str]:
     return deduped
 
 
+_SOURCE_REVIEW_TIEBREAK = {
+    "stable": 0,
+    "version_a": 0,
+    "hybrid": 1,
+    "experimental": 2,
+    "version_b": 2,
+    "unknown": 3,
+}
+
+
+def _blocker_weight(blocker: str) -> int:
+    clean = str(blocker or "")
+    if clean.startswith("risk_listing_not_ready") or clean.startswith("field_unavailable"):
+        return 5
+    if clean.startswith("slot_contract_failed"):
+        return 4
+    if "Repeated word root" in clean or clean.startswith("repeated_word_root"):
+        return 3
+    if clean.startswith("keyword_reconciliation"):
+        return 3
+    if clean.startswith("experimental_version"):
+        return 2
+    return 1
+
+
+def _review_rank_key(row: Mapping[str, Any]) -> tuple[int, int, int]:
+    blockers = list(row.get("blockers") or [])
+    source_type = str(row.get("source_type") or "unknown")
+    return (
+        sum(_blocker_weight(blocker) for blocker in blockers),
+        len(blockers),
+        _SOURCE_REVIEW_TIEBREAK.get(source_type, 3),
+    )
+
+
 def _candidate_blockers(candidate_id: str, candidate: Mapping[str, Any]) -> list[str]:
     blockers = [str(item) for item in (candidate.get("paste_ready_blockers") or [])]
 
@@ -62,7 +97,10 @@ def build_readiness_verdict(*, candidates: Mapping[str, Mapping[str, Any]], run_
         if candidate_id in candidates
     ]
     paste_ready = [row for row in rankings if row["eligibility"] == "paste_ready"]
-    review_only = [row for row in rankings if row["eligibility"] == "review_only"]
+    review_only = sorted(
+        [row for row in rankings if row["eligibility"] == "review_only"],
+        key=_review_rank_key,
+    )
 
     if paste_ready:
         operational_status = "READY_FOR_LISTING"

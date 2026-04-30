@@ -178,3 +178,35 @@ def test_repaired_live_field_can_remain_paste_ready_when_other_gates_pass():
     assert verdict["operational_listing_status"] == "READY_FOR_LISTING"
     assert verdict["launch_gate"]["passed"] is True
     assert _ranking(verdict, "hybrid")["eligibility"] == "paste_ready"
+
+
+def test_review_only_prefers_stable_candidate_with_fewer_blockers():
+    from modules.readiness_verdict import build_readiness_verdict
+
+    verdict = build_readiness_verdict(
+        candidates={
+            "hybrid": {
+                "source_type": "hybrid",
+                "paste_ready_status": "blocked",
+                "reviewable_status": "reviewable",
+                "paste_ready_blockers": [
+                    "slot_contract_failed:B5:multiple_primary_promises",
+                    "risk_listing_not_ready",
+                    "Repeated word root more than twice: card",
+                ],
+                "keyword_reconciliation": {"status": "complete"},
+                "source_trace": {"bullets": []},
+            },
+            "version_a": {
+                "source_type": "stable",
+                "paste_ready_status": "blocked",
+                "reviewable_status": "reviewable",
+                "paste_ready_blockers": ["slot_contract_failed:B5:multiple_primary_promises"],
+                "keyword_reconciliation": {"status": "complete"},
+            },
+        },
+        run_state="success",
+    )
+
+    assert verdict["recommended_output"] == "version_a"
+    assert verdict["operational_listing_status"] == "REVIEW_REQUIRED"
