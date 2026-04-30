@@ -6367,6 +6367,30 @@ def generate_search_terms(preprocessed_data: PreprocessedData,
         )
         return _dedupe_keyword_sequence([str((row or {}).get("keyword") or "").strip() for row in rows])
 
+    def _backend_density_extensions() -> List[str]:
+        if not role_aware_search_plan or not backend_longtail_keywords:
+            return []
+        extensions: List[str] = []
+        for term in backend_longtail_keywords:
+            normalized = str(term or "").strip().lower()
+            if normalized == "wearable camera":
+                extensions.extend(["wearable body camera", "clip on wearable camera"])
+            elif normalized == "thumb camera":
+                extensions.extend(["mini thumb camera", "pocket thumb camera"])
+            elif normalized == "body camera with audio":
+                extensions.extend(["audio body camera", "body worn camera with audio"])
+            elif normalized == "thumb action camera":
+                extensions.extend(["compact thumb action camera"])
+            elif normalized:
+                tokens = _tokenize_text_block(normalized)
+                if len(tokens) >= 2:
+                    extensions.append(f"compact {normalized}")
+                    extensions.append(f"portable {normalized}")
+        return _dedupe_keyword_sequence(extensions)
+
+    backend_density_terms = _backend_density_extensions()
+    backend_density_term_keys = {term.lower() for term in backend_density_terms}
+
     explicit_policy_l3_terms: List[str] = []
     for row in writing_policy.get("keyword_metadata") or []:
         keyword = str((row or {}).get("keyword") or "").strip()
@@ -6681,6 +6705,7 @@ def generate_search_terms(preprocessed_data: PreprocessedData,
         density_candidates.extend(backend_longtail_keywords)
         if role_aware_search_plan:
             density_candidates.extend(_role_priority_terms())
+            density_candidates.extend(backend_density_terms)
         else:
             density_candidates.extend(tiered_keywords.get("l3", []))
             density_candidates.extend(tiered_keywords.get("l2", []))
@@ -6726,7 +6751,7 @@ def generate_search_terms(preprocessed_data: PreprocessedData,
                 continue
             if role_aware_search_plan and not _search_role_allowed(
                 keyword_phrase,
-                allow_unmapped=normalized_phrase in backend_plan_terms,
+                allow_unmapped=normalized_phrase in backend_plan_terms or normalized_phrase in backend_density_term_keys,
             ):
                 continue
             conflict_reason = _keyword_conflicts_constraints(keyword_phrase, capability_constraints)
@@ -8775,6 +8800,38 @@ def _r1_batch_generate_listing(
             )
             for slot_name, bullet_text, trace_entry in zip(bullet_slots, cleaned_bullets, bullet_trace)
         ]
+    compacted_bullets: List[str] = []
+    for idx, bullet_text in enumerate(cleaned_bullets):
+        required_keywords = (
+            (bullet_packets[idx] or {}).get("required_keywords")
+            if idx < len(bullet_packets) and isinstance(bullet_packets[idx], dict)
+            else []
+        )
+        keyword_safe_text = str(bullet_text or "")
+        if len(keyword_safe_text) > LENGTH_RULES["bullet"]["hard_ceiling"]:
+            for keyword in [str(item).strip() for item in (required_keywords or []) if str(item).strip()]:
+                if _normalize_keyword_text(keyword) in _normalize_keyword_text(keyword_safe_text):
+                    continue
+                header, body = _split_bullet_header_body(keyword_safe_text)
+                if header and body:
+                    keyword_safe_text = f"{header} — {keyword} {body}".strip()
+                else:
+                    keyword_safe_text = f"{keyword} {keyword_safe_text}".strip()
+        compacted = _enforce_bullet_length(keyword_safe_text)
+        if compacted != bullet_text:
+            _log_action(
+                audit_log,
+                f"bullet_{bullet_slots[idx].lower()}",
+                "r1_batch_length_compacted",
+                {
+                    "before_len": len(bullet_text),
+                    "after_len": len(compacted),
+                    "hard_ceiling": LENGTH_RULES["bullet"]["hard_ceiling"],
+                    "required_keywords": list(required_keywords or []),
+                },
+            )
+        compacted_bullets.append(compacted)
+    cleaned_bullets = compacted_bullets
     title_payload = {
         "field": "title",
         "brand_name": getattr(getattr(preprocessed_data, "run_config", None), "brand_name", "TOSBARRFT"),

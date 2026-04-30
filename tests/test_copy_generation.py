@@ -1133,6 +1133,89 @@ def test_search_terms_prioritize_backend_longtail_and_avoid_title_front_repeat()
     assert any(row["keyword"] == "chest camera" and row["tier"] == "L3" and "search_terms" in row["assigned_fields"] for row in assignments)
 
 
+def test_role_aware_search_terms_expand_qualified_backend_terms_to_density_target():
+    preprocessed = SimpleNamespace(
+        run_config=SimpleNamespace(brand_name="TestBrand"),
+        capability_constraints={},
+        core_selling_points=["wearable camera", "body camera with audio"],
+    )
+    tiered_keywords = {
+        "l1": [],
+        "l2": [],
+        "l3": [],
+        "_metadata": {
+            "wearable camera": {
+                "keyword": "wearable camera",
+                "tier": "L3",
+                "routing_role": "backend",
+                "quality_status": "qualified",
+                "search_volume": 5000,
+            },
+            "thumb camera": {
+                "keyword": "thumb camera",
+                "tier": "L3",
+                "routing_role": "backend",
+                "quality_status": "qualified",
+                "search_volume": 4600,
+            },
+            "body camera with audio": {
+                "keyword": "body camera with audio",
+                "tier": "L3",
+                "routing_role": "residual",
+                "quality_status": "qualified",
+                "search_volume": 3500,
+            },
+            "thumb action camera": {
+                "keyword": "thumb action camera",
+                "tier": "L3",
+                "routing_role": "backend",
+                "quality_status": "qualified",
+                "search_volume": 2500,
+            },
+        },
+        "_preferred_locale": "en",
+    }
+    writing_policy = {
+        "scene_priority": ["commuting_capture", "travel_documentation", "vlog_content_creation"],
+        "search_term_plan": {
+            "priority_roles": ["backend", "residual"],
+            "priority_tiers": ["l3"],
+            "backend_residual_keywords": [
+                "wearable camera",
+                "thumb camera",
+                "body camera with audio",
+                "thumb action camera",
+            ],
+            "backend_longtail_keywords": [
+                "wearable camera",
+                "thumb camera",
+                "body camera with audio",
+                "thumb action camera",
+            ],
+            "max_bytes": 249,
+            "density_target_bytes": 150,
+        },
+        "keyword_slots": {"search_terms": {"keywords": []}},
+    }
+
+    terms, trace = cg.generate_search_terms(
+        preprocessed_data=preprocessed,
+        writing_policy=writing_policy,
+        title="TestBrand vlogging camera for travel",
+        bullets=["Use it for commute clips."],
+        description="Compact body camera for travel and vlog capture.",
+        language="English",
+        tiered_keywords=tiered_keywords,
+        keyword_slots=writing_policy["keyword_slots"],
+        audit_log=[],
+        assignment_tracker=cg.KeywordAssignmentTracker(tiered_keywords["_metadata"]),
+    )
+
+    assert {"wearable camera", "thumb camera", "body camera with audio", "thumb action camera"}.issubset(set(terms))
+    assert trace["byte_length"] >= 150
+    assert trace["byte_length"] <= 249
+
+
 def test_search_terms_pull_distinct_explicit_l3_keywords_from_policy_metadata():
     tracker = cg.KeywordAssignmentTracker(
         {
@@ -2403,6 +2486,49 @@ def test_r1_batch_generate_listing_prefers_packet_first_response(monkeypatch):
         "Record up to 150 minutes on one charge. Best for steady daily rides."
     )
     assert result["bullet_packets"][0]["slot"] == "B1"
+
+
+def test_r1_batch_compacts_overlong_packet_bullets_instead_of_failing(monkeypatch):
+    long_guidance = " ".join(["extra setup guidance"] * 80)
+    client = _FakeLiveReasonerClient(
+        text=(
+            '{"title_recipe":{"lead_keyword":"action camera","differentiators":["150-Minute Runtime","Mini Camera Coverage"],"use_cases":["daily recording use"]},'
+            '"bullet_packets":['
+            '{"slot":"B1","header":"READY TO RIDE","benefit":"Capture every commute with stable 1080P footage.","proof":"Record up to 150 minutes on one charge.","guidance":"' + long_guidance + '","required_keywords":["action camera"],"capability_mapping":["1080p_recording"],"scene_mapping":["cycling_recording"]},'
+            '{"slot":"B2","header":"EVIDENCE READY","benefit":"Clip on for work shifts when clear recording matters.","proof":"Lightweight design stays discreet.","guidance":"","required_keywords":["body camera"],"capability_mapping":["wearable_recording"],"scene_mapping":["security_recording"]},'
+            '{"slot":"B3","header":"TRAVEL LIGHT","benefit":"Slip the mini camera into a pocket for quick scenic clips.","proof":"Compact build keeps gear light.","guidance":"","required_keywords":["mini camera"],"capability_mapping":["compact_design"],"scene_mapping":["travel_documentation"]},'
+            '{"slot":"B4","header":"USE IT RIGHT","benefit":"Keep footage smoother in walking moments.","proof":"Stable pacing helps framing.","guidance":"","required_keywords":["travel camera"],"capability_mapping":["usage_guidance"],"scene_mapping":["daily_recording"]},'
+            '{"slot":"B5","header":"VALUE KIT","benefit":"Start fast with the included essentials.","proof":"USB-C charging keeps setup simple.","guidance":"","required_keywords":["body camera"],"capability_mapping":["kit_value"],"scene_mapping":["daily_recording"]}'
+            ']}'
+        )
+    )
+    monkeypatch.setattr(cg, "get_llm_client", lambda: client)
+    monkeypatch.setattr(
+        cg,
+        "_generate_and_audit_title",
+        lambda payload, audit_log, assignment_tracker, required_keywords, max_retries=3: payload["_prefetched_title_candidates"][0],
+    )
+
+    result = cg._r1_batch_generate_listing(
+        _sample_preprocessed(),
+        _sample_policy(),
+        {
+            "l1": ["action camera", "mini camera", "body camera"],
+            "l2": ["bike camera"],
+            "l3": ["travel camera"],
+        },
+        {
+            "entries": [{"slot": idx, "theme": f"Bullet {idx}", "assigned_keywords": []} for idx in range(1, 6)]
+        },
+        "English",
+        [],
+        audit_log=[],
+    )
+
+    assert len(result["bullets"]) == 5
+    assert all(len(item) <= cg.LENGTH_RULES["bullet"]["hard_ceiling"] for item in result["bullets"])
+    assert result["bullets"][0].startswith("READY TO RIDE")
+    assert "action camera" in result["bullets"][0].lower()
 
 
 def test_r1_batch_payload_includes_unsupported_capability_policy(monkeypatch):
