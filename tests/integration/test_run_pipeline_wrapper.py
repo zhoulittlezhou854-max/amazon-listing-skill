@@ -2,6 +2,78 @@ from pathlib import Path
 import json
 
 import run_pipeline
+from modules import run_worker
+
+
+class _CompletedInlineWorker:
+    def __init__(self, returncode: int = 0):
+        self.returncode = returncode
+
+    def poll(self):
+        return self.returncode
+
+
+def _arg_after(command: list[str], flag: str) -> str | None:
+    if flag not in command:
+        return None
+    index = command.index(flag)
+    if index + 1 >= len(command):
+        return None
+    return command[index + 1]
+
+
+def _install_inline_dual_version_workers(monkeypatch):
+    """Run supervisor worker specs inline so integration tests keep using their workflow fakes."""
+
+    def _launch_worker_inline(spec: dict):
+        command = list(spec.get("command") or [])
+        output_dir = Path(spec["output_dir"])
+        output_dir.mkdir(parents=True, exist_ok=True)
+        run_worker.create_worker_status_manifest(
+            output_dir=output_dir,
+            worker_name=str(spec.get("worker_name") or ""),
+            role=str(spec.get("role") or ""),
+            deadline_seconds=int(spec.get("deadline_seconds") or 0),
+        )
+        try:
+            raw_steps = _arg_after(command, "--steps")
+            steps = [int(chunk.strip()) for chunk in raw_steps.split(",") if chunk.strip()] if raw_steps else None
+            result = run_pipeline.run_generator_workflow(
+                str(_arg_after(command, "--config-path") or ""),
+                str(output_dir),
+                steps=steps,
+                blueprint_model_override=_arg_after(command, "--blueprint-model-override"),
+                title_model_override=_arg_after(command, "--title-model-override"),
+                bullet_model_override=_arg_after(command, "--bullet-model-override"),
+            )
+            summary = result.get("summary") or {}
+            workflow_status = summary.get("workflow_status") or "success"
+            if workflow_status == "success" and (output_dir / "generated_copy.json").exists():
+                run_worker.mark_worker_terminal_state(output_dir, state="success")
+                spec["process"] = _CompletedInlineWorker(0)
+            else:
+                run_worker.mark_worker_terminal_state(
+                    output_dir,
+                    state="failed",
+                    error=str(summary.get("error") or workflow_status),
+                )
+                spec["process"] = _CompletedInlineWorker(1)
+        except TimeoutError as exc:
+            run_pipeline._write_failed_execution_summary(output_dir, steps=steps, error=str(exc))
+            run_worker.mark_worker_terminal_state(
+                output_dir,
+                state="timed_out",
+                error=str(exc),
+                termination={"terminate_sent": True, "kill_sent": False, "terminated_after_timeout": True},
+            )
+            spec["process"] = _CompletedInlineWorker(124)
+        except Exception as exc:
+            run_pipeline._write_failed_execution_summary(output_dir, steps=None, error=str(exc))
+            run_worker.mark_worker_terminal_state(output_dir, state="failed", error=str(exc))
+            spec["process"] = _CompletedInlineWorker(1)
+        return spec["process"]
+
+    monkeypatch.setattr(run_pipeline.run_supervisor, "launch_worker", _launch_worker_inline)
 
 
 def test_resolve_run_paths_maps_product_market_and_run_id(tmp_path: Path):
@@ -137,6 +209,7 @@ def test_main_dual_version_writes_versioned_outputs_and_report(tmp_path: Path, m
         return {"summary": {"results": {"step_6": {"metadata": {"generation_status": "live_success"}}}}}
 
     monkeypatch.setattr(run_pipeline, "run_generator_workflow", _fake_workflow)
+    _install_inline_dual_version_workers(monkeypatch)
     monkeypatch.setattr(
         "sys.argv",
         ["run_pipeline.py", "--product", "H91lite", "--market", "US", "--run-id", "r15_dual", "--dual-version"],
@@ -202,6 +275,7 @@ def test_main_dual_version_reports_explicit_version_b_failure(tmp_path: Path, mo
         return {"summary": {"results": {"step_6": {"metadata": {"generation_status": "live_success"}}}}}
 
     monkeypatch.setattr(run_pipeline, "run_generator_workflow", _fake_workflow)
+    _install_inline_dual_version_workers(monkeypatch)
     monkeypatch.setattr(
         "sys.argv",
         ["run_pipeline.py", "--product", "H91lite", "--market", "US", "--run-id", "r15_dual_fail", "--dual-version"],
@@ -259,6 +333,7 @@ def test_main_dual_version_writes_partial_outputs_when_version_b_raises_timeout(
         return {"summary": {"workflow_status": "success", "results": {"step_6": {"metadata": {"generation_status": "live_success"}}}}}
 
     monkeypatch.setattr(run_pipeline, "run_generator_workflow", _fake_workflow)
+    _install_inline_dual_version_workers(monkeypatch)
     monkeypatch.setattr(
         "sys.argv",
         ["run_pipeline.py", "--product", "H91lite", "--market", "US", "--run-id", "r15_dual_timeout", "--dual-version"],
@@ -274,6 +349,10 @@ def test_main_dual_version_writes_partial_outputs_when_version_b_raises_timeout(
     assert version_b_summary["workflow_status"] == "failed"
     assert "version_b_deadline_exceeded" in version_b_summary["error"]
     assert verdict["recommended_output"] == "version_a"
+    assert verdict["supervisor_summary"]["state"] == "partial_success"
+    assert verdict["supervisor_summary"]["workers"]["version_b"]["state"] == "timed_out"
+    assert (output_dir / "hybrid" / "unavailable.json").exists()
+    assert not (output_dir / "hybrid" / "generated_copy.json").exists()
     assert (output_dir / "LISTING_READY.md").exists()
 
 
@@ -348,6 +427,7 @@ def test_main_dual_version_writes_final_verdict_and_listing_ready(tmp_path: Path
         }
 
     monkeypatch.setattr(run_pipeline, "run_generator_workflow", _fake_workflow)
+    _install_inline_dual_version_workers(monkeypatch)
     monkeypatch.setattr(run_pipeline.hybrid_composer, "finalize_hybrid_outputs", _fake_finalize_hybrid_outputs)
     monkeypatch.setattr(
         "sys.argv",
@@ -456,6 +536,7 @@ def test_main_dual_version_recommends_hybrid_for_review_when_scores_pass_but_ris
         }
 
     monkeypatch.setattr(run_pipeline, "run_generator_workflow", _fake_workflow)
+    _install_inline_dual_version_workers(monkeypatch)
     monkeypatch.setattr(run_pipeline.hybrid_composer, "finalize_hybrid_outputs", _fake_finalize_hybrid_outputs)
     monkeypatch.setattr(
         "sys.argv",
@@ -538,6 +619,7 @@ def test_main_dual_version_keeps_version_b_only_output_review_required(tmp_path:
         return {"summary": {"results": {"step_6": {"metadata": {"generation_status": "live_success"}}}}}
 
     monkeypatch.setattr(run_pipeline, "run_generator_workflow", _fake_workflow)
+    _install_inline_dual_version_workers(monkeypatch)
     monkeypatch.setattr(
         "sys.argv",
         ["run_pipeline.py", "--product", "H91lite", "--market", "US", "--run-id", "r_partial", "--dual-version"],
@@ -548,14 +630,15 @@ def test_main_dual_version_keeps_version_b_only_output_review_required(tmp_path:
     verdict = json.loads((output_dir / "final_readiness_verdict.json").read_text(encoding="utf-8"))
     review_text = (output_dir / "LISTING_REVIEW_REQUIRED.md").read_text(encoding="utf-8")
 
-    assert verdict["recommended_output"] == "version_b"
-    assert verdict["artifact_paths"]["recommended_generated_copy"].endswith("version_b/generated_copy.json")
+    assert verdict["recommended_output"] != "version_b"
+    assert verdict["artifact_paths"]["recommended_generated_copy"].endswith("version_a/generated_copy.json")
     assert verdict["operational_listing_status"] == "NOT_READY_FOR_LISTING"
-    assert verdict["candidate_verdict"]["operational_listing_status"] == "REVIEW_REQUIRED"
+    assert verdict["candidate_verdict"]["operational_listing_status"] == "BLOCKED"
+    assert "version_a_unavailable" in verdict["reasons"]
     assert verdict["launch_gate"]["passed"] is False
     assert not (output_dir / "LISTING_READY.md").exists()
-    assert "Version B Title" in review_text
-    assert "Output: `version_b`" in review_text
+    assert "Output: `version_a`" in review_text
+    assert "Version B Title" not in review_text
 
 
 def test_final_verdict_replaces_blocked_launch_recommendation_with_ready_candidate(tmp_path: Path):

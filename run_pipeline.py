@@ -15,7 +15,7 @@ from tools.runtime_bootstrap import ensure_project_venv
 ensure_project_venv(Path(__file__).resolve().parent)
 
 from main import load_preprocessed_snapshot, run_generator_workflow
-from modules import hybrid_composer, report_generator
+from modules import hybrid_composer, report_generator, run_supervisor
 from modules.listing_candidate import build_listing_candidate
 from modules.readiness_verdict import build_readiness_verdict
 
@@ -167,6 +167,36 @@ def _run_single_version(
     }
 
 
+def _load_version_bundle(output_dir: Path) -> dict:
+    summary = _load_json(output_dir / "execution_summary.json")
+    return {
+        "result": {"summary": summary},
+        "elapsed_seconds": 0,
+        "generated_copy": _load_json(output_dir / "generated_copy.json"),
+        "risk_report": _load_json(output_dir / "risk_report.json"),
+        "scoring_results": _load_json(output_dir / "scoring_results.json"),
+        "bullet_blueprint": _load_json(output_dir / "bullet_blueprint.json"),
+        "execution_summary": summary,
+        "generation_status": _read_generation_status(output_dir, summary),
+    }
+
+
+def _write_hybrid_unavailable(hybrid_dir: Path, *, reason: str, supervisor_summary: dict) -> Path:
+    hybrid_dir.mkdir(parents=True, exist_ok=True)
+    unavailable = {
+        "status": "unavailable",
+        "reason": reason,
+        "source": "supervisor_summary",
+        "supervisor_summary": supervisor_summary,
+    }
+    path = hybrid_dir / "unavailable.json"
+    path.write_text(json.dumps(unavailable, ensure_ascii=False, indent=2), encoding="utf-8")
+    generated_copy_path = hybrid_dir / "generated_copy.json"
+    if generated_copy_path.exists():
+        generated_copy_path.unlink()
+    return path
+
+
 def _resolve_listing_status(risk_report: dict, scoring_results: dict) -> str:
     return ((risk_report.get("listing_status") or {}).get("status")) or "UNKNOWN"
 
@@ -236,14 +266,11 @@ def _build_final_readiness_verdict(
         recommended_output = "hybrid"
 
     if recommended_output == "hybrid" and not hybrid_available:
-        recommended_output = "version_a" if version_a_available else ("version_b" if version_b_available else "version_a")
+        recommended_output = "version_a"
     elif recommended_output == "version_a" and not version_a_available and version_b_available:
-        recommended_output = "version_b"
+        recommended_output = "version_a"
     elif recommended_output == "version_b" and not version_b_available and version_a_available:
         recommended_output = "version_a"
-
-    if not version_a_available and version_b_available and recommended_output == "version_a":
-        recommended_output = "version_b"
 
     if recommended_output == "hybrid":
         recommended_generated_copy_path = hybrid_generated_copy_path
@@ -255,7 +282,7 @@ def _build_final_readiness_verdict(
     if recommended_output == "hybrid":
         candidate_listing_status = _resolve_listing_status(hybrid_risk_report, hybrid_scoring_results)
         selected_scoring_results = hybrid_scoring_results
-    elif recommended_output == "version_b":
+    elif recommended_output == "version_b" and version_a_available:
         candidate_listing_status = _resolve_listing_status(version_b.get("risk_report") or {}, version_b.get("scoring_results") or {})
         selected_scoring_results = version_b.get("scoring_results") or {}
     else:
@@ -265,7 +292,7 @@ def _build_final_readiness_verdict(
     candidates = {}
     if version_a_available:
         candidates["version_a"] = _candidate_artifact("version_a", version_a, source_type="stable")
-    if version_b_available:
+    if version_a_available and version_b_available:
         candidates["version_b"] = _candidate_artifact("version_b", version_b, source_type="experimental")
     if hybrid_available:
         hybrid_version = {
@@ -277,7 +304,7 @@ def _build_final_readiness_verdict(
         candidates["hybrid"] = _candidate_artifact("hybrid", hybrid_version, source_type="hybrid")
     candidate_verdict = build_readiness_verdict(
         candidates=candidates,
-        run_state="partial_success" if version_a_available != version_b_available else "success",
+        run_state=str(supervisor_summary.get("state") or ("partial_success" if version_a_available != version_b_available else "success")),
     )
     if candidate_verdict.get("recommended_output"):
         recommended_output = str(candidate_verdict.get("recommended_output") or recommended_output)
@@ -285,7 +312,7 @@ def _build_final_readiness_verdict(
             recommended_generated_copy_path = hybrid_generated_copy_path
             candidate_listing_status = _resolve_listing_status(hybrid_risk_report, hybrid_scoring_results)
             selected_scoring_results = hybrid_scoring_results
-        elif recommended_output == "version_b":
+        elif recommended_output == "version_b" and version_a_available:
             recommended_generated_copy_path = version_b_generated_copy_path
             candidate_listing_status = _resolve_listing_status(version_b.get("risk_report") or {}, version_b.get("scoring_results") or {})
             selected_scoring_results = version_b.get("scoring_results") or {}
@@ -302,9 +329,6 @@ def _build_final_readiness_verdict(
     )
     reasons = list(selected_launch_decision.get("reasons") or [])
     worker_states = (supervisor_summary.get("workers") or {}) if isinstance(supervisor_summary, dict) else {}
-    if recommended_output == "version_b" and not reasons:
-        if str((worker_states.get("version_a") or {}).get("state") or "") not in {"", "success"}:
-            reasons.append("version_a_unavailable")
     if recommended_output == "version_a" and not version_a_available and version_b_available and "version_a_unavailable" not in reasons:
         reasons.append("version_a_unavailable")
 
@@ -318,6 +342,8 @@ def _build_final_readiness_verdict(
             and launch_scores.get("Rufus", 0) >= thresholds.get("Rufus", 90)
             and launch_scores.get("Fluency", 0) >= thresholds.get("Fluency", 24)
         )
+    if not version_a_available:
+        launch_passed = False
     if candidate_verdict.get("operational_listing_status") != "READY_FOR_LISTING":
         launch_passed = False
     operational_listing_status = (
@@ -337,10 +363,12 @@ def _build_final_readiness_verdict(
 
     verdict = {
         "run_id": run_id,
+        "run_status": str(supervisor_summary.get("state") or ("success" if version_a_available and version_b_available else "partial_success")),
         "recommended_output": recommended_output,
         "listing_status": operational_listing_status,
         "candidate_listing_status": candidate_listing_status,
         "operational_listing_status": operational_listing_status,
+        "supervisor_summary": supervisor_summary,
         "candidate_verdict": candidate_verdict,
         "candidate_rankings": candidate_verdict.get("candidate_rankings") or [],
         "launch_gate": {
@@ -579,24 +607,34 @@ def main() -> None:
 
     version_a_dir = output_dir / "version_a"
     version_b_dir = output_dir / "version_b"
-    version_a = _run_single_version(
-        config_path=config_path,
-        output_dir=version_a_dir,
-        steps=steps,
-        deadline_seconds=_version_deadline_seconds("version_a"),
-    )
-    version_b = _run_single_version(
-        config_path=config_path,
-        output_dir=version_b_dir,
-        steps=steps,
-        blueprint_model_override="deepseek-v4-pro",
-        title_model_override="deepseek-v4-pro",
-        bullet_model_override="deepseek-v4-pro",
-        deadline_seconds=_version_deadline_seconds("version_b"),
-    )
+    worker_specs = [
+        run_supervisor.build_worker_spec(
+            worker_name="version_a",
+            run_config_path=config_path,
+            output_dir=version_a_dir,
+            steps=steps,
+            deadline_seconds=_version_deadline_seconds("version_a"),
+        ),
+        run_supervisor.build_worker_spec(
+            worker_name="version_b",
+            run_config_path=config_path,
+            output_dir=version_b_dir,
+            steps=steps,
+            deadline_seconds=_version_deadline_seconds("version_b"),
+            blueprint_model_override="deepseek-v4-pro",
+            title_model_override="deepseek-v4-pro",
+            bullet_model_override="deepseek-v4-pro",
+        ),
+    ]
+    for spec in worker_specs:
+        run_supervisor.launch_worker(spec)
+    supervisor_summary = run_supervisor.supervise_workers(worker_specs=worker_specs)
+    run_supervisor.write_supervisor_summary(output_dir, supervisor_summary)
+    version_a = _load_version_bundle(version_a_dir)
+    version_b = _load_version_bundle(version_b_dir)
     hybrid_dir = output_dir / "hybrid"
-    version_a_for_hybrid = {**version_a["generated_copy"], "risk_report": version_a.get("risk_report") or {}}
-    version_b_for_hybrid = {**version_b["generated_copy"], "risk_report": version_b.get("risk_report") or {}}
+    version_a_for_hybrid = {**(version_a.get("generated_copy") or {}), "risk_report": version_a.get("risk_report") or {}}
+    version_b_for_hybrid = {**(version_b.get("generated_copy") or {}), "risk_report": version_b.get("risk_report") or {}}
     hybrid_copy = {}
     hybrid_bundle = {}
     preprocessed_path = version_a_dir / "preprocessed_data.json"
@@ -618,6 +656,9 @@ def main() -> None:
             language=((version_a["generated_copy"].get("metadata") or {}).get("target_language") or "English"),
             intent_graph=_load_json(version_a_dir / "intent_graph.json"),
         )
+    elif version_a.get("generated_copy"):
+        reason = str(supervisor_summary.get("hybrid_unavailable_reason") or "version_b_unavailable")
+        _write_hybrid_unavailable(hybrid_dir, reason=reason, supervisor_summary=supervisor_summary)
     final_readiness_verdict = _build_final_readiness_verdict(
         run_id=args.run_id,
         output_dir=output_dir,
@@ -625,6 +666,7 @@ def main() -> None:
         version_b=version_b,
         hybrid_bundle=hybrid_bundle,
         hybrid_copy=hybrid_copy,
+        supervisor_summary=supervisor_summary,
     )
     final_readiness_verdict_path = output_dir / "final_readiness_verdict.json"
     final_readiness_verdict_path.write_text(
@@ -672,7 +714,8 @@ def main() -> None:
         "Version B generation status:",
         _read_generation_status(version_b_dir, (version_b["result"].get("summary") or {})),
     )
-    print(f"Hybrid output: {hybrid_dir / 'generated_copy.json'}")
+    hybrid_output_path = hybrid_dir / ("generated_copy.json" if (hybrid_dir / "generated_copy.json").exists() else "unavailable.json")
+    print(f"Hybrid output: {hybrid_output_path}")
     print(f"Hybrid title source: {(hybrid_copy.get('metadata') or {}).get('hybrid_sources', {}).get('title', '')}")
     print(f"All report compare: {dual_report_path}")
     print(f"Final verdict: {final_readiness_verdict_path}")

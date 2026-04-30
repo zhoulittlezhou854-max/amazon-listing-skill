@@ -3,6 +3,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 from app.services import run_service, workspace_service
+from modules import run_worker
 
 
 class _Upload:
@@ -12,6 +13,72 @@ class _Upload:
 
     def getvalue(self):
         return self._content
+
+
+class _CompletedInlineWorker:
+    def __init__(self, returncode: int = 0):
+        self.returncode = returncode
+
+    def poll(self):
+        return self.returncode
+
+
+def _arg_after(command: list[str], flag: str) -> str | None:
+    if flag not in command:
+        return None
+    index = command.index(flag)
+    if index + 1 >= len(command):
+        return None
+    return command[index + 1]
+
+
+def _install_inline_service_workers(monkeypatch):
+    def _launch_worker_inline(spec: dict):
+        command = list(spec.get("command") or [])
+        output_dir = Path(spec["output_dir"])
+        output_dir.mkdir(parents=True, exist_ok=True)
+        run_worker.create_worker_status_manifest(
+            output_dir=output_dir,
+            worker_name=str(spec.get("worker_name") or ""),
+            role=str(spec.get("role") or ""),
+            deadline_seconds=int(spec.get("deadline_seconds") or 0),
+        )
+        try:
+            raw_steps = _arg_after(command, "--steps")
+            steps = [int(chunk.strip()) for chunk in raw_steps.split(",") if chunk.strip()] if raw_steps else None
+            result = run_service.run_generator_workflow(
+                str(_arg_after(command, "--config-path") or ""),
+                str(output_dir),
+                steps=steps,
+                blueprint_model_override=_arg_after(command, "--blueprint-model-override"),
+                title_model_override=_arg_after(command, "--title-model-override"),
+                bullet_model_override=_arg_after(command, "--bullet-model-override"),
+            )
+            summary = result.get("summary") or {}
+            workflow_status = summary.get("workflow_status") or "success"
+            if workflow_status == "success" and (output_dir / "generated_copy.json").exists():
+                run_worker.mark_worker_terminal_state(output_dir, state="success")
+                spec["process"] = _CompletedInlineWorker(0)
+            else:
+                run_worker.mark_worker_terminal_state(
+                    output_dir,
+                    state="failed",
+                    error=str(summary.get("error") or workflow_status),
+                )
+                spec["process"] = _CompletedInlineWorker(1)
+        except TimeoutError as exc:
+            run_service._persist_failure_summary(
+                output_dir,
+                run_config_path=str(_arg_after(command, "--config-path") or ""),
+                steps=steps,
+                error=str(exc),
+                logs="",
+            )
+            run_worker.mark_worker_terminal_state(output_dir, state="timed_out", error=str(exc))
+            spec["process"] = _CompletedInlineWorker(124)
+        return spec["process"]
+
+    monkeypatch.setattr(run_service.run_supervisor, "launch_worker", _launch_worker_inline)
 
 
 def test_initialize_workspace_creates_config_and_inputs(tmp_path: Path):
@@ -205,6 +272,7 @@ def test_run_workspace_workflow_dual_version_returns_dual_report(tmp_path: Path,
         }
 
     monkeypatch.setattr(run_service, "run_generator_workflow", _fake_run)
+    _install_inline_service_workers(monkeypatch)
     monkeypatch.setattr(run_service, "snapshot_run_outputs", lambda *_args, **_kwargs: {})
     monkeypatch.setattr(
         run_service,
@@ -325,6 +393,7 @@ def test_run_workspace_workflow_dual_version_surfaces_version_b_failure_status(t
         }
 
     monkeypatch.setattr(run_service, "run_generator_workflow", _fake_run)
+    _install_inline_service_workers(monkeypatch)
     monkeypatch.setattr(run_service, "snapshot_run_outputs", lambda *_args, **_kwargs: {})
 
     result = run_service.run_workspace_workflow(
@@ -336,6 +405,80 @@ def test_run_workspace_workflow_dual_version_surfaces_version_b_failure_status(t
 
     assert result["dual_version"]["version_b"]["generation_status"] == "FAILED_AT_BLUEPRINT"
     assert "experimental_version_b_blueprint_failed: timeout" in result["dual_report_text"]
+
+
+def test_run_workspace_workflow_dual_version_marks_b_timeout_partial_success(tmp_path: Path, monkeypatch):
+    workspace = tmp_path / "workspace" / "H91LITE_US"
+    workspace.mkdir(parents=True)
+    run_config = workspace / "run_config.json"
+    run_config.write_text(
+        json.dumps({"product_code": "H91lite", "target_country": "US"}),
+        encoding="utf-8",
+    )
+
+    def _fake_run(
+        config_path,
+        output_dir,
+        steps=None,
+        blueprint_model_override=None,
+        title_model_override=None,
+        bullet_model_override=None,
+    ):
+        out = Path(output_dir)
+        out.mkdir(parents=True, exist_ok=True)
+        if blueprint_model_override:
+            raise TimeoutError("version_b_deadline_exceeded")
+        (out / "generated_copy.json").write_text(
+            json.dumps(
+                {
+                    "title": "Version A Title",
+                    "bullets": ["A1", "A2", "A3", "A4", "A5"],
+                    "description": "Desc",
+                    "search_terms": ["t1"],
+                    "metadata": {"generation_status": "live_success"},
+                    "keyword_reconciliation": {"status": "complete"},
+                }
+            ),
+            encoding="utf-8",
+        )
+        (out / "scoring_results.json").write_text(
+            json.dumps(
+                {
+                    "listing_status": "READY_FOR_LISTING",
+                    "dimensions": {
+                        "traffic": {"score": 100},
+                        "content": {"score": 100},
+                        "conversion": {"score": 90},
+                        "readability": {"score": 30},
+                    },
+                }
+            ),
+            encoding="utf-8",
+        )
+        (out / "risk_report.json").write_text(
+            json.dumps({"listing_status": {"status": "READY_FOR_LISTING", "blocking_reasons": []}}),
+            encoding="utf-8",
+        )
+        return {"summary": {"workflow_status": "success"}}
+
+    monkeypatch.setattr(run_service, "run_generator_workflow", _fake_run)
+    _install_inline_service_workers(monkeypatch)
+    monkeypatch.setattr(run_service, "snapshot_run_outputs", lambda *_args, **_kwargs: {})
+
+    result = run_service.run_workspace_workflow(
+        str(run_config),
+        str(workspace),
+        steps=[0, 5, 6, 7, 8, 9],
+        dual_version=True,
+    )
+
+    run_dir = Path(result["run_dir"])
+    assert result["status"] == "partial_success"
+    assert result["supervisor_summary"]["state"] == "partial_success"
+    assert result["supervisor_summary"]["workers"]["version_b"]["state"] == "timed_out"
+    assert result["dual_version"]["version_b"]["reference_status"] == "not_available"
+    assert (run_dir / "hybrid" / "unavailable.json").exists()
+    assert not (run_dir / "hybrid" / "generated_copy.json").exists()
 
 
 def test_attach_intent_weight_snapshot_updates_run_config(tmp_path: Path):

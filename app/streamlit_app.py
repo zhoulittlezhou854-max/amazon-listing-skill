@@ -216,6 +216,39 @@ def build_keyword_protocol_display_rows(result: dict, limit: int = 25) -> list[d
     return rows
 
 
+def build_worker_status_rows(result: dict) -> list[dict]:
+    supervisor_summary = result.get("supervisor_summary") or (result.get("final_readiness_verdict") or {}).get("supervisor_summary") or {}
+    workers = supervisor_summary.get("workers") or {}
+    rows: list[dict] = []
+    for worker_name in ("version_a", "version_b"):
+        worker = workers.get(worker_name) or {}
+        if not worker:
+            continue
+        stage = str(worker.get("current_stage") or "").strip()
+        field = str(worker.get("current_field") or "").strip()
+        current = " / ".join(part for part in [stage, field] if part) or "-"
+        state = str(worker.get("state") or "-")
+        reference_status = str(worker.get("reference_status") or "-")
+        if worker_name == "version_a" and state == "success":
+            operator_note = "主结果可用于最终裁决"
+        elif worker_name == "version_b" and state in {"failed", "timed_out", "terminated"}:
+            operator_note = "实验版无参考结果，不阻塞 version_a"
+        elif worker_name == "version_b" and reference_status == "usable_candidate":
+            operator_note = "实验版可参考，但不直接作为上架权威"
+        else:
+            operator_note = str(worker.get("reference_reason") or "-")
+        rows.append(
+            {
+                "worker": worker_name,
+                "state": state,
+                "reference_status": reference_status,
+                "current": current,
+                "operator_note": operator_note,
+            }
+        )
+    return rows
+
+
 def _render_metadata(metadata: dict) -> None:
     if not metadata:
         st.info("暂无模型元数据")
@@ -260,6 +293,10 @@ def _render_run_result(result: dict) -> None:
     if keyword_protocol_rows:
         st.markdown("### Keyword Protocol Decisions")
         st.dataframe(pd.DataFrame(keyword_protocol_rows), use_container_width=True)
+    worker_status_rows = build_worker_status_rows(result)
+    if worker_status_rows:
+        st.markdown("### Dual-Version Worker Status")
+        st.table(pd.DataFrame(worker_status_rows))
 
     top = st.columns(4)
     top[0].metric("推荐版本", display_state["recommended_output"])

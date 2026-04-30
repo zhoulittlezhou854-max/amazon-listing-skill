@@ -4,6 +4,7 @@ from app.streamlit_app import (
     build_report_guide_rows,
     build_result_summary_rows,
     build_score_explanation_rows,
+    build_worker_status_rows,
     summarize_run_failure,
 )
 
@@ -156,4 +157,46 @@ def test_build_keyword_protocol_display_rows_exposes_protocol_fields():
             "assigned_fields": "bullet_2",
             "tier": "L2",
         }
+    ]
+
+
+def test_build_worker_status_rows_explains_b_timeout_as_non_blocking_when_a_succeeds():
+    rows = build_worker_status_rows(
+        {
+            "supervisor_summary": {
+                "state": "partial_success",
+                "workers": {
+                    "version_a": {
+                        "state": "success",
+                        "reference_status": "primary_result",
+                        "current_stage": "done",
+                        "current_field": "",
+                    },
+                    "version_b": {
+                        "state": "timed_out",
+                        "reference_status": "not_available",
+                        "reference_reason": "version_b timed out after 1800 seconds",
+                        "current_stage": "copy_generation",
+                        "current_field": "bullet_5",
+                    },
+                },
+            }
+        }
+    )
+
+    assert rows == [
+        {
+            "worker": "version_a",
+            "state": "success",
+            "reference_status": "primary_result",
+            "current": "done",
+            "operator_note": "主结果可用于最终裁决",
+        },
+        {
+            "worker": "version_b",
+            "state": "timed_out",
+            "reference_status": "not_available",
+            "current": "copy_generation / bullet_5",
+            "operator_note": "实验版无参考结果，不阻塞 version_a",
+        },
     ]

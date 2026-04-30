@@ -27,6 +27,8 @@ tests/
 | test_listing_candidate.py | Listing 候选对象 reviewable/paste-ready 契约测试 | 小 | 2026-04-29 |
 | test_packet_rerender.py | slot 级 rerender 计划、应用与执行结果测试 | 小 | 2026-04-25 |
 | test_readiness_verdict.py | ReadinessVerdict 候选排名、fallback 与 launch gate 契约测试 | 小 | 2026-04-29 |
+| test_run_supervisor.py | 双版本 worker 监督、超时隔离与 partial_success 汇总测试 | 小 | 2026-04-30 |
+| test_run_worker.py | 单 worker 状态文件、heartbeat、终态与 CLI job wrapper 测试 | 小 | 2026-04-30 |
 | test_runtime_bootstrap.py | 虚拟环境自举入口测试 | 小 | 2026-04-28 |
 | test_slot_contracts.py | bullet slot 单一语义 promise、B5 断裂检测与 repair payload 测试 | 小 | 2026-04-29 |
 
@@ -75,6 +77,7 @@ pytest tests/integration/
 2026-04-29: 增加 ReadinessVerdict 契约测试索引
 2026-04-29: 增加最终关键词复核测试索引
 2026-04-29: 增加 Listing 候选对象契约测试索引
+2026-04-30: 增加 run_worker/run_supervisor 双版本监督测试索引
 2026-04-25: 增加 slot packet rerender 测试索引
 2026-04-03: 初始创建
 2026-04-28: 增加关键词协议核心测试索引

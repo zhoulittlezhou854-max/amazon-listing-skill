@@ -17,8 +17,13 @@ from modules.evidence_engine import summarize_evidence_bundle
 from modules.intent_weights import summarize_intent_weight_snapshot
 from modules.listing_status import RUN_FAILED
 from modules.operations_panel import build_prelaunch_checklist, build_thirty_day_iteration_panel
-from modules import hybrid_composer, report_generator
-from run_pipeline import _build_final_readiness_verdict, _write_listing_ready
+from modules import hybrid_composer, report_generator, run_supervisor
+from run_pipeline import (
+    _build_final_readiness_verdict,
+    _load_version_bundle,
+    _write_hybrid_unavailable,
+    _write_listing_ready,
+)
 
 from app.services.workspace_service import infer_run_generation_status, snapshot_run_outputs
 
@@ -100,22 +105,38 @@ def _finalize_dual_version_outputs(
     run_config: Dict[str, Any],
     version_a: Dict[str, Any],
     version_b: Dict[str, Any],
+    supervisor_summary: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     version_a_dir = run_dir / "version_a"
     version_b_dir = run_dir / "version_b"
     hybrid_dir = run_dir / "hybrid"
     version_a_for_hybrid = {**(version_a.get("generated_copy") or {}), "risk_report": version_a.get("risk_report") or {}}
     version_b_for_hybrid = {**(version_b.get("generated_copy") or {}), "risk_report": version_b.get("risk_report") or {}}
-    hybrid_copy = hybrid_composer.compose_hybrid_listing(
-        version_a=version_a_for_hybrid,
-        version_b=version_b_for_hybrid,
-        output_dir=hybrid_dir,
-    )
+    supervisor_summary = supervisor_summary or {}
+    hybrid_copy: Dict[str, Any] = {}
+    if version_a.get("generated_copy") and version_b.get("generated_copy"):
+        hybrid_copy = hybrid_composer.compose_hybrid_listing(
+            version_a=version_a_for_hybrid,
+            version_b=version_b_for_hybrid,
+            output_dir=hybrid_dir,
+        )
+    elif version_a.get("generated_copy"):
+        _write_hybrid_unavailable(
+            hybrid_dir,
+            reason=str(supervisor_summary.get("hybrid_unavailable_reason") or "version_b_unavailable"),
+            supervisor_summary=supervisor_summary,
+        )
+    else:
+        _write_hybrid_unavailable(
+            hybrid_dir,
+            reason="version_a_unavailable",
+            supervisor_summary=supervisor_summary,
+        )
 
     hybrid_bundle: Dict[str, Any] = {}
     preprocessed_path = version_a_dir / "preprocessed_data.json"
     writing_policy_path = version_a_dir / "writing_policy.json"
-    if preprocessed_path.exists() and writing_policy_path.exists():
+    if hybrid_copy and preprocessed_path.exists() and writing_policy_path.exists():
         hybrid_bundle = hybrid_composer.finalize_hybrid_outputs(
             hybrid_copy=hybrid_copy,
             version_a=version_a_for_hybrid,
@@ -131,8 +152,10 @@ def _finalize_dual_version_outputs(
         run_id=run_dir.name,
         output_dir=run_dir,
         version_a=version_a,
+        version_b=version_b,
         hybrid_bundle=hybrid_bundle,
         hybrid_copy=hybrid_copy,
+        supervisor_summary=supervisor_summary,
     )
     final_readiness_verdict_path = run_dir / "final_readiness_verdict.json"
     final_readiness_verdict_path.write_text(
@@ -179,6 +202,7 @@ def _finalize_dual_version_outputs(
         "listing_ready_path": str(listing_ready_path.resolve()),
         "dual_report_path": str(dual_report_path.resolve()),
         "dual_report_text": dual_report,
+        "supervisor_summary": supervisor_summary,
     }
 
 
@@ -200,27 +224,42 @@ def run_workspace_workflow(
             if dual_version:
                 version_a_dir = run_dir / "version_a"
                 version_b_dir = run_dir / "version_b"
-                version_a = _run_single_workflow(
-                    run_config_path,
-                    version_a_dir,
-                    steps=steps,
-                )
-                version_b = _run_single_workflow(
-                    run_config_path,
-                    version_b_dir,
-                    steps=steps,
-                    blueprint_model_override="deepseek-reasoner",
-                    title_model_override="deepseek-reasoner",
-                    bullet_model_override="deepseek-reasoner",
-                )
+                worker_specs = [
+                    run_supervisor.build_worker_spec(
+                        worker_name="version_a",
+                        run_config_path=run_config_path,
+                        output_dir=version_a_dir,
+                        steps=steps,
+                    ),
+                    run_supervisor.build_worker_spec(
+                        worker_name="version_b",
+                        run_config_path=run_config_path,
+                        output_dir=version_b_dir,
+                        steps=steps,
+                        blueprint_model_override="deepseek-reasoner",
+                        title_model_override="deepseek-reasoner",
+                        bullet_model_override="deepseek-reasoner",
+                    ),
+                ]
+                for spec in worker_specs:
+                    run_supervisor.launch_worker(spec)
+                supervisor_summary = run_supervisor.supervise_workers(worker_specs=worker_specs)
+                run_supervisor.write_supervisor_summary(run_dir, supervisor_summary)
+                version_a = _load_version_bundle(version_a_dir)
+                version_b = _load_version_bundle(version_b_dir)
                 dual_outputs = _finalize_dual_version_outputs(
                     run_dir=run_dir,
                     run_config=run_config,
                     version_a=version_a,
                     version_b=version_b,
+                    supervisor_summary=supervisor_summary,
                 )
                 result = {
-                    "summary": (version_a["result"].get("summary") or {}),
+                    "summary": {
+                        "workflow_status": supervisor_summary.get("state") or "unknown",
+                        "version_a_summary": version_a.get("execution_summary") or {},
+                        "version_b_summary": version_b.get("execution_summary") or {},
+                    },
                     "generated_copy": version_a["generated_copy"],
                     "risk_report": version_a.get("risk_report") or {},
                     "scoring_results": version_a["scoring_results"],
@@ -234,11 +273,15 @@ def run_workspace_workflow(
                             "generated_copy": version_a["generated_copy"],
                             "scoring_results": version_a["scoring_results"],
                             "generation_status": infer_run_generation_status(version_a_dir, version_a["generated_copy"]),
+                            "reference_status": ((supervisor_summary.get("workers") or {}).get("version_a") or {}).get("reference_status"),
+                            "worker_status": (supervisor_summary.get("workers") or {}).get("version_a") or {},
                         },
                         "version_b": {
                             "generated_copy": version_b["generated_copy"],
                             "scoring_results": version_b["scoring_results"],
                             "generation_status": infer_run_generation_status(version_b_dir, version_b["generated_copy"]),
+                            "reference_status": ((supervisor_summary.get("workers") or {}).get("version_b") or {}).get("reference_status"),
+                            "worker_status": (supervisor_summary.get("workers") or {}).get("version_b") or {},
                         },
                     },
                     "hybrid": {
@@ -249,6 +292,7 @@ def run_workspace_workflow(
                     "final_readiness_verdict": dual_outputs["final_readiness_verdict"],
                     "final_readiness_verdict_path": dual_outputs["final_readiness_verdict_path"],
                     "listing_ready_path": dual_outputs["listing_ready_path"],
+                    "supervisor_summary": supervisor_summary,
                 }
             else:
                 result = run_generator_workflow(run_config_path, str(run_dir), steps=steps)
@@ -323,6 +367,7 @@ def run_workspace_workflow(
         "snapshots": snapshots,
         "logs": buffer.getvalue(),
         "dual_version": dual_payload,
+        "supervisor_summary": result.get("supervisor_summary") or {},
         "dual_report_path": dual_report_path,
         "dual_report_text": dual_report_text,
         "hybrid": result.get("hybrid") or {},
