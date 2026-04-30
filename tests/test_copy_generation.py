@@ -3587,3 +3587,75 @@ def test_slot_quality_flags_scrub_induced_awkwardness():
 
     assert "scrub_induced_awkwardness" in quality["issues"]
     assert quality["fluency_pass"] is False
+
+
+def test_apply_final_visible_quality_repairs_version_a_b5_and_metadata():
+    import modules.copy_generation as cg
+
+    generated = {
+        "title": "TOSBARRFT vlogging camera Action Camera",
+        "bullets": [
+            "RECORDING POWER — This action camera records 150 minutes for travel.",
+            "LIGHTWEIGHT BODY CAMERA — This body camera clips to uniform for commute.",
+            "ONE-TOUCH THUMB CAM — Start recording fast during commute with body cam.",
+            "SMOOTH MOTION SETUP — The lens rotates for stable training clips Includes pov.",
+            "COMPLETE KIT, ZERO WAIT — Open the box and start recording. Inside you get body camera, magnetic clip, USB cable, and 32GB SD card. The built-in battery delivers 150 minutes. Supports micro SD up to 256GB.",
+        ],
+        "description": "Ask support about best-use scenarios.",
+        "search_terms": ["wearable camera", "thumb camera"],
+        "bullet_packets": [
+            {
+                "slot": "B1",
+                "required_keywords": ["action camera"],
+                "capability_mapping": ["long battery"],
+                "scene_mapping": ["travel_documentation"],
+            },
+            {
+                "slot": "B2",
+                "required_keywords": ["body camera"],
+                "capability_mapping": ["lightweight design"],
+                "scene_mapping": ["commuting_capture"],
+            },
+            {
+                "slot": "B3",
+                "required_keywords": ["body cam"],
+                "capability_mapping": ["easy operation"],
+                "scene_mapping": ["commuting_capture"],
+            },
+            {
+                "slot": "B4",
+                "required_keywords": ["pov camera", "action camera"],
+                "capability_mapping": ["high definition"],
+                "scene_mapping": ["sports_training"],
+            },
+            {
+                "slot": "B5",
+                "required_keywords": ["wearable camera", "thumb camera"],
+                "capability_mapping": ["long battery"],
+                "scene_mapping": ["commuting_capture"],
+            },
+        ],
+        "metadata": {"generation_status": "live_success"},
+    }
+    writing_policy = {"copy_contracts": {}, "bullet_slot_rules": {}}
+
+    repaired = cg._apply_final_visible_quality_gate(
+        generated,
+        writing_policy,
+        target_language="English",
+        candidate_id="version_a",
+        source_type="stable",
+    )
+
+    b5 = repaired["bullets"][4].lower()
+    assert "150 minutes" not in b5
+    assert "battery" not in b5
+    assert "wearable camera" in b5
+    assert "thumb camera" in b5
+    assert "best" not in repaired["description"].lower()
+    assert repaired["metadata"]["final_visible_quality"]["operational_status"] == "READY_FOR_LISTING"
+    assert repaired["slot_quality_packets"][4]["slot"] == "B5"
+    assert repaired["slot_quality_packets"][4]["issues"] == []
+    assert "long battery" not in repaired["bullet_packets"][4].get("capability_mapping", [])
+    assert repaired["final_visible_quality"]["schema_version"] == "final_visible_quality_v1"
+    assert repaired["metadata"]["final_visible_quality"] == repaired["final_visible_quality"]

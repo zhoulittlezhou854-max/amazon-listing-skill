@@ -51,6 +51,7 @@ from modules.question_bank import build_question_bank_context
 from modules.compute_tiering import build_compute_tier_map
 from modules.keyword_reconciliation import reconcile_keyword_assignments as reconcile_final_text_keyword_assignments
 from modules.packet_rerender import build_slot_rerender_plan, execute_slot_rerender_plan
+from modules.final_visible_quality import repair_final_visible_copy, validate_final_visible_copy
 from modules.writing_policy import LENGTH_RULES
 from modules import fluency_check as fc
 from modules import repair_logger
@@ -3765,6 +3766,88 @@ def _run_slot_rerender_pass(
     updated_copy["slot_rerender_results"] = rerender_results
     updated_copy["slot_rerender_plan"] = build_slot_rerender_plan(updated_copy, writing_policy)
     return updated_copy
+
+
+def _apply_final_visible_quality_gate(
+    generated_surface: Dict[str, Any],
+    writing_policy: Dict[str, Any],
+    *,
+    target_language: str,
+    candidate_id: str,
+    source_type: str,
+) -> Dict[str, Any]:
+    """Repair final pasteable text and rebuild packet quality from that text."""
+    repaired_surface, final_report = repair_final_visible_copy(
+        generated_surface,
+        candidate_id=candidate_id,
+        source_type=source_type,
+    )
+    slot_rule_contracts = writing_policy.get("bullet_slot_rules") or {}
+    bullets = list(repaired_surface.get("bullets") or [])
+    existing_packets = _align_final_visible_quality_packets(
+        list(repaired_surface.get("bullet_packets") or []),
+        bullets,
+    )
+    bullet_trace: List[Dict[str, Any]] = []
+    for packet in existing_packets:
+        if not isinstance(packet, dict):
+            bullet_trace.append({})
+            continue
+        bullet_trace.append(
+            {
+                "slot": packet.get("slot"),
+                "keywords": packet.get("required_keywords") or [],
+                "capability_mapping": packet.get("capability_mapping") or [],
+                "scene_mapping": packet.get("scene_mapping") or [],
+            }
+        )
+
+    bullet_packets = _sync_bullet_packets_to_final_bullets(
+        bullets,
+        existing_packets,
+        bullet_trace,
+        slot_rule_contracts,
+    )
+    repaired_surface["bullet_packets"] = bullet_packets
+    repaired_surface["slot_quality_packets"] = [
+        _build_slot_quality_packet(
+            packet,
+            copy_contracts=writing_policy.get("copy_contracts") or {},
+            slot_rule_contract=slot_rule_contracts.get(packet.get("slot")) or {},
+            target_language=target_language,
+        )
+        for packet in bullet_packets
+    ]
+    repaired_surface["final_visible_quality"] = final_report
+    metadata = deepcopy(repaired_surface.get("metadata") or {})
+    metadata["final_visible_quality"] = final_report
+    repaired_surface["metadata"] = metadata
+    return repaired_surface
+
+
+def _align_final_visible_quality_packets(
+    bullet_packets: Sequence[Dict[str, Any]],
+    bullets: Sequence[str],
+) -> List[Dict[str, Any]]:
+    """Keep packet metadata aligned when deterministic repair changes a slot contract."""
+    aligned: List[Dict[str, Any]] = []
+    for idx, packet in enumerate(bullet_packets or []):
+        updated = deepcopy(packet) if isinstance(packet, dict) else {}
+        slot = str(updated.get("slot") or f"B{idx + 1}").strip().upper()
+        bullet = str(bullets[idx] if idx < len(bullets or []) else "")
+        if slot == "B5" and not re.search(r"\b(?:battery|runtime|per charge|150 minutes)\b", bullet, re.IGNORECASE):
+            updated["capability_mapping"] = [
+                item
+                for item in (updated.get("capability_mapping") or [])
+                if not re.search(r"\b(?:battery|runtime|charge)\b", str(item or ""), re.IGNORECASE)
+            ]
+            updated["required_facts"] = [
+                item
+                for item in (updated.get("required_facts") or [])
+                if not re.search(r"\b(?:battery|runtime|charge)\b", str(item or ""), re.IGNORECASE)
+            ]
+        aligned.append(updated)
+    return aligned
 
 
 def _build_blueprint_fallback_text(theme: str,
@@ -9421,6 +9504,35 @@ def generate_multilingual_copy(preprocessed_data: PreprocessedData,
         slot_rerender_plan = list(rerender_surface.get("slot_rerender_plan") or [])
         slot_rerender_results = list(rerender_surface.get("slot_rerender_results") or [])
 
+    final_visible_surface = {
+        "title": title,
+        "bullets": bullets,
+        "description": description,
+        "search_terms": search_terms,
+        "bullet_packets": bullet_packets,
+        "slot_quality_packets": slot_quality_packets,
+        "metadata": {"visible_copy_mode": "r1_batch"} if pure_r1_visible_batch else {},
+    }
+    if not pure_r1_visible_batch:
+        final_visible_surface = _apply_final_visible_quality_gate(
+            final_visible_surface,
+            writing_policy,
+            target_language=target_language,
+            candidate_id="version_a",
+            source_type="stable",
+        )
+        bullets = list(final_visible_surface.get("bullets") or bullets)
+        description = str(final_visible_surface.get("description") or description)
+        bullet_packets = list(final_visible_surface.get("bullet_packets") or bullet_packets)
+        slot_quality_packets = list(final_visible_surface.get("slot_quality_packets") or slot_quality_packets)
+        final_visible_quality = dict(final_visible_surface.get("final_visible_quality") or {})
+    else:
+        final_visible_quality = validate_final_visible_copy(
+            final_visible_surface,
+            candidate_id="version_b",
+            source_type="experimental",
+        )
+
     keyword_reconciliation = _reconcile_final_keyword_assignments(
         keyword_assignment_tracker,
         title=title,
@@ -9493,6 +9605,7 @@ def generate_multilingual_copy(preprocessed_data: PreprocessedData,
         "visual_briefs": visual_briefs,
         "evidence_bundle": evidence_bundle,
         "keyword_reconciliation": keyword_reconciliation,
+        "final_visible_quality": final_visible_quality,
         "metadata": {
             "version": "v8.2",
             "reasoning_language": reasoning_language,
@@ -9537,6 +9650,7 @@ def generate_multilingual_copy(preprocessed_data: PreprocessedData,
             "rufus_readiness_score": rufus_readiness.get("score", 0.0),
             "canonical_facts": deepcopy(getattr(preprocessed_data, "canonical_facts", {}) or {}),
             "canonical_fact_readiness": deepcopy(getattr(preprocessed_data, "fact_readiness", {}) or {}),
+            "final_visible_quality": final_visible_quality,
         },
         "audit_trail": audit_log,
         "decision_trace": decision_trace,

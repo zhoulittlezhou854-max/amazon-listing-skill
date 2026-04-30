@@ -52,6 +52,20 @@ def build_readiness_summary(
     ] or ["无"]
     action_required = scoring_results.get("action_required") or "可直接上架"
     metadata = (generated_copy.get("metadata") or {}) if isinstance(generated_copy, dict) else {}
+    final_quality = metadata.get("final_visible_quality") or generated_copy.get("final_visible_quality") or {}
+    if not isinstance(final_quality, dict):
+        final_quality = {}
+    final_quality_status = str(final_quality.get("operational_status") or "").strip()
+    final_quality_blockers = [
+        str(item).strip()
+        for item in (final_quality.get("paste_ready_blockers") or [])
+        if str(item).strip()
+    ]
+    final_quality_warnings = [
+        str(item).strip()
+        for item in (final_quality.get("review_only_warnings") or [])
+        if str(item).strip()
+    ]
     canonical_risk_report = dict(risk_report or {})
     if not canonical_risk_report.get("listing_status"):
         canonical_risk_report["listing_status"] = derive_listing_status(
@@ -62,6 +76,12 @@ def build_readiness_summary(
         )
     readiness = _listing_readiness(metadata, canonical_risk_report)
     listing_status = readiness.get("status") or "UNKNOWN"
+    candidate_operational_status = final_quality_status or listing_status
+    if final_quality_blockers:
+        listing_status = "NOT_READY_FOR_LISTING"
+        action_required = "需先处理 final visible quality 阻断；最终是否可导出以上层 final_readiness_verdict.json 为准"
+    final_blocker_lines = [f"- {item}" for item in final_quality_blockers] or ["无"]
+    final_warning_lines = [f"- {item}" for item in final_quality_warnings] or ["无"]
     lines = [
         "# Listing Readiness Summary",
         f"**SKU:** {sku}  **Run:** {run_id}  **Date:** {generated_at}",
@@ -71,6 +91,16 @@ def build_readiness_summary(
         "",
         "## 四维评分",
         *_dimension_rows(scoring_results.get("dimensions") or {}),
+        "",
+        "## 候选文案状态",
+        f"Candidate visible quality: {candidate_operational_status or 'UNKNOWN'}",
+        "Operational authority: final_readiness_verdict.json",
+        "",
+        "### Final Visible Blockers",
+        *final_blocker_lines,
+        "",
+        "### Review Warnings",
+        *final_warning_lines,
         "",
         "## 可见文案",
         f"**Title:** {generated_copy.get('title', '')}",

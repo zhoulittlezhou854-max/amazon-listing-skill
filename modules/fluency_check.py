@@ -188,6 +188,34 @@ def _dash_tail_without_predicate(text: str) -> bool:
     return True
 
 
+def _keyword_append_fragment(text: str) -> bool:
+    return bool(
+        re.search(
+            r"\bIncludes\s+(?:pov|action|travel|wearable|thumb|body)\.?\s*$",
+            text or "",
+            re.IGNORECASE,
+        )
+    )
+
+
+def _orphan_the_artifact(text: str) -> bool:
+    return bool(
+        re.search(
+            r"\b(?:documentation|recording|walk|ride)\s+The\.?\s*(?:$|[A-Z])",
+            text or "",
+        )
+    )
+
+
+def _capitalized_join_artifact(text: str) -> bool:
+    return bool(
+        re.search(
+            r"\b(?:wear|clips?|recording|capture)\s+(?:Capture|The|For)\b",
+            text or "",
+        )
+    )
+
+
 def _repeated_word_roots(text: str) -> List[str]:
     counts = {}
     for token in _tokenize_words(text):
@@ -347,6 +375,37 @@ def check_fluency(field: str, text: str) -> List[FluencyIssue]:
                 rule_id="dash_tail_without_predicate",
                 severity="medium",
                 message="Dash tail is a noun phrase without a predicate",
+                span=value[:80],
+            )
+        )
+
+    if _keyword_append_fragment(value):
+        issues.append(
+            FluencyIssue(
+                field=field,
+                rule_id="keyword_append_fragment",
+                severity="high",
+                message="Keyword was appended as a fragment instead of a natural sentence",
+                span=value[:80],
+            )
+        )
+    if _orphan_the_artifact(value):
+        issues.append(
+            FluencyIssue(
+                field=field,
+                rule_id="orphan_the_artifact",
+                severity="high",
+                message="Postprocess left an orphan 'The' sentence artifact",
+                span=value[:80],
+            )
+        )
+    if _capitalized_join_artifact(value):
+        issues.append(
+            FluencyIssue(
+                field=field,
+                rule_id="capitalized_join_artifact",
+                severity="high",
+                message="Postprocess joined two sentences without punctuation",
                 span=value[:80],
             )
         )

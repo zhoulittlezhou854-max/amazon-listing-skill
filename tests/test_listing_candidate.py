@@ -354,3 +354,27 @@ def test_canonical_fact_blocked_claim_requires_explicit_claim_blocker():
 
     assert candidate["paste_ready_status"] == "blocked"
     assert "canonical_fact_blocked_claim:waterproof_supported" in candidate["paste_ready_blockers"]
+
+
+def test_listing_candidate_uses_final_visible_quality_blockers():
+    artifact = {
+        "title": "Title",
+        "bullets": ["B1", "B2", "B3", "B4", "B5"],
+        "description": "Description",
+        "search_terms": ["term"],
+        "metadata": {"generation_status": "live_success"},
+        "keyword_reconciliation": {"status": "complete"},
+        "final_visible_quality": {
+            "schema_version": "final_visible_quality_v1",
+            "operational_status": "NOT_READY_FOR_LISTING",
+            "paste_ready_blockers": ["slot_contract_failed:B5:multiple_primary_promises"],
+            "review_only_warnings": [],
+        },
+    }
+
+    candidate = build_listing_candidate("version_a", artifact, source_type="stable")
+
+    assert candidate["paste_ready_status"] == "blocked"
+    assert "slot_contract_failed:B5:multiple_primary_promises" in candidate["paste_ready_blockers"]
+    assert candidate["final_visible_quality"]["schema_version"] == "final_visible_quality_v1"
+    assert candidate["final_visible_quality"]["operational_status"] == "NOT_READY_FOR_LISTING"

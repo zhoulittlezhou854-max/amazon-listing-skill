@@ -37,3 +37,44 @@ def test_build_readiness_summary_renders_expected_sections():
     assert '**Search Terms:** body camera, travel camera' in content
     assert '无' in content
     assert '可直接上架' in content
+
+
+def test_readiness_summary_uses_final_visible_quality_blockers():
+    generated_copy = {
+        "title": "Title",
+        "bullets": ["B1", "B2", "B3", "B4", "B5"],
+        "description": "Description",
+        "search_terms": ["term"],
+        "metadata": {
+            "generation_status": "live_success",
+            "final_visible_quality": {
+                "operational_status": "NOT_READY_FOR_LISTING",
+                "paste_ready_blockers": ["slot_contract_failed:B5:multiple_primary_promises"],
+                "review_only_warnings": ["rufus_backend_search_terms_underused"],
+            },
+        },
+    }
+    scoring_results = {
+        "action_required": "可直接上架",
+        "dimensions": {
+            "traffic": {"score": 100, "max": 100, "status": "pass"},
+            "content": {"score": 92, "max": 100, "status": "pass"},
+            "conversion": {"score": 89, "max": 100, "status": "pass"},
+            "readability": {"score": 30, "max": 30, "status": "pass"},
+        },
+    }
+
+    summary = rb.build_readiness_summary(
+        sku="H91lite_US",
+        run_id="version_a",
+        generated_copy=generated_copy,
+        scoring_results=scoring_results,
+        risk_report={"listing_status": {"status": "READY_FOR_LISTING", "blocking_reasons": []}},
+        generated_at="2026-04-30T00:00:00",
+    )
+
+    assert "候选文案状态" in summary
+    assert "NOT_READY_FOR_LISTING" in summary
+    assert "slot_contract_failed:B5:multiple_primary_promises" in summary
+    assert "final_readiness_verdict.json" in summary
+    assert "可直接上架" not in summary

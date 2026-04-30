@@ -12,6 +12,7 @@ modules/
 ├── claim_language_contract.py # 合规语言审计与语义修复
 ├── copy_generation.py      # 文案生成
 ├── field_provenance.py     # 字段来源等级与 launch eligibility
+├── final_visible_quality.py # 最终可见文案质量闸门与确定性修复
 ├── intent_translator.py    # 意图翻译
 ├── keyword_arsenal.py      # 关键词库
 ├── keyword_reconciliation.py # final text 关键词复核
@@ -40,6 +41,7 @@ modules/
 | claim_language_contract.py | 合规语言合同、违规表面词审计与语义修复 | 小 | 2026-04-29 |
 | copy_generation.py | 生成Amazon列表文案 | 大 | 2026-04-03 |
 | field_provenance.py | 字段来源等级、fallback 语义与 launch eligibility | 小 | 2026-04-29 |
+| final_visible_quality.py | 最终可见文案质量闸门、paste-ready blocker 与确定性修复 | 小 | 2026-04-30 |
 | intent_translator.py | 翻译用户意图到文案要求 | 中 | 2026-04-03 |
 | keyword_arsenal.py | 管理和优化关键词库 | 大 | 2026-04-03 |
 | keyword_reconciliation.py | 扫描最终候选文案并按权威 metadata 复核关键词覆盖 | 小 | 2026-04-29 |
@@ -85,6 +87,7 @@ graph TD
 - [main.py](../main.py): 主程序入口
 
 ## 最后更新
+2026-04-30: 新增 final_visible_quality.py 最终可见文案质量闸门索引
 2026-04-29: 新增 canonical_facts.py、claim_language_contract.py、field_provenance.py、slot_contracts.py 合同层索引
 2026-04-29: 新增 image_handoff.py 图片交接模块索引
 2026-04-29: 新增 readiness_verdict.py operational readiness 决策索引

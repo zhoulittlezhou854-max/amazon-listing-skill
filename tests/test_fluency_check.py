@@ -396,3 +396,24 @@ def test_rupture_repair_produces_flowing_header_body(monkeypatch):
     issues = fc.check_fluency("bullet_b5", repaired)
 
     assert not any(issue.rule_id == "header_body_rupture" for issue in issues)
+
+
+def test_fluency_flags_keyword_append_fragment():
+    issues = fc.check_fluency("bullet_b4", "SMOOTH MOTION SETUP — The lens rotates for stable clips Includes pov.")
+
+    assert any(issue.rule_id == "keyword_append_fragment" for issue in issues)
+
+
+def test_fluency_flags_orphan_the_artifact():
+    issues = fc.check_fluency("bullet_b1", "RECORDING POWER — Document your entire travel documentation The.")
+
+    assert any(issue.rule_id == "orphan_the_artifact" for issue in issues)
+
+
+def test_fluency_flags_capitalized_join_artifact():
+    issues = fc.check_fluency(
+        "bullet_b2",
+        "LIGHTWEIGHT — Clips to your vest for extended-session wear Capture crisp 1080P footage.",
+    )
+
+    assert any(issue.rule_id == "capitalized_join_artifact" for issue in issues)
